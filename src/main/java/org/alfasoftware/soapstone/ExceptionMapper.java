@@ -28,6 +28,7 @@ import java.util.Optional;
  */
 public interface ExceptionMapper {
 
+
   /**
    * Map an exception to a {@link WebApplicationException}.
    *
