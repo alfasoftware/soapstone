@@ -4,7 +4,7 @@ jobs:
     - if: repo = alfasoftware/soapstone
       name: "Test"
       script:
-        - git fetch --unshallow --quiet
+        - git fetch --quiet
         - mvn clean test -B -U
 matrix:
   fast_finish: true
