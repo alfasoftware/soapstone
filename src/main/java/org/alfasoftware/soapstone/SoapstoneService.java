@@ -41,6 +41,7 @@ import static javax.ws.rs.HttpMethod.GET;
 import static javax.ws.rs.HttpMethod.POST;
 import static javax.ws.rs.HttpMethod.PUT;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static org.alfasoftware.soapstone.Utils.processHeaders;
 import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
 
 
@@ -81,7 +82,8 @@ public class SoapstoneService {
 
 
   /**
-   * Maps incoming JSON HTTP GET requests to Alfa's web service implementations and executes the relevant method.
+   * Maps incoming JSON HTTP GET requests to web service implementations and executes the relevant method.
+   *
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
    */
@@ -91,7 +93,7 @@ public class SoapstoneService {
   public String get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
     checkIfMethodSupported(uriInfo, GET);
 
-    Map<String, String> headerParameters = HeaderUtils.processHeaders(headers, vendor);
+    Map<String, String> headerParameters = processHeaders(headers, vendor);
     Map<String, String> nonHeaderParameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
 
     return (String) execute(uriInfo.getPath(), nonHeaderParameters, headerParameters);
@@ -99,7 +101,8 @@ public class SoapstoneService {
 
 
   /**
-   * Maps incoming JSON HTTP POST requests to Alfa's web service implementations and executes the relevant method.
+   * Maps incoming JSON HTTP POST requests to web service implementations and executes the relevant method.
+   *
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
    * @param entity The entity to be parsed as a JSON object
@@ -114,7 +117,8 @@ public class SoapstoneService {
 
 
   /**
-   * Maps incoming JSON HTTP PUT requests to Alfa's web service implementations and executes the relevant method.
+   * Maps incoming JSON HTTP PUT requests to web service implementations and executes the relevant method.
+   *
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
    * @param entity The entity to be parsed as a JSON object
@@ -130,7 +134,8 @@ public class SoapstoneService {
 
 
   /**
-   * Maps incoming JSON HTTP DELETE requests to Alfa's web service implementations and executes the relevant method.
+   * Maps incoming JSON HTTP DELETE requests to web service implementations and executes the relevant method.
+   *
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
    * @param entity The entity to be parsed as a JSON object
@@ -151,7 +156,7 @@ public class SoapstoneService {
   private String process(HttpHeaders headers, UriInfo uriInfo, String entity) {
 
     Map<String, String> nonHeaderParameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
-    Map<String, String> headerParameter = HeaderUtils.processHeaders(headers, vendor);
+    Map<String, String> headerParameter = processHeaders(headers, vendor);
 
     JsonNode jsonNode;
     try {

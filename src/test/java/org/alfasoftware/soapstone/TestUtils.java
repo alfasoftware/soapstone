@@ -15,12 +15,9 @@
 package org.alfasoftware.soapstone;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
@@ -31,6 +28,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -40,22 +38,9 @@ import static org.mockito.Mockito.when;
  */
 public class TestUtils {
 
-  @Rule public final ExpectedException exception = ExpectedException.none();
 
-  @Mock private UriInfo uriInfo;
-
-  private final ObjectMapper objectMapper = new ObjectMapper();
-  private final MultivaluedMap<String, String> multiValuedMap = new MultivaluedHashMap<>();
-
-  /**
-   * Set up the tests
-   */
-  @Before
-  public void setUp() {
-    MockitoAnnotations.initMocks(this);
-
-    when(uriInfo.getQueryParameters()).thenReturn(multiValuedMap);
-  }
+  @Rule
+  public final ExpectedException exception = ExpectedException.none();
 
 
   /**
@@ -79,11 +64,16 @@ public class TestUtils {
 
 
   /**
-   * Tests that the {@link Utils#simplifyQueryParameters(javax.ws.rs.core.UriInfo, ObjectMapper)} method functions
+   * Tests that the {@link Utils#simplifyQueryParameters(UriInfo, ObjectMapper)} method functions
    * correctly.
    */
   @Test
   public void testSimplifyQueryParameters() {
+
+    MultivaluedMap<String, String> multiValuedMap = new MultivaluedHashMap<>();
+
+    UriInfo uriInfo = mock(UriInfo.class);
+    when(uriInfo.getQueryParameters()).thenReturn(multiValuedMap);
 
     // Given
     multiValuedMap.put("key1", singletonList("value1"));
@@ -92,7 +82,7 @@ public class TestUtils {
     String expectedSimplifiedResult = "{key1=value1, key2=[\"1\",\"2\"]}";
 
     // When
-    Map<String, String> result = Utils.simplifyQueryParameters(uriInfo, objectMapper);
+    Map<String, String> result = Utils.simplifyQueryParameters(uriInfo, new ObjectMapper());
 
     assertEquals("Query parameters incorrectly simplified", expectedSimplifiedResult, result.toString());
   }
