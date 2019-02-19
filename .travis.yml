@@ -6,11 +6,11 @@ jobs:
   include:
     - if: repo = alfasoftware/soapstone AND type = pull_request
       name: "Test"
-      script: mvn clean test -B -U
+      script: mvn clean test -B -U -Pdefault
     - if: repo = alfasoftware/soapstone AND (branch = master OR tag IS present) AND NOT type = pull_request
       name: "Test and Deploy"
-      script: mvn clean test -B -U
-#          - echo $GPG_SECRET_KEYS | base64 --decode | $GPG_EXECUTABLE --import
-#          - echo $GPG_OWNERTRUST | base64 --decode | $GPG_EXECUTABLE --import-ownertrust
-#          - mvn clean deploy --settings .maven-settings.xml -B -U -Prelease
+      script:
+          - echo $GPG_SECRET_KEYS | base64 --decode | $GPG_EXECUTABLE --import
+          - echo $GPG_OWNERTRUST | base64 --decode | $GPG_EXECUTABLE --import-ownertrust
+          - mvn clean deploy --settings .maven-settings.xml -B -U -Prelease
 
