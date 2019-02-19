@@ -1,14 +1,14 @@
 language: java
 jdk:
   - oraclejdk8
-  - openjdk11
+#  - openjdk11
 jobs:
   include:
     - if: repo = alfasoftware/soapstone AND type = pull_request
       name: "Test"
       script: mvn clean test -B -U
     - if: repo = alfasoftware/soapstone AND (branch = master OR tag IS present) AND NOT type = pull_request
-      name: "Test Deploy"
+      name: "Test and Deploy"
       script: mvn clean test -B -U
 #          - echo $GPG_SECRET_KEYS | base64 --decode | $GPG_EXECUTABLE --import
 #          - echo $GPG_OWNERTRUST | base64 --decode | $GPG_EXECUTABLE --import-ownertrust
