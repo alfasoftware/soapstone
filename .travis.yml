@@ -1,0 +1,22 @@
+language: java
+install: true
+jobs:
+  include:
+    - if: repo = alfasoftware/soapstone AND branch = master AND NOT type = pull_request
+      name: "Test"
+      script:
+        - git fetch --unshallow --quiet
+        - mvn clean test -B -U
+    - if: repo = alfasoftware/soapstone AND (branch = master OR tag IS present) AND NOT type = pull_request
+      name: "Deploy"
+      script:
+        - echo $GPG_SECRET_KEYS | base64 --decode | $GPG_EXECUTABLE --import
+        - echo $GPG_OWNERTRUST | base64 --decode | $GPG_EXECUTABLE --import-ownertrust
+        - mvn clean deploy --settings .maven-settings.xml -B -U -Prelease
+matrix:
+  fast_finish: true
+  include:
+    - jdk: oraclejdk8
+cache:
+  directories:
+    - '$HOME/.m2/repository'
