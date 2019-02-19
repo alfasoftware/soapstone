@@ -1,5 +1,4 @@
 language: java
-install: true
 jobs:
   include:
     - if: repo = alfasoftware/soapstone
