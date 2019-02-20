@@ -2,6 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.alfasoftware</groupId>
@@ -9,23 +10,61 @@
   <version>1.0.0</version>
 
   <name>soapstone</name>
-  <description>soapstone is a library for exposing API catalogues of JAX-WS SOAP web services as JSON/HTTP.
-  </description>
+  <description>soapstone is a library for exposing API catalogues of JAX-WS SOAP web services as JSON/HTTP.</description>
+  <url>https://github.com/alfasoftware/soapstone</url>
 
   <organization>
     <name>Alfa Financial Software Ltd</name>
     <url>http://alfasoftware.org</url>
   </organization>
 
+  <properties>
+    <maven-compiler-plugin.version>3.6.1</maven-compiler-plugin.version>
+    <maven-javadoc-plugin.version>2.9.1</maven-javadoc-plugin.version>
+    <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
+  </properties>
+
+
   <build>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven-compiler-plugin.version}</version>
         <configuration>
           <source>8</source>
           <target>8</target>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>${maven-javadoc-plugin.version}</version>
+        <configuration>
+          <failOnError>true</failOnError>
+          <quiet>true</quiet>
+        </configuration>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>${maven-source-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
@@ -145,6 +184,33 @@
     </license>
   </licenses>
 
+  <developers>
+    <developer>
+      <name>James Bartlett</name>
+      <email>james.bartlett@alfasystems.com</email>
+      <organization>Alfa Financial Software Limited</organization>
+      <organizationUrl>http://alfasystems.com</organizationUrl>
+    </developer>
+    <developer>
+      <name>Sophie Edgar-Andrews</name>
+      <email>sophie.edgar-andrews@alfasystems.com</email>
+      <organization>Alfa Financial Software Limited</organization>
+      <organizationUrl>http://alfasystems.com</organizationUrl>
+    </developer>
+  </developers>
+
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>https://github.com/alfasoftware/soapstone/issues</url>
+  </issueManagement>
+
+  <scm>
+    <connection>scm:git:https://github.com/alfasoftware/soapstone.git</connection>
+    <developerConnection>scm:git:git@github.com:alfasoftware/soapstone.git</developerConnection>
+    <url>https://github.com/alfasoftware/soapstone</url>
+    <tag>HEAD</tag>
+  </scm>
+
   <distributionManagement>
     <snapshotRepository>
       <id>ossrh</id>
@@ -155,5 +221,6 @@
       <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
     </repository>
   </distributionManagement>
+
 </project>
 
