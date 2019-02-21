@@ -35,4 +35,62 @@ web application exceptions.
 
 ## Examples
 
-A set of examples for usage of the builder and of the services themselves will follow shortly.
+### Building the SoapstoneService in a JAX-RS Application
+
+```java
+/**
+  * JAX RS {@link Application} to host the Soapstone service.
+  */
+ class ExampleApplication extends Application {
+ 
+  ...
+ 
+   /**
+    * @see Application#getSingletons()
+    */
+   @Override
+   public Set<Object> getSingletons() {
+ 
+     // Endpoints is some representation of your JAX-WS endpoints. In this case it happens to be
+     // a JAXB representation of a sun-jaxws.xml file which defines endpoints as elements like:
+     // <endpoint name="ServiceName" implementation="package.name.ClassName" url-pattern="/path/to/Service"/>
+     Endpoints endpoints = ...;
+ 
+     Map<String, WebServiceClass<?>> endpointClasses = endpoints.endpoints.stream()
+       .collect(toMap(Endpoint::getUrlPattern, // key on the existing web service URL pattern, we'll use the same pattern
+         endpoint -> createWebServiceClassForImplementation(endpoint.getImplementation()))); // Locate the web service class
+ 
+     // Create our service
+     SoapstoneService soapstoneService = new SoapstoneServiceBuilder(endpointClasses)
+       .withSupportedGetOperations("list.*", "get.*")
+       .withSupportedPutOperations("update.*", "save.*")
+       .withSupportedDeleteOperations("delete.*", "remove.*")
+       .withVendor("ExampleCompany")
+       .withExceptionMapper(new ExampleExceptionMapper())
+       .build();
+ 
+     return Collections.singleton(soapstoneService);
+   }
+ 
+ 
+   /*
+    * Private helper method to create a WebServiceClass for the implementation class.
+    */
+   private WebServiceClass<?> createWebServiceClassForImplementation(String className) {
+     try {
+       return createWebServiceClass(Class.forName(className));
+     } catch (ClassNotFoundException e) {
+       throw new IllegalStateException("No web service class found", e);
+     }
+   }
+ 
+ 
+   /*
+    * Private helper method to create a WebServiceClass for the class.
+    * This uses some injector for instantiation of the classes.
+    */
+   private <U> WebServiceClass<?> createWebServiceClass(Class<U> klass) {
+     return WebServiceClass.forClass(klass, () -> injector.getInstance(klass));
+   }
+ }
+```
