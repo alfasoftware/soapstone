@@ -22,6 +22,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotAllowedException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -221,10 +222,24 @@ public class SoapstoneService {
    */
   private Object execute(String path, Map<String, String> nonHeaderParameters, Map<String, String> headerParameters) {
     try {
+
+      // Check we have a legal path: path/operation
+      if (path.indexOf('/') < 0) {
+        throw new NotFoundException();
+      }
+
+      // Split into path and operation
       String operationName = path.substring(path.lastIndexOf('/') + 1);
       String pathKey = path.substring(0, path.lastIndexOf('/'));
 
-      Object object = webServiceClasses.get(pathKey).invokeOperation(operationName, nonHeaderParameters, headerParameters);
+      // Check the path is mapped to a web service class
+      WebServiceClass<?> webServiceClass = webServiceClasses.get(pathKey);
+      if (webServiceClass == null) {
+        throw new NotFoundException();
+      }
+
+      // Invoke the operation
+      Object object = webServiceClass.invokeOperation(operationName, nonHeaderParameters, headerParameters);
       return Mappers.INSTANCE.getObjectMapper().writeValueAsString(object);
     } catch (JsonProcessingException e) {
       e.printStackTrace();

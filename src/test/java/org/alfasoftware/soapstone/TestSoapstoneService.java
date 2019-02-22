@@ -25,6 +25,7 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import javax.ws.rs.NotAllowedException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
@@ -69,7 +70,6 @@ public class TestSoapstoneService {
   private final MultivaluedMap<String, String> queryParameters = new MultivaluedHashMap<>();
   private final MultivaluedMap<String, String> headersMap = new MultivaluedHashMap<>();
 
-  private String operation;
   private SoapstoneService soapstoneService;
 
 
@@ -104,7 +104,7 @@ public class TestSoapstoneService {
   public void testGet() {
 
     // Given
-    operation = "loadAll";
+    String operation = "loadAll";
     when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
     soapstoneService = createService();
 
@@ -125,13 +125,13 @@ public class TestSoapstoneService {
 
 
   /**
-   * Tests the {@linkplain SoapstoneService#post(HttpHeaders, UriInfo)} method.
+   * Tests the {@linkplain SoapstoneService#post(HttpHeaders, UriInfo, String)} method.
    */
   @Test
   public void testPost() {
 
     // Given
-    operation = "anyOperation";
+    String operation = "anyOperation";
     when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
     soapstoneService = createService();
 
@@ -153,13 +153,13 @@ public class TestSoapstoneService {
 
 
   /**
-   * Tests the {@linkplain SoapstoneService#put(String, UriInfo, String)} method.
+   * Tests the {@linkplain SoapstoneService#put(HttpHeaders, UriInfo, String)} method.
    */
   @Test
   public void testPut() {
 
     // Given
-    operation = "update";
+    String operation = "update";
     when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
     soapstoneService = createService();
 
@@ -173,13 +173,13 @@ public class TestSoapstoneService {
 
 
   /**
-   * Tests the {@linkplain SoapstoneService#delete(String, UriInfo, String)} method.
+   * Tests the {@linkplain SoapstoneService#delete(HttpHeaders, UriInfo, String)} method.
    */
   @Test
   public void testDelete() {
 
     // Given
-    operation = "remove";
+    String operation = "remove";
     when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
     soapstoneService = createService();
 
@@ -199,7 +199,7 @@ public class TestSoapstoneService {
   public void testMethodNotAllowed() {
 
     // Given
-    operation = "forbiddenMethod";
+    String operation = "forbiddenMethod";
     when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
     soapstoneService = createService();
 
@@ -218,7 +218,7 @@ public class TestSoapstoneService {
   public void testMethodNotAllowedButSupportedByDELETE() {
 
     // Given
-    operation = "deleteFile";
+    String operation = "deleteFile";
     when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
     soapstoneService = createService();
 
@@ -240,7 +240,7 @@ public class TestSoapstoneService {
   public void testProcessingOfCombinedContextHeader() {
 
     // Given
-    operation = "loadAll";
+    String operation = "loadAll";
     MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
     requestHeaders.put("X-Vendor-Context", singletonList("userId=USER;realmId=REALM;localeCode=en_gb"));
 
@@ -270,7 +270,7 @@ public class TestSoapstoneService {
   public void testProcessingOfIndividualPropertyContextHeader() {
 
     // Given
-    operation = "loadAll";
+    String operation = "loadAll";
 
     MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
     requestHeaders.put("X-Vendor-Context-UserId", singletonList("USER"));
@@ -306,7 +306,7 @@ public class TestSoapstoneService {
   public void testProcessingBothCombinedAndIndividualContextHeaders() {
 
     // Given
-    operation = "loadAll";
+    String operation = "loadAll";
 
     MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
     requestHeaders.put("X-Vendor-Context", singletonList("userId=USER;realmId=REALM;localeCode=en_gb"));
@@ -334,6 +334,37 @@ public class TestSoapstoneService {
     Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
     assertEquals("The captured header values map should contain only one entry", 1, capturedHeaderValues.size());
     assertEquals("The context is incorrect", requestInJson, capturedHeaderValues.get("context"));
+  }
+
+
+  /**
+   * Test that we get a 404 if we invoke on a path that does not match
+   * path/operation. I.e. contains at least one '/'
+   */
+  @Test
+  public void testInvocationOnIllegalPath() {
+
+    when(uriInfo.getPath()).thenReturn("illegalpath");
+
+    soapstoneService = createService();
+
+    exception.expect(NotFoundException.class);
+    soapstoneService.post(headers, uriInfo, "{ \"hey\" : \"there\" }");
+  }
+
+
+  /**
+   * Test that we get a 404 if we invoke on a path that is not mapped
+   */
+  @Test
+  public void testInvocationOnUnmappedPath() {
+
+    when(uriInfo.getPath()).thenReturn("incorrectpath/operation");
+
+    soapstoneService = createService();
+
+    exception.expect(NotFoundException.class);
+    soapstoneService.post(headers, uriInfo, "{ \"hey\" : \"there\" }");
   }
 
 
