@@ -113,6 +113,25 @@ public class TestWebServiceClass {
 
 
   /**
+   * Test that headers are treated as optional. An invocation should not fail if there are missing header parameters.
+   */
+  @Test
+  public void testInvokeOperationWhenHeaderParamsAbsent() {
+
+    // Given
+    nonHeaderParameters.put("parameter", "parameterValue");
+
+    // When
+    Object object = webServiceClass.invokeOperation("methodWithCorrectlyAnnotatedHeaderParam", nonHeaderParameters, headerParameters);
+
+    // Then
+    assertEquals("The method was not invoked", EXPECTED_RESPONSE, object.toString());
+
+
+  }
+
+
+  /**
    * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly throws a
    * relevant {@link WebApplicationException} when appropriate.
    */

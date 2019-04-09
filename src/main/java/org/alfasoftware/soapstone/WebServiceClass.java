@@ -27,7 +27,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -166,16 +165,24 @@ public class WebServiceClass<T> {
    */
   private boolean matchesParameters(Method method, Set<String> parameterNames, Set<String> headerParameterNames) {
 
-    Parameter[] methodParameters = method.getParameters();
-
-    // Check that the header parameters are correctly annotated with @WebParam(header = true)
-    Set<String> headerParameters = Arrays.stream(methodParameters)
+    // Collect all valid parameters
+    Set<Parameter> allParameters = Arrays.stream(method.getParameters())
         .filter(parameter -> parameter.getAnnotation(WebParam.class) != null)
-        .filter(parameter -> parameter.getAnnotation(WebParam.class).header()) // Filter only the parameters where header = true
-        .map(parameter -> parameter.getAnnotation(WebParam.class).name())
         .collect(Collectors.toSet());
 
-    // If not correctly annotated, throw a bad request exception
+    // Get all header parameter names
+    Set<String> headerParameters = allParameters.stream()
+        .filter(parameter -> parameter.getAnnotation(WebParam.class).header()) // Filter only the parameters where header = true
+      .map(parameter -> parameter.getAnnotation(WebParam.class).name())
+        .collect(Collectors.toSet());
+
+    // Get all non header parameter names
+    Set<String> nonHeaderParameters = allParameters.stream()
+      .map(parameter -> parameter.getAnnotation(WebParam.class).name())
+      .filter(parameter -> !headerParameters.contains(parameter))
+      .collect(Collectors.toSet());
+
+    // We should not have been passed any unsupported header parameters
     if (!headerParameters.containsAll(headerParameterNames)) {
       throw new BadRequestException(
         Response.status(Response.Status.BAD_REQUEST)
@@ -183,16 +190,8 @@ public class WebServiceClass<T> {
         .build());
     }
 
-    Set<String> combinedParameterNames = new HashSet<>(); // Combine the method and header parameters
-    combinedParameterNames.addAll(headerParameterNames);
-    combinedParameterNames.addAll(parameterNames);
-
-    Set<String> allParameters = Arrays.stream(methodParameters)
-        .filter(parameter -> parameter.getAnnotation(WebParam.class) != null)
-        .map(parameter -> parameter.getAnnotation(WebParam.class).name())
-        .collect(Collectors.toSet());
-
-    return allParameters.containsAll(combinedParameterNames) && allParameters.size() == combinedParameterNames.size();
+    // Check we have a complete set of non-header parameters
+    return nonHeaderParameters.containsAll(parameterNames) && nonHeaderParameters.size() == parameterNames.size();
   }
 
 
