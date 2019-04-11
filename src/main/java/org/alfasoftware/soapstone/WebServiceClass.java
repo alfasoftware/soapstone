@@ -1,20 +1,20 @@
-  /* Copyright 2019 Alfa Financial Software
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   *    http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   */
-  package org.alfasoftware.soapstone;
+/* Copyright 2019 Alfa Financial Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.alfasoftware.soapstone;
 
-  import static org.alfasoftware.soapstone.Mappers.INSTANCE;
+import static org.alfasoftware.soapstone.Mappers.INSTANCE;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -40,146 +40,144 @@ import javax.ws.rs.core.Response;
 
 import com.fasterxml.jackson.databind.JavaType;
 
-  /**
-   * A wrapper around a class representing a web service endpoint
-   *
-   * @param <T> the type of the wrapped class
+/**
+ * A wrapper around a class representing a web service endpoint
  *
-   * @author Copyright (c) Alfa Financial Software 2019
-   */
-  public class WebServiceClass<T> {
+ * @param <T> the type of the wrapped class
+ * @author Copyright (c) Alfa Financial Software 2019
+ */
+public class WebServiceClass<T> {
 
-    private final Class<T> klass;
-    private final Supplier<T> instance;
+  private final Class<T> klass;
+  private final Supplier<T> instance;
 
-    private final TypeConverter typeConverter = new TypeConverter(Locale.getDefault());
-
-
-    /**
-     * Create a new WebServiceClass for a class representing a web service endpoint
-     *
-     * @param klass            the class for which to create
-     * @param instanceSupplier a supplier of an instance of klass
-     * @param <U>              type of klass
-     * @return a new WebServiceClass
-     */
-    public static <U> WebServiceClass<U> forClass(Class<U> klass, Supplier<U> instanceSupplier) {
-      return new WebServiceClass<>(klass, instanceSupplier);
-    }
+  private final TypeConverter typeConverter = new TypeConverter(Locale.getDefault());
 
 
-    private WebServiceClass(Class<T> klass, Supplier<T> instanceSupplier) {
-      this.klass = klass;
-      this.instance = instanceSupplier;
-    }
-
-
-    /**
-     * Invoke the web service operation and return its return value
-     *
-     * <p>
-     * The return value conforms to that stated for {@link Method#invoke(Object, Object...)},
-     * e.g., will be null if the underlying return type is void; will be boxed if the underlying
-     * return type is primitive.
-     *
-     * @param operationName    Name of the operation
-     * @param parameters       Parameters
-     * @param headerParameters Headers
+  /**
+   * Create a new WebServiceClass for a class representing a web service endpoint
    *
-     * @return the return value of the operation
-     */
-    Object invokeOperation(String operationName, Map<String, String> parameters, Map<String, String> headerParameters) {
+   * @param klass            the class for which to create
+   * @param instanceSupplier a supplier of an instance of klass
+   * @param <U>              type of klass
+   * @return a new WebServiceClass
+   */
+  public static <U> WebServiceClass<U> forClass(Class<U> klass, Supplier<U> instanceSupplier) {
+    return new WebServiceClass<>(klass, instanceSupplier);
+  }
 
-      Method operation = getOperation(operationName, parameters.keySet(), headerParameters.keySet());
 
-      Map<String, String> combinedParameters = new HashMap<>();
-      combinedParameters.putAll(parameters);
-      combinedParameters.putAll(headerParameters);
+  private WebServiceClass(Class<T> klass, Supplier<T> instanceSupplier) {
+    this.klass = klass;
+    this.instance = instanceSupplier;
+  }
 
-      Object[] operationArgs = Arrays.stream(operation.getParameters())
-        .map(operationParameter -> parameterToType(operationParameter, combinedParameters))
-        .toArray();
 
-      try {
-        return operation.invoke(instance.get(), operationArgs);
-      } catch (InvocationTargetException e) {
+  /**
+   * Invoke the web service operation and return its return value
+   *
+   * <p>
+   * The return value conforms to that stated for {@link Method#invoke(Object, Object...)},
+   * e.g., will be null if the underlying return type is void; will be boxed if the underlying
+   * return type is primitive.
+   *
+   * @param operationName    Name of the operation
+   * @param parameters       Parameters
+   * @param headerParameters Headers
+   * @return the return value of the operation
+   */
+  Object invokeOperation(String operationName, Map<String, String> parameters, Map<String, String> headerParameters) {
 
-        throw Optional.ofNullable(INSTANCE.getExceptionMapper())
-          .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), INSTANCE.getObjectMapper()))
-          .orElse(new InternalServerErrorException());
+    Method operation = getOperation(operationName, parameters.keySet(), headerParameters.keySet());
 
-      } catch (IllegalAccessException e) {
-        /*
-         * We've already thoroughly checked that the method was valid and accessible, so this shouldn't happen.
-         * If it does, it's something more nefarious than a 404
-         */
-        throw new InternalServerErrorException();
-      }
+    Map<String, String> combinedParameters = new HashMap<>();
+    combinedParameters.putAll(parameters);
+    combinedParameters.putAll(headerParameters);
+
+    Object[] operationArgs = Arrays.stream(operation.getParameters())
+      .map(operationParameter -> parameterToType(operationParameter, combinedParameters))
+      .toArray();
+
+    try {
+      return operation.invoke(instance.get(), operationArgs);
+    } catch (InvocationTargetException e) {
+
+      throw Optional.ofNullable(INSTANCE.getExceptionMapper())
+        .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), INSTANCE.getObjectMapper()))
+        .orElse(new InternalServerErrorException());
+
+    } catch (IllegalAccessException e) {
+      /*
+       * We've already thoroughly checked that the method was valid and accessible, so this shouldn't happen.
+       * If it does, it's something more nefarious than a 404
+       */
+      throw new InternalServerErrorException();
+    }
+  }
+
+
+  /*
+   * Get the method for the requested operation
+   */
+  private Method getOperation(String operationName, Set<String> parameterNames, Set<String> headerParameterNames) {
+
+    Method[] declaredMethods = klass.getDeclaredMethods();
+    List<Method> methods = Arrays.stream(declaredMethods)
+      .filter(method -> method.getName().equals(operationName)) // find a method with the same name as the requested operation
+      .filter(method -> matchesParameters(method, parameterNames, headerParameterNames)) // Check that the method parameters matched those passed
+      .filter(this::methodIsWebMethod) // Check that the method is actually exposed via web services
+      .collect(Collectors.toList());
+
+    if (methods.isEmpty()) {
+      throw new NotFoundException();
     }
 
-
-    /*
-     * Get the method for the requested operation
-     */
-    private Method getOperation(String operationName, Set<String> parameterNames, Set<String> headerParameterNames) {
-
-      Method[] declaredMethods = klass.getDeclaredMethods();
-      List<Method> methods = Arrays.stream(declaredMethods)
-        .filter(method -> method.getName().equals(operationName)) // find a method with the same name as the requested operation
-        .filter(method -> matchesParameters(method, parameterNames, headerParameterNames)) // Check that the method parameters matched those passed
-        .filter(this::methodIsWebMethod) // Check that the method is actually exposed via web services
-        .collect(Collectors.toList());
-
-      if (methods.isEmpty()) {
-        throw new NotFoundException();
-      }
-
-      if (methods.size() > 1) {
-        /*
-         * This seems appropriate: the request has insufficient information for us to determine what method the user
-         * is trying to call. This might because there are two methods with the same name and same-named arguments
-         * but that is simply unfortunate (and somewhat unlikely)
-         */
-        throw new BadRequestException("Unable to distinguish methods");
-      }
-
-      return methods.get(0);
+    if (methods.size() > 1) {
+      /*
+       * This seems appropriate: the request has insufficient information for us to determine what method the user
+       * is trying to call. This might because there are two methods with the same name and same-named arguments
+       * but that is simply unfortunate (and somewhat unlikely)
+       */
+      throw new BadRequestException("Unable to distinguish methods");
     }
 
+    return methods.get(0);
+  }
 
-    /*
-     * Check the method is public and not specifically excluded from web services.
-     * This should be sufficient to ensure we only serve methods actually provided
-     * by the web services
-     */
-    private boolean methodIsWebMethod(Method method) {
 
-      // only public methods can be published
-      if (!Modifier.isPublic(method.getModifiers())) {
-        return false;
-      }
+  /*
+   * Check the method is public and not specifically excluded from web services.
+   * This should be sufficient to ensure we only serve methods actually provided
+   * by the web services
+   */
+  private boolean methodIsWebMethod(Method method) {
 
-      // check if WebMethod annotation exists and exclude is true, if so then not a web method
-      WebMethod webMethod = method.getAnnotation(WebMethod.class);
-      return webMethod == null || !webMethod.exclude();
+    // only public methods can be published
+    if (!Modifier.isPublic(method.getModifiers())) {
+      return false;
     }
 
+    // check if WebMethod annotation exists and exclude is true, if so then not a web method
+    WebMethod webMethod = method.getAnnotation(WebMethod.class);
+    return webMethod == null || !webMethod.exclude();
+  }
 
-    /*
-     * Check that the given method has all and only the parameters passed in
-     */
-    private boolean matchesParameters(Method method, Set<String> parameterNames, Set<String> headerParameterNames) {
+
+  /*
+   * Check that the given method has all and only the parameters passed in
+   */
+  private boolean matchesParameters(Method method, Set<String> parameterNames, Set<String> headerParameterNames) {
 
     // Collect all valid parameters
     Set<Parameter> allParameters = Arrays.stream(method.getParameters())
-        .filter(parameter -> parameter.getAnnotation(WebParam.class) != null)
-        .collect(Collectors.toSet());
+      .filter(parameter -> parameter.getAnnotation(WebParam.class) != null)
+      .collect(Collectors.toSet());
 
     // Get all header parameter names
     Set<String> headerParameters = allParameters.stream()
-        .filter(parameter -> parameter.getAnnotation(WebParam.class).header()) // Filter only the parameters where header = true
-        .map(parameter -> parameter.getAnnotation(WebParam.class).name())
-        .collect(Collectors.toSet());
+      .filter(parameter -> parameter.getAnnotation(WebParam.class).header()) // Filter only the parameters where header = true
+      .map(parameter -> parameter.getAnnotation(WebParam.class).name())
+      .collect(Collectors.toSet());
 
     // Get all non header parameter names
     Set<String> nonHeaderParameters = allParameters.stream()
@@ -188,48 +186,47 @@ import com.fasterxml.jackson.databind.JavaType;
       .collect(Collectors.toSet());
 
     // We should not have been passed any unsupported header parameters
-      if (!headerParameters.containsAll(headerParameterNames)) {
-        throw new BadRequestException(
-          Response.status(Response.Status.BAD_REQUEST)
-            .entity(headerParameterNames)
-            .build());
-      }
+    if (!headerParameters.containsAll(headerParameterNames)) {
+      throw new BadRequestException(
+        Response.status(Response.Status.BAD_REQUEST)
+          .entity(headerParameterNames)
+          .build());
+    }
 
     // Check we have a complete set of non-header parameters
     return nonHeaderParameters.containsAll(parameterNames) && nonHeaderParameters.size() == parameterNames.size();
-    }
-
-
-    /*
-     * Map any primitives, strings or JSON to actual types.
-     */
-    private Object parameterToType(Parameter operationParameter, Map<String, String> parameters) {
-
-      String argumentAsString = parameters.get(operationParameter.getAnnotation(WebParam.class).name());
-
-      if (argumentAsString == null || argumentAsString.trim().isEmpty() || argumentAsString.equals("null")) {
-        return null;
-      }
-
-      // Try type converter. This should work for common serialisations in query parameters
-      Object object = typeConverter.convertValue(argumentAsString, operationParameter.getType());
-
-      if (object != null) {
-        return object;
-      }
-
-      /*
-       * The only other option is JSON. Try the mapper. If it doesn't work, then the request is
-       *presumably malformed
-       */
-      JavaType type = INSTANCE.getObjectMapper().constructType(operationParameter.getParameterizedType());
-
-      try {
-        return INSTANCE.getObjectMapper().readValue(argumentAsString, type);
-      } catch (IOException e) {
-        e.printStackTrace();
-        throw new BadRequestException();
-      }
-    }
   }
 
+
+  /*
+   * Map any primitives, strings or JSON to actual types.
+   */
+  private Object parameterToType(Parameter operationParameter, Map<String, String> parameters) {
+
+    String argumentAsString = parameters.get(operationParameter.getAnnotation(WebParam.class).name());
+
+    if (argumentAsString == null || argumentAsString.trim().isEmpty() || argumentAsString.equals("null")) {
+      return null;
+    }
+
+    // Try type converter. This should work for common serialisations in query parameters
+    Object object = typeConverter.convertValue(argumentAsString, operationParameter.getType());
+
+    if (object != null) {
+      return object;
+    }
+
+    /*
+     * The only other option is JSON. Try the mapper. If it doesn't work, then the request is
+     *presumably malformed
+     */
+    JavaType type = INSTANCE.getObjectMapper().constructType(operationParameter.getParameterizedType());
+
+    try {
+      return INSTANCE.getObjectMapper().readValue(argumentAsString, type);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw new BadRequestException();
+    }
+  }
+}

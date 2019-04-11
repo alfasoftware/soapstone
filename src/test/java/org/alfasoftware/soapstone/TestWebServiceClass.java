@@ -1,62 +1,65 @@
-  /* Copyright 2019 Alfa Financial Software
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   *    http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   */
-  package org.alfasoftware.soapstone;
+/* Copyright 2019 Alfa Financial Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.alfasoftware.soapstone;
 
-  import static org.junit.Assert.assertEquals;
-  import static org.mockito.Matchers.any;
-  import static org.mockito.Matchers.eq;
-  import static org.mockito.Mockito.mock;
-  import static org.mockito.Mockito.verify;
-  import static org.mockito.Mockito.when;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-  import java.io.IOException;
-  import java.lang.reflect.Type;
-  import java.util.HashMap;
-  import java.util.List;
-  import java.util.Map;
-  import java.util.Optional;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
-  import javax.ws.rs.BadRequestException;
-  import javax.ws.rs.InternalServerErrorException;
-  import javax.ws.rs.NotFoundException;
-  import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.WebApplicationException;
 
-  import org.alfasoftware.soapstone.testsupport.CustomParameterClass;
-  import org.alfasoftware.soapstone.testsupport.MockedClassForTestingJsonHttp;
-  import org.glassfish.hk2.api.TypeLiteral;
-  import org.joda.time.LocalDate;
-  import org.junit.Before;
-  import org.junit.Rule;
-  import org.junit.Test;
-  import org.junit.rules.ExpectedException;
-  import org.mockito.Mock;
-  import org.mockito.MockitoAnnotations;
+import org.alfasoftware.soapstone.testsupport.CustomParameterClass;
+import org.alfasoftware.soapstone.testsupport.MockedClassForTestingJsonHttp;
+import org.glassfish.hk2.api.TypeLiteral;
+import org.joda.time.LocalDate;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-  import com.fasterxml.jackson.databind.JavaType;
-  import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-  /**
+/**
  * Tests for the {@link WebServiceClass} class.
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
 public class TestWebServiceClass {
 
-  @Mock private ExceptionMapper exceptionMapper;
-  @Mock private WebApplicationException webApplicationException;
-  @Mock private ObjectMapper objectMapper;
+  @Mock
+  private ExceptionMapper exceptionMapper;
+  @Mock
+  private WebApplicationException webApplicationException;
+  @Mock
+  private ObjectMapper objectMapper;
 
   @Rule
   public final ExpectedException exception = ExpectedException.none();
@@ -365,7 +368,8 @@ public class TestWebServiceClass {
     nonHeaderParameters.put("customParameters", argumentAsString);
 
     JavaType javaType = mock(JavaType.class);
-    Type type = new TypeLiteral<List<CustomParameterClass>>(){}.getType();
+    Type type = new TypeLiteral<List<CustomParameterClass>>() {
+    }.getType();
     when(objectMapper.constructType(type)).thenReturn(javaType);
 
     // When
