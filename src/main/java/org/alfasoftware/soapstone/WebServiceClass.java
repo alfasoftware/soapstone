@@ -16,35 +16,35 @@
 
   import static org.alfasoftware.soapstone.Mappers.INSTANCE;
 
-  import java.io.IOException;
-  import java.lang.reflect.InvocationTargetException;
-  import java.lang.reflect.Method;
-  import java.lang.reflect.Modifier;
-  import java.lang.reflect.Parameter;
-  import java.util.Arrays;
-  import java.util.HashMap;
-  import java.util.HashSet;
-  import java.util.List;
-  import java.util.Locale;
-  import java.util.Map;
-  import java.util.Optional;
-  import java.util.Set;
-  import java.util.function.Supplier;
-  import java.util.stream.Collectors;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
-  import javax.jws.WebMethod;
-  import javax.jws.WebParam;
-  import javax.ws.rs.BadRequestException;
-  import javax.ws.rs.InternalServerErrorException;
-  import javax.ws.rs.NotFoundException;
-  import javax.ws.rs.core.Response;
+import javax.jws.WebMethod;
+import javax.jws.WebParam;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.core.Response;
 
-  import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JavaType;
 
   /**
    * A wrapper around a class representing a web service endpoint
    *
    * @param <T> the type of the wrapped class
+ *
    * @author Copyright (c) Alfa Financial Software 2019
    */
   public class WebServiceClass<T> {
@@ -85,6 +85,7 @@
      * @param operationName    Name of the operation
      * @param parameters       Parameters
      * @param headerParameters Headers
+   *
      * @return the return value of the operation
      */
     Object invokeOperation(String operationName, Map<String, String> parameters, Map<String, String> headerParameters) {
@@ -169,16 +170,24 @@
      */
     private boolean matchesParameters(Method method, Set<String> parameterNames, Set<String> headerParameterNames) {
 
-      Parameter[] methodParameters = method.getParameters();
-
-      // Check that the header parameters are correctly annotated with @WebParam(header = true)
-      Set<String> headerParameters = Arrays.stream(methodParameters)
+    // Collect all valid parameters
+    Set<Parameter> allParameters = Arrays.stream(method.getParameters())
         .filter(parameter -> parameter.getAnnotation(WebParam.class) != null)
+        .collect(Collectors.toSet());
+
+    // Get all header parameter names
+    Set<String> headerParameters = allParameters.stream()
         .filter(parameter -> parameter.getAnnotation(WebParam.class).header()) // Filter only the parameters where header = true
         .map(parameter -> parameter.getAnnotation(WebParam.class).name())
         .collect(Collectors.toSet());
 
-      // If not correctly annotated, throw a bad request exception
+    // Get all non header parameter names
+    Set<String> nonHeaderParameters = allParameters.stream()
+      .map(parameter -> parameter.getAnnotation(WebParam.class).name())
+      .filter(parameter -> !headerParameters.contains(parameter))
+      .collect(Collectors.toSet());
+
+    // We should not have been passed any unsupported header parameters
       if (!headerParameters.containsAll(headerParameterNames)) {
         throw new BadRequestException(
           Response.status(Response.Status.BAD_REQUEST)
@@ -186,16 +195,8 @@
             .build());
       }
 
-      Set<String> combinedParameterNames = new HashSet<>(); // Combine the method and header parameters
-      combinedParameterNames.addAll(headerParameterNames);
-      combinedParameterNames.addAll(parameterNames);
-
-      Set<String> allParameters = Arrays.stream(methodParameters)
-        .filter(parameter -> parameter.getAnnotation(WebParam.class) != null)
-        .map(parameter -> parameter.getAnnotation(WebParam.class).name())
-        .collect(Collectors.toSet());
-
-      return allParameters.containsAll(combinedParameterNames) && allParameters.size() == combinedParameterNames.size();
+    // Check we have a complete set of non-header parameters
+    return nonHeaderParameters.containsAll(parameterNames) && nonHeaderParameters.size() == parameterNames.size();
     }
 
 

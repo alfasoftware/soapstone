@@ -36,6 +36,7 @@
   import org.alfasoftware.soapstone.testsupport.CustomParameterClass;
   import org.alfasoftware.soapstone.testsupport.MockedClassForTestingJsonHttp;
   import org.glassfish.hk2.api.TypeLiteral;
+  import org.joda.time.LocalDate;
   import org.junit.Before;
   import org.junit.Rule;
   import org.junit.Test;
@@ -109,6 +110,23 @@ public class TestWebServiceClass {
     // Given
     nonHeaderParameters.put("parameter", "parameterValue");
     headerParameters.put("headerParameter", "headerParameterValue");
+
+    // When
+    Object object = webServiceClass.invokeOperation("methodWithCorrectlyAnnotatedHeaderParam", nonHeaderParameters, headerParameters);
+
+    // Then
+    assertEquals("The method was not invoked", EXPECTED_RESPONSE, object.toString());
+  }
+
+
+  /**
+   * Test that headers are treated as optional. An invocation should not fail if there are missing header parameters.
+   */
+  @Test
+  public void testInvokeOperationWhenHeaderParamsAbsent() {
+
+    // Given
+    nonHeaderParameters.put("parameter", "parameterValue");
 
     // When
     Object object = webServiceClass.invokeOperation("methodWithCorrectlyAnnotatedHeaderParam", nonHeaderParameters, headerParameters);
@@ -290,6 +308,24 @@ public class TestWebServiceClass {
 
     // Then
     assertEquals("Parameter type is incorrect", Integer.class, parameter.getClass());
+  }
+
+
+  /**
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly maps
+   * parameters for methods that require a LocalDate.
+   */
+  @Test
+  public void testParameterToTypeParameterLocalDate() {
+
+    // Given
+    nonHeaderParameters.put("localDateParameter", "01/02/2019");
+
+    // When
+    Object parameter = webServiceClass.invokeOperation("mockedMethodWithLocalDateArg", nonHeaderParameters, headerParameters);
+
+    // Then
+    assertEquals("Parameter type is incorrect", LocalDate.class, parameter.getClass());
   }
 
 
