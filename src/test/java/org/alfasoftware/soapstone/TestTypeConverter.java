@@ -14,7 +14,25 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.google.common.collect.Lists;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import java.lang.reflect.InvocationTargetException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Currency;
+import java.util.Date;
+import java.util.Locale;
+
 import org.alfasoftware.soapstone.testsupport.DummyCustomClass;
 import org.alfasoftware.soapstone.testsupport.DummyGetInstanceClass;
 import org.alfasoftware.soapstone.testsupport.DummyParseableClass;
@@ -27,24 +45,7 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Test;
 
-import java.lang.reflect.InvocationTargetException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Currency;
-import java.util.Date;
-import java.util.Locale;
-
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import com.google.common.collect.Lists;
 
 
 /**
@@ -126,9 +127,9 @@ public class TestTypeConverter {
   public void testCommaSeparatedParsing() {
     assertEquals("Simple number", 42, ukConverter.convertValue("42", Integer.class).intValue());
 
-    assertEquals("Commas-separated number", 12345.67, ukConverter.convertValue("12,345.67", Double.class).doubleValue(), 0.001);
+    assertEquals("Commas-separated number", 12345.67, ukConverter.convertValue("12,345.67", Double.class), 0.001);
 
-    assertEquals("Currency", 3999.99, ukConverter.convertValue('\u00a3' + "3,999.99", Double.class).doubleValue(), 0.001);
+    assertEquals("Currency", 3999.99, ukConverter.convertValue('\u00a3' + "3,999.99", Double.class), 0.001);
   }
 
 
@@ -198,7 +199,6 @@ public class TestTypeConverter {
 
   /**
    * Test date parsing in multiple locales.
-   * @throws ParseException
    */
   @Test
   public void testDates() throws ParseException {
@@ -222,11 +222,10 @@ public class TestTypeConverter {
 
   /**
    * Tests parsing LocalDates in several ways.
-   * @throws ParseException if convert goes wrong.
    */
   @Test
   public void testLocalDates() {
-    assertDates(LocalDate.class, new LocalDate(1977, 12, 4), new LocalDate(2014, 02, 28));
+    assertDates(LocalDate.class, new LocalDate(1977, 12, 4), new LocalDate(2014, 2, 28));
 
     final LocalDate farFuture = new LocalDate(1999, 12, 31);
     assertEquals("UK short date with 4-digit year in far future", farFuture, ukConverter.convertValue("31/12/1999", LocalDate.class));
@@ -281,7 +280,6 @@ public class TestTypeConverter {
 
   /**
    * Test for parsing {@link LocalTime} objects correctly
-   * @throws ParseException
    */
   @Test
   public void testLocalTimesWithWhitespace() throws ParseException {
@@ -332,7 +330,6 @@ public class TestTypeConverter {
 
   /**
    * Test for parsing {@link LocalTime} objects correctly
-   * @throws ParseException
    */
   @Test
   public void testLocalTimes() throws ParseException {
@@ -363,7 +360,6 @@ public class TestTypeConverter {
 
   /**
    * Test for parsing {@link LocalTime} objects correctly
-   * @throws ParseException
    */
   @Test
   public void testISOLocalTimes() throws ParseException {
@@ -385,8 +381,11 @@ public class TestTypeConverter {
   }
 
 
+  /**
+   * Test parsing of invalid time
+   */
   @Test(expected=ParseException.class)
-  public void testconvertTimeFailure() throws ParseException {
+  public void testConvertTimeFailure() throws ParseException {
     ukConverter.convert("invalid", LocalTime.class);
   }
 
@@ -404,8 +403,6 @@ public class TestTypeConverter {
 
   /**
    * Test Locale conversion with language and country
-   *
-   * @throws ParseException
    */
   @Test
   public void testLocaleLangCountry() throws ParseException {
@@ -416,8 +413,6 @@ public class TestTypeConverter {
 
   /**
    * Test Locale conversion with language
-   *
-   * @throws ParseException
    */
   @Test
   public void testLocaleLang() throws ParseException {
@@ -428,8 +423,6 @@ public class TestTypeConverter {
 
   /**
    * Test Locale conversion with language, country and code
-   *
-   * @throws ParseException
    */
   @Test
   public void testLocaleLangCountryCode() throws ParseException {
@@ -440,8 +433,6 @@ public class TestTypeConverter {
 
   /**
    * Test Locale conversion wrong format case
-   *
-   * @throws ParseException
    */
   @Test(expected = ParseException.class)
   public void testLocaleWrongFormat() throws ParseException {
@@ -518,7 +509,7 @@ public class TestTypeConverter {
     assertEquals("Integer", 12, (int)ukConverter.convertValue("  12", Integer.TYPE));
     assertEquals("Negative integer", -12, (int)ukConverter.convertValue("-12", Integer.TYPE));
     assertEquals("Double", 12.45, ukConverter.convertValue("  12.45", Double.TYPE), 0.0001);
-    assertEquals("Boolean", true, (boolean)ukConverter.convertValue("  true", Boolean.TYPE));
+    assertTrue("Boolean", ukConverter.convertValue("  true", Boolean.TYPE));
     assertEquals("Character", ' ', (char)ukConverter.convertValue(32, Character.TYPE));
     assertEquals("Byte from number", 32, (byte)ukConverter.convertValue(32, Byte.TYPE));
     assertEquals("Byte from string", 32, (byte)ukConverter.convertValue(" ", Byte.TYPE));
@@ -561,8 +552,6 @@ public class TestTypeConverter {
 
   /**
    * The {@link NumberFormatException} should be always caught and re-thrown as {@link ParseException}
-   *
-   * @throws ParseException
    */
   @Test(expected = ParseException.class)
   public void invalidCharsInBigIntegerValueShouldCauseParseException() throws ParseException {
@@ -580,7 +569,7 @@ public class TestTypeConverter {
     assertEquals("Empty string converted to default long", 0L, (long)ukConverter.convertValue("", long.class));
     assertEquals("Empty string converted to default float", 0f, ukConverter.convertValue("", float.class), 0.0001);
     assertEquals("Empty string converted to default double", 0d, ukConverter.convertValue("", double.class), 0.0001);
-    assertEquals("Empty string converted to default boolean", false, (boolean)ukConverter.convertValue("", boolean.class));
+    assertFalse("Empty string converted to default boolean", ukConverter.convertValue("", boolean.class));
   }
 
 
@@ -745,10 +734,9 @@ public class TestTypeConverter {
   /**
    * Check that the {@link TypeConverter#convert(Object, Class)} method
    * which throws an exception does so.
-   * @throws java.text.ParseException
    */
   @Test
-  public void testExceptionThrowingMethod() throws java.text.ParseException {
+  public void testExceptionThrowingMethod() throws ParseException {
     assertNull("Empty string to null", ukConverter.convert("", Integer.class));
     try {
       ukConverter.convert("foo", Integer.class);
@@ -827,25 +815,25 @@ public class TestTypeConverter {
   /**
    * @param dateType The type of date we can convert to / from.
    * @param fourthDecemberSeventySeven A representation of fourth of December 1977.
-   * @param twentyeighthFebTwentyFourteen A representation of 28th of February 2014.
+   * @param twentyEighthFebTwentyFourteen A representation of 28th of February 2014.
    */
-  private <T> void assertDates(Class<T> dateType, T fourthDecemberSeventySeven, T twentyeighthFebTwentyFourteen) {
-    assertEquals("UK short date after 2010", twentyeighthFebTwentyFourteen, ukConverter.convertValue("28/02/14", dateType));
-    assertEquals("UK short date after 2010 without leading zero", twentyeighthFebTwentyFourteen, ukConverter.convertValue("28/2/14", dateType));
-    assertEquals("UK short date after 2010 without leading zero", twentyeighthFebTwentyFourteen, ukConverter.convertValue("28/2/2014", dateType));
-    assertEquals("ISO-8601 date indepedent of UK locale", twentyeighthFebTwentyFourteen, ukConverter.convertValue(twentyeighthFebTwentyFourteen, dateType));
+  private <T> void assertDates(Class<T> dateType, T fourthDecemberSeventySeven, T twentyEighthFebTwentyFourteen) {
+    assertEquals("UK short date after 2010", twentyEighthFebTwentyFourteen, ukConverter.convertValue("28/02/14", dateType));
+    assertEquals("UK short date after 2010 without leading zero", twentyEighthFebTwentyFourteen, ukConverter.convertValue("28/2/14", dateType));
+    assertEquals("UK short date after 2010 without leading zero", twentyEighthFebTwentyFourteen, ukConverter.convertValue("28/2/2014", dateType));
+    assertEquals("ISO-8601 date independent of UK locale", twentyEighthFebTwentyFourteen, ukConverter.convertValue(twentyEighthFebTwentyFourteen, dateType));
 
     assertEquals("UK short date", fourthDecemberSeventySeven, ukConverter.convertValue("04/12/77", dateType));
     assertEquals("UK short date without leading zero", fourthDecemberSeventySeven, ukConverter.convertValue("4/12/77", dateType));
     assertEquals("UK short date with 4-digit year", fourthDecemberSeventySeven, ukConverter.convertValue("4/12/1977", dateType));
-    assertEquals("ISO-8601 date indepedent of UK locale", fourthDecemberSeventySeven, ukConverter.convertValue(fourthDecemberSeventySeven, dateType));
+    assertEquals("ISO-8601 date independent of UK locale", fourthDecemberSeventySeven, ukConverter.convertValue(fourthDecemberSeventySeven, dateType));
 
     assertNull("Pushing forward dates", ukConverter.convertValue("33/3/08", dateType));
 
     TypeConverter usConverter = new TypeConverter(Locale.US);
-    assertEquals("US short date", twentyeighthFebTwentyFourteen, usConverter.convertValue("02/28/14", dateType));
+    assertEquals("US short date", twentyEighthFebTwentyFourteen, usConverter.convertValue("02/28/14", dateType));
     assertEquals("US short date", fourthDecemberSeventySeven, usConverter.convertValue("12/04/77", dateType));
-    assertEquals("ISO-8601 date indepedent of US locale", fourthDecemberSeventySeven, usConverter.convertValue(fourthDecemberSeventySeven, dateType));
+    assertEquals("ISO-8601 date independent of US locale", fourthDecemberSeventySeven, usConverter.convertValue(fourthDecemberSeventySeven, dateType));
 
     assertNull("Invalid date string", usConverter.convertValue("wibble", dateType));
 
@@ -869,32 +857,29 @@ public class TestTypeConverter {
   /**
    * @param dateType The type of date we can convert to / from.
    * @param fourthDecemberSeventySeven A representation of fourth of December 1977.
-   * @param twentyeighthFebTwentyFourteen A representation of 28th of February 2014.
+   * @param twentyEighthFebTwentyFourteen A representation of 28th of February 2014.
    */
-  private <T> void assertDatesWithWhitespace(Class<T> dateType, T fourthDecemberSeventySeven, T twentyeighthFebTwentyFourteen) {
-    assertEquals("UK short date after 2010", twentyeighthFebTwentyFourteen, ukConverter.convertValue("   28/02/14   ", dateType));
-    assertEquals("UK short date after 2010 without leading zero", twentyeighthFebTwentyFourteen, ukConverter.convertValue("   28/2/14   ", dateType));
-    assertEquals("UK short date after 2010 without leading zero", twentyeighthFebTwentyFourteen, ukConverter.convertValue("   28/2/2014   ", dateType));
-    assertEquals("ISO-8601 date indepedent of UK locale", twentyeighthFebTwentyFourteen, ukConverter.convertValue(twentyeighthFebTwentyFourteen, dateType));
+  private <T> void assertDatesWithWhitespace(Class<T> dateType, T fourthDecemberSeventySeven, T twentyEighthFebTwentyFourteen) {
+    assertEquals("UK short date after 2010", twentyEighthFebTwentyFourteen, ukConverter.convertValue("   28/02/14   ", dateType));
+    assertEquals("UK short date after 2010 without leading zero", twentyEighthFebTwentyFourteen, ukConverter.convertValue("   28/2/14   ", dateType));
+    assertEquals("UK short date after 2010 without leading zero", twentyEighthFebTwentyFourteen, ukConverter.convertValue("   28/2/2014   ", dateType));
+    assertEquals("ISO-8601 date independent of UK locale", twentyEighthFebTwentyFourteen, ukConverter.convertValue(twentyEighthFebTwentyFourteen, dateType));
 
     assertEquals("UK short date", fourthDecemberSeventySeven, ukConverter.convertValue("   04/12/77   ", dateType));
     assertEquals("UK short date without leading zero", fourthDecemberSeventySeven, ukConverter.convertValue("   4/12/77   ", dateType));
     assertEquals("UK short date with 4-digit year", fourthDecemberSeventySeven, ukConverter.convertValue("   4/12/1977   ", dateType));
-    assertEquals("ISO-8601 date indepedent of UK locale", fourthDecemberSeventySeven, ukConverter.convertValue(fourthDecemberSeventySeven, dateType));
+    assertEquals("ISO-8601 date independent of UK locale", fourthDecemberSeventySeven, ukConverter.convertValue(fourthDecemberSeventySeven, dateType));
 
     TypeConverter usConverter = new TypeConverter(Locale.US);
-    assertEquals("US short date", twentyeighthFebTwentyFourteen, usConverter.convertValue("   02/28/14   ", dateType));
+    assertEquals("US short date", twentyEighthFebTwentyFourteen, usConverter.convertValue("   02/28/14   ", dateType));
     assertEquals("US short date", fourthDecemberSeventySeven, usConverter.convertValue("   12/04/77   ", dateType));
-    assertEquals("ISO-8601 date indepedent of US locale", fourthDecemberSeventySeven, usConverter.convertValue(fourthDecemberSeventySeven, dateType));
+    assertEquals("ISO-8601 date independent of US locale", fourthDecemberSeventySeven, usConverter.convertValue(fourthDecemberSeventySeven, dateType));
   }
 
 
   /**
    * Convenience method for checking that a number of different alphanumeric
    * sequences cannot be parsed to integers.
-   *
-   * @param input
-   * @param errorIndex
    */
   private void checkFailingNumber(String input, int errorIndex) {
     try {
@@ -910,9 +895,6 @@ public class TestTypeConverter {
   /**
    * Convenience method for checking that a number of different alphanumeric
    * sequences cannot be parsed to integers.
-   *
-   * @param input
-   * @param errorIndex
    */
   private void checkFailingNumber(TypeConverter typeConverter, String input, int errorIndex) {
     try {
@@ -925,11 +907,11 @@ public class TestTypeConverter {
   }
 
 
-  public static class Animal {
+  static class Animal {
 
   }
 
-  public static class Dog extends Animal {
+  static class Dog extends Animal {
 
   }
 

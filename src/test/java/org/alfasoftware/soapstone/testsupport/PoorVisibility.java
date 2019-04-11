@@ -20,6 +20,7 @@ package org.alfasoftware.soapstone.testsupport;
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
+@SuppressWarnings("unused")
 public class PoorVisibility {
 
   /**
@@ -33,8 +34,8 @@ public class PoorVisibility {
     * Private types to cause {@link IllegalAccessException} in type conversion.
     */
   private static class Wrapper {
-    private static enum PrivateEnum {
-      A, B, C;
+    private enum PrivateEnum {
+      A, B, C
     }
   }
  }

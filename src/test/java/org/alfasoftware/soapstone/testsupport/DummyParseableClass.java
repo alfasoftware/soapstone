@@ -17,10 +17,11 @@ package org.alfasoftware.soapstone.testsupport;
 import java.math.BigDecimal;
 
 /**
- * Dummy class to test the parse OgnlTypeConvertor conversion.
+ * Dummy class to test the parse OgnlTypeConverter conversion.
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
+@SuppressWarnings("unused")
 public class DummyParseableClass extends BigDecimal {
 
   /**

@@ -14,18 +14,8 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.math.DoubleMath;
-import ognl.OgnlOps;
-import ognl.OgnlRuntime;
-import org.apache.commons.lang.LocaleUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DateUtils;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
+import static java.lang.Integer.parseInt;
+import static java.lang.Math.max;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -46,8 +36,19 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import static java.lang.Integer.parseInt;
-import static java.lang.Math.max;
+import org.apache.commons.lang.LocaleUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateUtils;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
+
+import com.google.common.collect.ImmutableSet;
+import com.google.common.math.DoubleMath;
+import ognl.OgnlOps;
+import ognl.OgnlRuntime;
 
 /**
  * Provides a central mechanism for converting a value to a target type.
@@ -83,8 +84,8 @@ class TypeConverter {
    * that is:
    *
    * <ul>
-   * <li>If <var>year</var> &lt; 1000 and <var>year</var> &gt;= {@value #CENTURY_SWITCH}, <code><var>year</var> += 1900</code>;
-   * <li>If <var>year</var> &lt; 1000 and <var>year</var> &lt; {@value #CENTURY_SWITCH}, <code><var>year</var> += 2000</code>.
+   * <li>If <var>year</var> &lt; 1000 and <var>year</var> &gt;= {@value}, <code><var>year</var> += 1900</code>;
+   * <li>If <var>year</var> &lt; 1000 and <var>year</var> &lt; {@value}, <code><var>year</var> += 2000</code>.
    * </li>
    *
    * @see SimpleDateFormat#set2DigitYearStart(Date)
@@ -177,6 +178,7 @@ class TypeConverter {
    * @return <var>value</var> in <var>toType</var>, or <code>null</code> if no conversion was possible.
    * @see #convert(Object, Class)
    */
+  @SuppressWarnings("unchecked")
   <T> T convertValue(Object value, final Class<T> toType) {
     try {
       return convert(value, toType);
@@ -207,18 +209,20 @@ class TypeConverter {
    * @return <var>value</var> in <var>toType</var>, or <code>null</code> if no conversion was possible.
    * @throws ParseException if <var>value</var> could not be converted.
    */
+  @SuppressWarnings("unchecked")
   <T> T convert(Object value, final Class<T> toType) throws ParseException {
+
     Class<T> toTypeClass = objectClass(toType);
-    T        result      = null;
+    T        result;
 
     if (value != null && toType.isAssignableFrom(value.getClass())) {
-      return (T)value;
+      return (T) value;
     }
 
     // -- Handle nulls using the default...
     //
     if (value == null) { // it is implicit that toType is not null
-      return (T)OgnlOps.convertValue(value, toType);
+      return (T) OgnlOps.convertValue(null, toType);
     }
 
     // -- Single element arrays should use lone value...
@@ -353,8 +357,9 @@ class TypeConverter {
     //
     if (!value.getClass().isArray() && toType == Class.class) {
       try {
-        return (T)Class.forName(value.toString().trim());
+        return (T) Class.forName(value.toString().trim());
       } catch (ClassNotFoundException e) {
+        // Just swallow the exception
       }
     }
 
@@ -656,14 +661,10 @@ class TypeConverter {
   /**
    * Handle the conversion of individual array elements to the
    * correct target type.
-   *
-   * @param <T> Array type
-   * @param value
-   * @param toType
-   * @return
    */
+  @SuppressWarnings("unchecked")
   private <T> T convertArray(Object value, Class<T> toType) {
-    T     result        = null;
+    T     result;
     Class componentType = toType.getComponentType();
 
     // If target is an array, copy as much as possible, otherwise create a new array containing the single value
@@ -686,12 +687,8 @@ class TypeConverter {
 
   /**
    * Use appropriate conversions for base classes.
-   *
-   * @param value
-   * @param toType
-   * @return
-   * @throws ParseException
    */
+  @SuppressWarnings("unchecked")
   private <T> T convertRawValue(Object value, Class<T> toType) throws ParseException {
     Object result = null;
     toType = objectClass(toType);
@@ -767,9 +764,7 @@ class TypeConverter {
     if (clazz.equals(Long.class)) {
       BigDecimal longMaxValue = new BigDecimal(Long.MAX_VALUE);
       BigDecimal longMinValue = new BigDecimal(Long.MIN_VALUE);
-      if (numberToConvert.compareTo(longMaxValue) > 0 || numberToConvert.compareTo(longMinValue) < 0 || numberToConvert.scale() > 0) {
-        return true;
-      }
+      return numberToConvert.compareTo(longMaxValue) > 0 || numberToConvert.compareTo(longMinValue) < 0 || numberToConvert.scale() > 0;
     }
 
     return false;
@@ -787,12 +782,13 @@ class TypeConverter {
    *         if either is thrown during the attempt to call the target method.
    * @return converted value.
    */
+  @SuppressWarnings("unchecked")
   private <T> T useMethod(Object value, Class<T> toType) {
     T result = null;
 
     // -- Try and find a method on toType...
     //
-    Method method = getMethod(toType, toType, "(valueOf|getInstance|parse)", String.class);
+    Method method = getMethod(toType, toType, String.class);
     if (method != null && Modifier.isStatic(method.getModifiers()))  {
       try {
         result = (T) method.invoke(toType, value.toString());
@@ -838,10 +834,8 @@ class TypeConverter {
    * Return the base object class for the given class. If <var>clazz</var>
    * is primitive, the appropriate object class is returned. Otherwise,
    * <var>clazz</var> itself is passed back.
-   *
-   * @param clazz
-   * @return Object class
    */
+  @SuppressWarnings("unchecked")
   private <T> Class<T> objectClass(Class<T> clazz) {
     if (!clazz.isPrimitive()) return clazz;
     if (clazz == Boolean.TYPE)   return (Class<T>) Boolean.class;
@@ -867,7 +861,8 @@ class TypeConverter {
    * @param args Classes representing highest point in class hierarchy for each parameter of the method.
    * @return method which matches <var>ReturnType</var> <var>name</var>(<var>Args<sub>[0]</sub></var> arg0, <var>Args<sub>[1]</sub></var> arg1, ...)
    */
-  private Method getMethod(Class toTest, Class returnType, String nameRegex, Class... args) {
+  @SuppressWarnings("unchecked")
+  private Method getMethod(Class toTest, Class returnType, Class... args) {
     // Normalise primitive class references
     for (int i = 0; i < args.length; i++) {
       args[i] = objectClass(args[i]);
@@ -879,7 +874,7 @@ class TypeConverter {
 
     method: for (Method method : toTest.getMethods()) {
       Class[] params = method.getParameterTypes();
-      if (!method.getName().matches(nameRegex) || !returnType.isAssignableFrom(objectClass(method.getReturnType())) || params.length != args.length)
+      if (!method.getName().matches("(valueOf|getInstance|parse)") || !returnType.isAssignableFrom(objectClass(method.getReturnType())) || params.length != args.length)
         continue;
 
       for (int i = 0; i < args.length; i++) {

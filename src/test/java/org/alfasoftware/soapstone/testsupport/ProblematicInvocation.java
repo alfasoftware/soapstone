@@ -22,6 +22,7 @@ import java.nio.charset.UnsupportedCharsetException;
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
+@SuppressWarnings("unused")
 public class ProblematicInvocation {
 
   /**
@@ -32,7 +33,6 @@ public class ProblematicInvocation {
    * @return converted instance.
    * @throws UnsupportedCharsetException always thrown.
    */
-  @SuppressWarnings("unused")
   public static ProblematicInvocation valueOf(String source) throws UnsupportedCharsetException {
     throw new UnsupportedCharsetException("kdkkdkkdk-199");
   }
