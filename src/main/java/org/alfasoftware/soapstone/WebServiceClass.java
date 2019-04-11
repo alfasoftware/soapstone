@@ -14,12 +14,8 @@
  */
 package org.alfasoftware.soapstone;
 
-import javax.jws.WebMethod;
-import javax.jws.WebParam;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.Response;
+import static org.alfasoftware.soapstone.Mappers.INSTANCE;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -35,11 +31,19 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import javax.jws.WebMethod;
+import javax.jws.WebParam;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.core.Response;
+
+import com.fasterxml.jackson.databind.JavaType;
+
 /**
  * A wrapper around a class representing a web service endpoint
  *
  * @param <T> the type of the wrapped class
- *
  * @author Copyright (c) Alfa Financial Software 2019
  */
 public class WebServiceClass<T> {
@@ -53,9 +57,9 @@ public class WebServiceClass<T> {
   /**
    * Create a new WebServiceClass for a class representing a web service endpoint
    *
-   * @param klass the class for which to create
+   * @param klass            the class for which to create
    * @param instanceSupplier a supplier of an instance of klass
-   * @param <U> type of klass
+   * @param <U>              type of klass
    * @return a new WebServiceClass
    */
   public static <U> WebServiceClass<U> forClass(Class<U> klass, Supplier<U> instanceSupplier) {
@@ -65,7 +69,7 @@ public class WebServiceClass<T> {
 
   private WebServiceClass(Class<T> klass, Supplier<T> instanceSupplier) {
     this.klass = klass;
-    this.instance  = instanceSupplier;
+    this.instance = instanceSupplier;
   }
 
 
@@ -77,10 +81,9 @@ public class WebServiceClass<T> {
    * e.g., will be null if the underlying return type is void; will be boxed if the underlying
    * return type is primitive.
    *
-   * @param operationName Name of the operation
-   * @param parameters Parameters
+   * @param operationName    Name of the operation
+   * @param parameters       Parameters
    * @param headerParameters Headers
-   *
    * @return the return value of the operation
    */
   Object invokeOperation(String operationName, Map<String, String> parameters, Map<String, String> headerParameters) {
@@ -92,15 +95,15 @@ public class WebServiceClass<T> {
     combinedParameters.putAll(headerParameters);
 
     Object[] operationArgs = Arrays.stream(operation.getParameters())
-        .map(operationParameter -> parameterToType(operationParameter, combinedParameters))
-        .toArray();
+      .map(operationParameter -> parameterToType(operationParameter, combinedParameters))
+      .toArray();
 
     try {
       return operation.invoke(instance.get(), operationArgs);
     } catch (InvocationTargetException e) {
 
-      throw Optional.ofNullable(Mappers.INSTANCE.getExceptionMapper())
-        .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), Mappers.INSTANCE.getObjectMapper()))
+      throw Optional.ofNullable(INSTANCE.getExceptionMapper())
+        .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), INSTANCE.getObjectMapper()))
         .orElse(new InternalServerErrorException());
 
     } catch (IllegalAccessException e) {
@@ -120,10 +123,10 @@ public class WebServiceClass<T> {
 
     Method[] declaredMethods = klass.getDeclaredMethods();
     List<Method> methods = Arrays.stream(declaredMethods)
-        .filter(method -> method.getName().equals(operationName)) // find a method with the same name as the requested operation
-        .filter(method -> matchesParameters(method, parameterNames, headerParameterNames)) // Check that the method parameters matched those passed
-        .filter(this::methodIsWebMethod) // Check that the method is actually exposed via web services
-        .collect(Collectors.toList());
+      .filter(method -> method.getName().equals(operationName)) // find a method with the same name as the requested operation
+      .filter(method -> matchesParameters(method, parameterNames, headerParameterNames)) // Check that the method parameters matched those passed
+      .filter(this::methodIsWebMethod) // Check that the method is actually exposed via web services
+      .collect(Collectors.toList());
 
     if (methods.isEmpty()) {
       throw new NotFoundException();
@@ -167,14 +170,14 @@ public class WebServiceClass<T> {
 
     // Collect all valid parameters
     Set<Parameter> allParameters = Arrays.stream(method.getParameters())
-        .filter(parameter -> parameter.getAnnotation(WebParam.class) != null)
-        .collect(Collectors.toSet());
+      .filter(parameter -> parameter.getAnnotation(WebParam.class) != null)
+      .collect(Collectors.toSet());
 
     // Get all header parameter names
     Set<String> headerParameters = allParameters.stream()
-        .filter(parameter -> parameter.getAnnotation(WebParam.class).header()) // Filter only the parameters where header = true
+      .filter(parameter -> parameter.getAnnotation(WebParam.class).header()) // Filter only the parameters where header = true
       .map(parameter -> parameter.getAnnotation(WebParam.class).name())
-        .collect(Collectors.toSet());
+      .collect(Collectors.toSet());
 
     // Get all non header parameter names
     Set<String> nonHeaderParameters = allParameters.stream()
@@ -186,8 +189,8 @@ public class WebServiceClass<T> {
     if (!headerParameters.containsAll(headerParameterNames)) {
       throw new BadRequestException(
         Response.status(Response.Status.BAD_REQUEST)
-        .entity(headerParameterNames)
-        .build());
+          .entity(headerParameterNames)
+          .build());
     }
 
     // Check we have a complete set of non-header parameters
@@ -206,16 +209,21 @@ public class WebServiceClass<T> {
       return null;
     }
 
-    Class<?> type = operationParameter.getType();
-
-    Object object = typeConverter.convertValue(argumentAsString, type);
+    // Try type converter. This should work for common serialisations in query parameters
+    Object object = typeConverter.convertValue(argumentAsString, operationParameter.getType());
 
     if (object != null) {
       return object;
     }
 
+    /*
+     * The only other option is JSON. Try the mapper. If it doesn't work, then the request is
+     *presumably malformed
+     */
+    JavaType type = INSTANCE.getObjectMapper().constructType(operationParameter.getParameterizedType());
+
     try {
-      return Mappers.INSTANCE.getObjectMapper().readValue(argumentAsString, operationParameter.getType());
+      return INSTANCE.getObjectMapper().readValue(argumentAsString, type);
     } catch (IOException e) {
       e.printStackTrace();
       throw new BadRequestException();

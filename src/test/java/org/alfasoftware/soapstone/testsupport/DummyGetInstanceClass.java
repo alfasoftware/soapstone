@@ -21,6 +21,7 @@ import java.math.BigDecimal;
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
+@SuppressWarnings("unused")
 public class DummyGetInstanceClass extends BigDecimal {
 
  public DummyGetInstanceClass(String s) {

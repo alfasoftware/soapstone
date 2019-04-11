@@ -20,6 +20,7 @@ package org.alfasoftware.soapstone.testsupport;
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
+@SuppressWarnings("unused")
 public class CustomParameterClass {
 
   private final String fieldOne;

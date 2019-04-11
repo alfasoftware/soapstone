@@ -18,10 +18,11 @@ package org.alfasoftware.soapstone.testsupport;
 import java.math.BigDecimal;
 
 /**
- * Dummy class to test the valueOf TypeConvertor conversion
+ * Dummy class to test the valueOf TypeConverter conversion
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
+@SuppressWarnings("unused")
 public class DummyCustomClass extends BigDecimal {
 
  public DummyCustomClass(String s) {

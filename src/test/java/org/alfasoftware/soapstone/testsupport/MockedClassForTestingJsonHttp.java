@@ -15,12 +15,14 @@
 package org.alfasoftware.soapstone.testsupport;
 
 
-import org.alfasoftware.soapstone.WebServiceClass;
-import org.joda.time.LocalDate;
+import java.util.List;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
 import javax.ws.rs.WebApplicationException;
+
+import org.alfasoftware.soapstone.WebServiceClass;
+import org.joda.time.LocalDate;
 
 
 /**
@@ -28,16 +30,15 @@ import javax.ws.rs.WebApplicationException;
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
+@SuppressWarnings("unused")
 public class MockedClassForTestingJsonHttp {
-
-  private final String parameter = "";
 
 
   /**
    * A simple mocked method for testing.
    */
   @WebMethod
-  public String mockedMethod(@WebParam(name="parameter") String parameter) {
+  public String mockedMethod(@WebParam(name = "parameter") String parameter) {
 
     if (parameter.equals("throwWebApplicationException")) {
       throw new WebApplicationException();
@@ -50,7 +51,7 @@ public class MockedClassForTestingJsonHttp {
    * Simple mocked method with a string parameter.
    */
   @WebMethod
-  public String mockedMethodWithStringArg(@WebParam(name="stringParameter") String stringParameter) {
+  public String mockedMethodWithStringArg(@WebParam(name = "stringParameter") String stringParameter) {
     return stringParameter;
   }
 
@@ -59,7 +60,7 @@ public class MockedClassForTestingJsonHttp {
    * Simple mocked method with a boolean parameter
    */
   @WebMethod
-  public boolean mockedMethodWithBooleanArg(@WebParam(name="booleanParameter") boolean booleanParameter) {
+  public boolean mockedMethodWithBooleanArg(@WebParam(name = "booleanParameter") boolean booleanParameter) {
     return booleanParameter;
   }
 
@@ -68,7 +69,7 @@ public class MockedClassForTestingJsonHttp {
    * Simple mocked method with a int parameter
    */
   @WebMethod
-  public int mockedMethodWithIntArg(@WebParam(name="intParameter") int intParameter) {
+  public int mockedMethodWithIntArg(@WebParam(name = "intParameter") int intParameter) {
     return intParameter;
   }
 
@@ -77,7 +78,7 @@ public class MockedClassForTestingJsonHttp {
    * Simple mocked method with a {@link LocalDate} parameter
    */
   @WebMethod
-  public LocalDate mockedMethodWithLocalDateArg(@WebParam(name="localDateParameter") LocalDate localDateParameter) {
+  public LocalDate mockedMethodWithLocalDateArg(@WebParam(name = "localDateParameter") LocalDate localDateParameter) {
     return localDateParameter;
   }
 
@@ -86,8 +87,19 @@ public class MockedClassForTestingJsonHttp {
    * Simple mocked method with a {@link CustomParameterClass} parameter
    */
   @WebMethod
-  public CustomParameterClass mockedMethodWithCustomParameterClassArg(@WebParam(name="customParameter") CustomParameterClass customParameter) {
+  public CustomParameterClass mockedMethodWithCustomParameterClassArg(
+    @WebParam(name = "customParameter") CustomParameterClass customParameter) {
     return customParameter;
+  }
+
+
+  /**
+   * Simple mocked method with list of {@link CustomParameterClass} parameter
+   */
+  @WebMethod
+  public List<CustomParameterClass> mockedMethodWithListOfCustomParameterClassArg(
+    @WebParam(name = "customParameters") List<CustomParameterClass> customParameters) {
+    return customParameters;
   }
 
 
@@ -95,7 +107,7 @@ public class MockedClassForTestingJsonHttp {
    * An overloaded method for testing whether similar methods can be distinguished.
    */
   @WebMethod
-  public String overloadedMethod(@WebParam(name="parameter") String parameter) {
+  public String overloadedMethod(@WebParam(name = "parameter") String parameter) {
     return parameter;
   }
 
@@ -104,7 +116,7 @@ public class MockedClassForTestingJsonHttp {
    * An overloaded method for testing whether similar methods can be distinguished.
    */
   @WebMethod
-  public String overloadedMethod(@WebParam(name="parameter") String parameter, String parameter2) {
+  public String overloadedMethod(@WebParam(name = "parameter") String parameter, String parameter2) {
     return parameter + parameter2;
   }
 
@@ -113,8 +125,7 @@ public class MockedClassForTestingJsonHttp {
    * A private method for testing whether private methods can be published.
    */
   @WebMethod
-  @SuppressWarnings("unused")
-  private String privateMethod(@WebParam(name="parameter") String parameter) {
+  private String privateMethod(@WebParam(name = "parameter") String parameter) {
     return parameter;
   }
 
@@ -122,8 +133,8 @@ public class MockedClassForTestingJsonHttp {
   /**
    * A method for testing when the WebMethod annotation has been set to exclude = true.
    */
-  @WebMethod(exclude=true)
-  public String excludedMethod(@WebParam(name="parameter") String parameter) {
+  @WebMethod(exclude = true)
+  public String excludedMethod(@WebParam(name = "parameter") String parameter) {
     return parameter;
   }
 
@@ -132,7 +143,10 @@ public class MockedClassForTestingJsonHttp {
    * A method with an incorrectly (non-)annotated header parameter, and a non-header parameter for testing annotations.
    */
   @WebMethod
-  public String methodWithIncorrectlyAnnotatedHeaderParam(@WebParam(name="headerParameter") String headerParameter, @WebParam(name="parameter") String nonHeaderParameter) {
+  public String methodWithIncorrectlyAnnotatedHeaderParam(
+    @WebParam(name = "headerParameter") String headerParameter,
+    @WebParam(name = "parameter") String nonHeaderParameter) {
+
     return headerParameter + nonHeaderParameter;
   }
 
@@ -140,15 +154,17 @@ public class MockedClassForTestingJsonHttp {
   /**
    * A method with a correctly annotated header parameter.
    */
-  @SuppressWarnings("unused")
   @WebMethod
-  public String methodWithCorrectlyAnnotatedHeaderParam(@WebParam(name="headerParameter", header=true) String headerParameter, @WebParam(name="parameter") String nonHeaderParameter) {
+  public String methodWithCorrectlyAnnotatedHeaderParam(
+    @WebParam(name = "headerParameter", header = true) String headerParameter,
+    @WebParam(name = "parameter") String nonHeaderParameter) {
+
     return "The method has been invoked!";
   }
 
 
   public String getParameter() {
-    return parameter;
+    return "";
   }
 
 }
