@@ -14,15 +14,15 @@
  */
 package org.alfasoftware.soapstone;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.ws.rs.NotAllowedException;
 import javax.ws.rs.NotFoundException;
@@ -30,15 +30,15 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.UriInfo;
-import java.util.HashMap;
-import java.util.Map;
 
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 
 /**
@@ -46,7 +46,6 @@ import static org.mockito.Mockito.when;
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
-@RunWith(MockitoJUnitRunner.class)
 public class TestSoapstoneService {
 
   @Mock private ExceptionMapper exceptionMapper;
@@ -78,6 +77,9 @@ public class TestSoapstoneService {
    */
   @Before
   public void setUp() {
+
+    MockitoAnnotations.initMocks(this);
+
     queryParameters.put(KEY_1, singletonList("value1"));
     queryParameters.put(KEY_2, asList("value2", "value3"));
 

@@ -14,11 +14,12 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Optional;
 
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.WebApplicationException;
-import java.util.Optional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Mapper for converting throwables caught during the invocation of web service operation methods
