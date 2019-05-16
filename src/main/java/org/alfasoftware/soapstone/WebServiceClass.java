@@ -218,7 +218,7 @@ public class WebServiceClass<T> {
 
     /*
      * The only other option is JSON. Try the mapper. If it doesn't work, then the request is
-     *presumably malformed
+     * presumably malformed
      */
     JavaType type = INSTANCE.getObjectMapper().constructType(operationParameter.getParameterizedType());
 
