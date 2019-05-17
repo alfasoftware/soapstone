@@ -178,7 +178,6 @@ public class TestSoapstoneService {
     assertEquals("Boolean parameter incorrectly handled", "true", capturedNonHeaderValues.get("boolean"));
     assertEquals("Integer parameter incorrectly handled", "123", capturedNonHeaderValues.get("integer"));
     assertEquals("Decimal parameter incorrectly handled", "33.24", capturedNonHeaderValues.get("decimal"));
-
   }
 
 
