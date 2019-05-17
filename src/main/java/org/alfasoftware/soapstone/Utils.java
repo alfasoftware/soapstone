@@ -14,14 +14,10 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static java.util.regex.Pattern.CASE_INSENSITIVE;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.UriInfo;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -32,9 +28,14 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static java.util.regex.Pattern.CASE_INSENSITIVE;
-import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.UriInfo;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Utility class containing methods used by the {@link SoapstoneService}.
@@ -78,7 +79,7 @@ class Utils {
     for (String key : queryParameters.keySet()) {
       List<String> values = Optional.ofNullable(queryParameters.get(key)).orElseGet(ArrayList::new);
       if (values.size() == 1) {
-        simplifiedQueryParameters.put(key, queryParameters.getFirst(key));
+        simplifiedQueryParameters.put(key, values.get(0));
       } else {
         try {
           simplifiedQueryParameters.put(key, objectMapper.writeValueAsString(values));

@@ -171,7 +171,14 @@ public class SoapstoneService {
     }
 
     if (jsonNode != null) {
-      jsonNode.fields().forEachRemaining(entry -> nonHeaderParameters.put(entry.getKey(), entry.getValue().asText()));
+      jsonNode.fields().forEachRemaining(entry -> {
+
+        String parameterName = entry.getKey();
+        JsonNode parameterValue = entry.getValue();
+        String stringValue = parameterValue.isTextual() ? parameterValue.asText() : parameterValue.toString();
+
+        nonHeaderParameters.put(parameterName, stringValue);
+      });
     }
 
     return (String) execute(uriInfo.getPath(), nonHeaderParameters, headerParameter);
