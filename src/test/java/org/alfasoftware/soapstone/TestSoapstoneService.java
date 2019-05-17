@@ -14,6 +14,23 @@
  */
 package org.alfasoftware.soapstone;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.ws.rs.NotAllowedException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MultivaluedHashMap;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.UriInfo;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -23,22 +40,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
-
-import javax.ws.rs.NotAllowedException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.UriInfo;
-import java.util.HashMap;
-import java.util.Map;
-
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 
 /**
@@ -63,6 +64,7 @@ public class TestSoapstoneService {
   private static final String KEY_2 = "key2";
   private static final String PATH = "/path/path/path";
   private static final String ENTITY = "{ \"entityIdentifier\" : { \"entityDescriptor\":\"descriptor\", \"entityNumber\" : 1 } }";
+  private static final String ENTITY_SIMPLE_PARMS = "{ \"string\" : \"string\", \"boolean\" : true, \"integer\" : 123, \"decimal\" : 33.24 }";
   private static final String ENTITY_IN_JSON = "{\"entityDescriptor\":\"descriptor\",\"entityNumber\":1}";
   private static final String REQUEST_IN_JSON = "{\"realmId\":\"REALM\",\"localeCode\":\"en_gb\",\"userId\":\"USER\"}";
 
@@ -149,6 +151,33 @@ public class TestSoapstoneService {
     assertEquals("The second key and value query combination is incorrect", "[\"value2\",\"value3\"]", capturedNonHeaderValues.get(KEY_2));
     assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedHeaderValues.get("context"));
     assertEquals("The entity is incorrect", ENTITY_IN_JSON, capturedNonHeaderValues.get("entityIdentifier"));
+  }
+
+
+  /**
+   * Tests that we correctly handle simple (e.g., String/primitive) parameters in payloads
+   */
+  @Test
+  public void testProcessingSimpleParameters() {
+
+    // Given
+    String operation = "anyOperation";
+    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
+    soapstoneService = createService();
+
+    // When
+    soapstoneService.post(headers, uriInfo, ENTITY_SIMPLE_PARMS);
+
+    // Then
+    // Verify we invoke the operation
+    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+
+    // Verify we populate the parameters with the correct simple parameter strings
+    Map<String, String> capturedNonHeaderValues = captor.getAllValues().get(0);
+    assertEquals("String parameter incorrectly handled", "string", capturedNonHeaderValues.get("string"));
+    assertEquals("Boolean parameter incorrectly handled", "true", capturedNonHeaderValues.get("boolean"));
+    assertEquals("Integer parameter incorrectly handled", "123", capturedNonHeaderValues.get("integer"));
+    assertEquals("Decimal parameter incorrectly handled", "33.24", capturedNonHeaderValues.get("decimal"));
   }
 
 

@@ -14,8 +14,19 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
+import static javax.ws.rs.HttpMethod.DELETE;
+import static javax.ws.rs.HttpMethod.GET;
+import static javax.ws.rs.HttpMethod.POST;
+import static javax.ws.rs.HttpMethod.PUT;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static org.alfasoftware.soapstone.Utils.processHeaders;
+import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -31,19 +42,9 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
 
-import static javax.ws.rs.HttpMethod.DELETE;
-import static javax.ws.rs.HttpMethod.GET;
-import static javax.ws.rs.HttpMethod.POST;
-import static javax.ws.rs.HttpMethod.PUT;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static org.alfasoftware.soapstone.Utils.processHeaders;
-import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 
 
 /**
@@ -170,7 +171,14 @@ public class SoapstoneService {
     }
 
     if (jsonNode != null) {
-      jsonNode.fields().forEachRemaining(entry -> nonHeaderParameters.put(entry.getKey(), entry.getValue().toString()));
+      jsonNode.fields().forEachRemaining(entry -> {
+
+        String parameterName = entry.getKey();
+        JsonNode parameterValue = entry.getValue();
+        String stringValue = parameterValue.isTextual() ? parameterValue.asText() : parameterValue.toString();
+
+        nonHeaderParameters.put(parameterName, stringValue);
+      });
     }
 
     return (String) execute(uriInfo.getPath(), nonHeaderParameters, headerParameter);
