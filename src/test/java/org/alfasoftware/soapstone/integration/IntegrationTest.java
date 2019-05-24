@@ -28,9 +28,7 @@ import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
 import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
 import org.glassfish.jersey.test.JerseyTest;
 import org.joda.time.LocalDate;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.client.Entity;
@@ -67,9 +65,6 @@ public class IntegrationTest extends JerseyTest {
 
   private static final ExceptionMapper EXCEPTION_MAPPER = (exception, o) ->
     Optional.ofNullable(exception instanceof MyException ? new BadRequestException() : null);
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
 
 
   @Override
