@@ -14,23 +14,6 @@
  */
 package org.alfasoftware.soapstone;
 
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.ws.rs.NotAllowedException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.UriInfo;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,6 +23,22 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
+
+import javax.ws.rs.NotAllowedException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MultivaluedHashMap;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.UriInfo;
+import java.util.HashMap;
+import java.util.Map;
+
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -55,7 +54,7 @@ public class TestSoapstoneService {
   @Mock private UriInfo uriInfo;
   @Mock private WebServiceClass<?> webServiceClass;
 
-  @Captor private ArgumentCaptor<Map<String, String>> captor;
+  @Captor private ArgumentCaptor<Map<String, WebParameter>> captor;
 
   @Rule public final ExpectedException exception = ExpectedException.none();
 
@@ -115,14 +114,13 @@ public class TestSoapstoneService {
 
     // Then
     // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    verify(webServiceClass).invokeOperation(eq(operation), captor.capture());
 
     // Verify we populate the parameters with the correct query and context
-    Map<String, String> capturedNonHeaderValues = captor.getAllValues().get(0);
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
-    assertEquals("The first key and value query combination is incorrect", "value1", capturedNonHeaderValues.get(KEY_1));
-    assertEquals("The second key and value query combination is incorrect", "[\"value2\",\"value3\"]", capturedNonHeaderValues.get(KEY_2));
-    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedHeaderValues.get("context"));
+    Map<String, WebParameter> capturedNonHeaderValues = captor.getAllValues().get(0);
+    assertEquals("The first key and value query combination is incorrect", "value1", capturedNonHeaderValues.get(KEY_1).getNode().asText());
+    assertEquals("The second key and value query combination is incorrect", "[\"value2\",\"value3\"]", capturedNonHeaderValues.get(KEY_2).getNode().toString());
+    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedNonHeaderValues.get("context").getNode().toString());
   }
 
 
@@ -142,14 +140,13 @@ public class TestSoapstoneService {
 
     // Then
     // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    verify(webServiceClass).invokeOperation(eq(operation), captor.capture());
 
     // Verify we populate the parameters with the correct query and context
-    Map<String, String> capturedNonHeaderValues = captor.getAllValues().get(0);
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
+    Map<String, WebParameter> capturedNonHeaderValues = captor.getAllValues().get(0);
     assertEquals("The first key and value query combination is incorrect", "value1", capturedNonHeaderValues.get(KEY_1));
     assertEquals("The second key and value query combination is incorrect", "[\"value2\",\"value3\"]", capturedNonHeaderValues.get(KEY_2));
-    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedHeaderValues.get("context"));
+    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedNonHeaderValues.get("context"));
     assertEquals("The entity is incorrect", ENTITY_IN_JSON, capturedNonHeaderValues.get("entityIdentifier"));
   }
 
@@ -170,14 +167,14 @@ public class TestSoapstoneService {
 
     // Then
     // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    verify(webServiceClass).invokeOperation(eq(operation), captor.capture());
 
     // Verify we populate the parameters with the correct simple parameter strings
-    Map<String, String> capturedNonHeaderValues = captor.getAllValues().get(0);
-    assertEquals("String parameter incorrectly handled", "string", capturedNonHeaderValues.get("string"));
-    assertEquals("Boolean parameter incorrectly handled", "true", capturedNonHeaderValues.get("boolean"));
-    assertEquals("Integer parameter incorrectly handled", "123", capturedNonHeaderValues.get("integer"));
-    assertEquals("Decimal parameter incorrectly handled", "33.24", capturedNonHeaderValues.get("decimal"));
+    Map<String, WebParameter> capturedNonHeaderValues = captor.getAllValues().get(0);
+    assertEquals("String parameter incorrectly handled", "string", capturedNonHeaderValues.get("string").getNode().asText());
+    assertEquals("Boolean parameter incorrectly handled", true, capturedNonHeaderValues.get("boolean").getNode().asBoolean());
+    assertEquals("Integer parameter incorrectly handled", 123, capturedNonHeaderValues.get("integer").getNode().asInt());
+    assertEquals("Decimal parameter incorrectly handled", 33.24D, capturedNonHeaderValues.get("decimal").getNode().asDouble(), 0D);
   }
 
 
@@ -197,7 +194,7 @@ public class TestSoapstoneService {
 
     // Then
     // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    verify(webServiceClass).invokeOperation(eq(operation), captor.capture());
   }
 
 
@@ -217,7 +214,7 @@ public class TestSoapstoneService {
 
     // Then
     // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    verify(webServiceClass).invokeOperation(eq(operation), captor.capture());
   }
 
 
@@ -262,7 +259,7 @@ public class TestSoapstoneService {
 
 
   /**
-   * Tests that when processing a combined context header (e.g. of the format "X-Vendor-Context: userId=USER;realmId=REALM;localeCode=en_gb"), the
+   * Tests that when processing a combined context headerParameter (e.g. of the format "X-Vendor-Context: userId=USER;realmId=REALM;localeCode=en_gb"), the
    * contained parameters are correctly mapped by the service.
    */
   @Test
@@ -283,10 +280,10 @@ public class TestSoapstoneService {
 
     // Then
     // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    verify(webServiceClass).invokeOperation(eq(operation), captor.capture());
 
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
-    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedHeaderValues.get("context"));
+    Map<String, WebParameter> capturedNonHeaderValues = captor.getAllValues().get(0);
+    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedNonHeaderValues.get("context").getNode());
   }
 
 
@@ -319,15 +316,15 @@ public class TestSoapstoneService {
 
     // Then
     // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    verify(webServiceClass).invokeOperation(eq(operation), captor.capture());
 
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
-    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedHeaderValues.get("context"));
+    Map<String, WebParameter> capturedNonHeaderValues = captor.getAllValues().get(0);
+    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedNonHeaderValues.get("context"));
   }
 
 
   /**
-   * Tests that if both a combined context header and a series of individual context headers have been given, the
+   * Tests that if both a combined context headerParameter and a series of individual context headers have been given, the
    * service will correctly return a map containing only one set of the parameters (i.e. no potentially conflicting
    * duplicates).
    */
@@ -358,11 +355,11 @@ public class TestSoapstoneService {
 
     // Then
     // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    verify(webServiceClass).invokeOperation(eq(operation), captor.capture());
 
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
-    assertEquals("The captured header values map should contain only one entry", 1, capturedHeaderValues.size());
-    assertEquals("The context is incorrect", requestInJson, capturedHeaderValues.get("context"));
+    Map<String, WebParameter> capturedNonHeaderValues = captor.getAllValues().get(0);
+    assertEquals("The captured headerParameter values map should contain only one entry", 1, capturedNonHeaderValues.size());
+    assertEquals("The context is incorrect", requestInJson, capturedNonHeaderValues.get("context"));
   }
 
 

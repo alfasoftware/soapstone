@@ -14,25 +14,9 @@
  */
 package org.alfasoftware.soapstone;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.WebApplicationException;
-
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.TextNode;
 import org.alfasoftware.soapstone.testsupport.CustomParameterClass;
 import org.alfasoftware.soapstone.testsupport.MockedClassForTestingJsonHttp;
 import org.glassfish.hk2.api.TypeLiteral;
@@ -44,8 +28,23 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.WebApplicationException;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link WebServiceClass} class.
@@ -67,8 +66,8 @@ public class TestWebServiceClass {
   private static final String OPERATION_NAME = "mockedMethod";
   private static final String EXPECTED_RESPONSE = "The method has been invoked!";
 
-  private final Map<String, String> nonHeaderParameters = new HashMap<>();
-  private final Map<String, String> headerParameters = new HashMap<>();
+  private final Map<String, WebParameter> nonHeaderParameters = new HashMap<>();
+//  private final Map<String, String> nonHeaderParameters = new HashMap<>();
 
   private WebServiceClass<?> webServiceClass;
 
@@ -86,17 +85,17 @@ public class TestWebServiceClass {
   }
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method
    * functions correctly and invokes the appropriate operation.
    */
   @Test
   public void testInvokeOperation() {
 
     // Given
-    nonHeaderParameters.put("parameter", "parameterValue");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("parameterValue")));
 
     // When
-    Object object = webServiceClass.invokeOperation(OPERATION_NAME, nonHeaderParameters, headerParameters);
+    Object object = webServiceClass.invokeOperation(OPERATION_NAME, nonHeaderParameters);
 
     // Then
     assertEquals("The method was not invoked", EXPECTED_RESPONSE, object.toString());
@@ -104,18 +103,20 @@ public class TestWebServiceClass {
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method
-   * functions correctly and invokes the appropriate operation when both header and non-header parameters are included.
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method
+   * functions correctly and invokes the appropriate operation when both headerParameter and non-headerParameter parameters are included.
    */
   @Test
   public void testInvokeOperationWhenHeaderParamsPresent() {
 
     // Given
-    nonHeaderParameters.put("parameter", "parameterValue");
-    headerParameters.put("headerParameter", "headerParameterValue");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("parameterValue")));
+    nonHeaderParameters.put("nonHeaderParameter", WebParameter.parameter("nonHeaderParameter", new TextNode("nonHeaderParameterValue")));
+//    nonHeaderParameters.put("parameter", "parameterValue");
+//    nonHeaderParameters.put("nonHeaderParameter", "nonHeaderParameterValue");
 
     // When
-    Object object = webServiceClass.invokeOperation("methodWithCorrectlyAnnotatedHeaderParam", nonHeaderParameters, headerParameters);
+    Object object = webServiceClass.invokeOperation("methodWithCorrectlyAnnotatedHeaderParam", nonHeaderParameters);
 
     // Then
     assertEquals("The method was not invoked", EXPECTED_RESPONSE, object.toString());
@@ -123,16 +124,17 @@ public class TestWebServiceClass {
 
 
   /**
-   * Test that headers are treated as optional. An invocation should not fail if there are missing header parameters.
+   * Test that headers are treated as optional. An invocation should not fail if there are missing headerParameter parameters.
    */
   @Test
   public void testInvokeOperationWhenHeaderParamsAbsent() {
 
     // Given
-    nonHeaderParameters.put("parameter", "parameterValue");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("parameterValue")));
+//    nonHeaderParameters.put("parameter", "parameterValue");
 
     // When
-    Object object = webServiceClass.invokeOperation("methodWithCorrectlyAnnotatedHeaderParam", nonHeaderParameters, headerParameters);
+    Object object = webServiceClass.invokeOperation("methodWithCorrectlyAnnotatedHeaderParam", nonHeaderParameters);
 
     // Then
     assertEquals("The method was not invoked", EXPECTED_RESPONSE, object.toString());
@@ -140,25 +142,26 @@ public class TestWebServiceClass {
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly throws a
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly throws a
    * relevant {@link WebApplicationException} when appropriate.
    */
   @Test
   public void testInvokeOperationThrowsWebApplicationException() {
 
     // Given
-    nonHeaderParameters.put("parameter", "throwWebApplicationException");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("throwWebApplicationException")));
+//    nonHeaderParameters.put("parameter", "throwWebApplicationException");
 
     when(exceptionMapper.mapThrowable(any(Exception.class), eq(objectMapper))).thenReturn(Optional.of(webApplicationException));
 
     // When / Then
     exception.expect(WebApplicationException.class);
-    webServiceClass.invokeOperation(OPERATION_NAME, nonHeaderParameters, headerParameters);
+    webServiceClass.invokeOperation(OPERATION_NAME, nonHeaderParameters);
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly throws a
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly throws a
    * relevant {@link InternalServerErrorException} when appropriate if the exception mapper is not present.
    */
   @Test
@@ -167,32 +170,34 @@ public class TestWebServiceClass {
     Mappers.INSTANCE.setExceptionMapper(null);
 
     // Given
-    nonHeaderParameters.put("parameter", "throwWebApplicationException");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("throwWebApplicationException")));
+//    nonHeaderParameters.put("parameter", "throwWebApplicationException");
 
     // When / Then
     exception.expect(InternalServerErrorException.class);
-    webServiceClass.invokeOperation(OPERATION_NAME, nonHeaderParameters, headerParameters);
+    webServiceClass.invokeOperation(OPERATION_NAME, nonHeaderParameters);
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly
    * throws an appropriate {@link NotFoundException} if the operation cannot be found.
    */
   @Test
   public void testInvokeOperationMethodNotFound() {
 
     // Given
-    nonHeaderParameters.put("parameter", "parameterValue");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("parameterValue")));
+//    nonHeaderParameters.put("parameter", "parameterValue");
 
     // When / Then
     exception.expect(NotFoundException.class);
-    webServiceClass.invokeOperation("nonExistentMethod", nonHeaderParameters, headerParameters);
+    webServiceClass.invokeOperation("nonExistentMethod", nonHeaderParameters);
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)}
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)}
    * method functions correctly and throws an appropriate {@link NotFoundException} if the method in question is not
    * public as only public methods can be published.
    */
@@ -200,16 +205,17 @@ public class TestWebServiceClass {
   public void testInvokeOperationMethodNotPublic() {
 
     // Given
-    nonHeaderParameters.put("parameter", "parameterValue");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("parameterValue")));
+//    nonHeaderParameters.put("parameter", "parameterValue");
 
     // When / Then
     exception.expect(NotFoundException.class);
-    webServiceClass.invokeOperation("privateMethod", nonHeaderParameters, headerParameters);
+    webServiceClass.invokeOperation("privateMethod", nonHeaderParameters);
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)}
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)}
    * method functions correctly and throws an appropriate {@link NotFoundException} if the method in question has
    * as WebMethod annotation, but exclude is set to true.
    */
@@ -217,123 +223,131 @@ public class TestWebServiceClass {
   public void testInvokeOperationMethodExcluded() {
 
     // Given
-    nonHeaderParameters.put("parameter", "parameterValue");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("parameterValue")));
+//    nonHeaderParameters.put("parameter", "parameterValue");
 
     // When / Then
     exception.expect(NotFoundException.class);
-    webServiceClass.invokeOperation("excludedMethod", nonHeaderParameters, headerParameters);
+    webServiceClass.invokeOperation("excludedMethod", nonHeaderParameters);
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly
    * throws an appropriate {@link BadRequestException} if unable to distinguish between two methods.
    */
   @Test
   public void testInvokeOperationUnableToDistinguishMethods() {
 
     // Given
-    nonHeaderParameters.put("parameter", "parameterValue");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("parameterValue")));
+//    nonHeaderParameters.put("parameter", "parameterValue");
 
     // When / Then
     exception.expect(BadRequestException.class);
     exception.expectMessage("Unable to distinguish methods");
-    webServiceClass.invokeOperation("overloadedMethod", nonHeaderParameters, headerParameters);
+    webServiceClass.invokeOperation("overloadedMethod", nonHeaderParameters);
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly
-   * throws an appropriate {@link BadRequestException} if the header parameters are not correctly annotated with
-   * {@code @WebParam(header = true)}.
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly
+   * throws an appropriate {@link BadRequestException} if the headerParameter parameters are not correctly annotated with
+   * {@code @WebParam(headerParameter = true)}.
    */
   @Test
   public void testInvokeOperationHeaderParametersIncorrectlyAnnotated() {
 
     // Given
-    nonHeaderParameters.put("parameter", "parameterValue");
-    headerParameters.put("headerParameter", "headerParameterValue");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("parameterValue")));
+    nonHeaderParameters.put("nonHeaderParameter", WebParameter.parameter("nonHeaderParameter", new TextNode("nonHeaderParameterValue")));
+//    nonHeaderParameters.put("parameter", "parameterValue");
+//    nonHeaderParameters.put("nonHeaderParameter", "nonHeaderParameterValue");
 
     // When / Then
     exception.expect(BadRequestException.class);
-    webServiceClass.invokeOperation("methodWithIncorrectlyAnnotatedHeaderParam", nonHeaderParameters, headerParameters);
+    webServiceClass.invokeOperation("methodWithIncorrectlyAnnotatedHeaderParam", nonHeaderParameters);
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly maps
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly maps
    * parameters for methods that require a string.
    */
   @Test
   public void testParameterToTypeParameterString() {
 
     // Given
-    nonHeaderParameters.put("stringParameter", "parameterValue");
+    nonHeaderParameters.put("parameter", WebParameter.parameter("parameter", new TextNode("parameterValue")));
+//    nonHeaderParameters.put("stringParameter", "parameterValue");
 
     // When
-    Object parameter = webServiceClass.invokeOperation("mockedMethodWithStringArg", nonHeaderParameters, headerParameters);
+    Object parameter = webServiceClass.invokeOperation("mockedMethodWithStringArg", nonHeaderParameters);
 
     // Then
-    assertEquals("Parameter type is incorrect", String.class, parameter.getClass());
+    assertEquals("WebParameter type is incorrect", String.class, parameter.getClass());
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly maps
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly maps
    * parameters for methods that require a boolean.
    */
   @Test
   public void testParameterToTypeParameterBoolean() {
 
     // Given
-    nonHeaderParameters.put("booleanParameter", "true");
+    nonHeaderParameters.put("booleanParameter", WebParameter.parameter("booleanParameter", new TextNode("true")));
+//    nonHeaderParameters.put("booleanParameter", "true");
 
     // When
-    Object parameter = webServiceClass.invokeOperation("mockedMethodWithBooleanArg", nonHeaderParameters, headerParameters);
+    Object parameter = webServiceClass.invokeOperation("mockedMethodWithBooleanArg", nonHeaderParameters);
 
     // Then
-    assertEquals("Parameter type is incorrect", Boolean.class, parameter.getClass());
+    assertEquals("WebParameter type is incorrect", Boolean.class, parameter.getClass());
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly maps
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly maps
    * parameters for methods that require a int.
    */
   @Test
   public void testParameterToTypeParameterInt() {
 
     // Given
-    nonHeaderParameters.put("intParameter", "34");
+    nonHeaderParameters.put("intParameter", WebParameter.parameter("intParameter", new TextNode("34")));
+//    nonHeaderParameters.put("intParameter", "34");
 
     // When
-    Object parameter = webServiceClass.invokeOperation("mockedMethodWithIntArg", nonHeaderParameters, headerParameters);
+    Object parameter = webServiceClass.invokeOperation("mockedMethodWithIntArg", nonHeaderParameters);
 
     // Then
-    assertEquals("Parameter type is incorrect", Integer.class, parameter.getClass());
+    assertEquals("WebParameter type is incorrect", Integer.class, parameter.getClass());
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly maps
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly maps
    * parameters for methods that require a LocalDate.
    */
   @Test
   public void testParameterToTypeParameterLocalDate() {
 
     // Given
-    nonHeaderParameters.put("localDateParameter", "01/02/2019");
+    nonHeaderParameters.put("localDateParameter", WebParameter.parameter("localDateParameter", new TextNode("01/02/2019")));
+//    nonHeaderParameters.put("localDateParameter", "01/02/2019");
 
     // When
-    Object parameter = webServiceClass.invokeOperation("mockedMethodWithLocalDateArg", nonHeaderParameters, headerParameters);
+    Object parameter = webServiceClass.invokeOperation("mockedMethodWithLocalDateArg", nonHeaderParameters);
 
     // Then
-    assertEquals("Parameter type is incorrect", LocalDate.class, parameter.getClass());
+    assertEquals("WebParameter type is incorrect", LocalDate.class, parameter.getClass());
   }
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly maps
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly maps
    * parameters for methods that require a custom class: here, {@link CustomParameterClass}.
    */
   @Test
@@ -341,14 +355,15 @@ public class TestWebServiceClass {
 
     // Given
     String argumentAsString = "{\"fieldOne\":\"VALUE\",\"fieldTwo\":1}";
-    nonHeaderParameters.put("customParameter", argumentAsString);
+    nonHeaderParameters.put("customParameter", WebParameter.parameter("customParameter", objectMapper.readTree(argumentAsString)));
+//    nonHeaderParameters.put("customParameter", argumentAsString);
 
     JavaType javaType = mock(JavaType.class);
     Type type = CustomParameterClass.class;
     when(objectMapper.constructType(type)).thenReturn(javaType);
 
     // When
-    webServiceClass.invokeOperation("mockedMethodWithCustomParameterClassArg", nonHeaderParameters, headerParameters);
+    webServiceClass.invokeOperation("mockedMethodWithCustomParameterClassArg", nonHeaderParameters);
 
     // Then
     verify(objectMapper).constructType(type);
@@ -357,7 +372,7 @@ public class TestWebServiceClass {
 
 
   /**
-   * Tests that the {@link WebServiceClass#invokeOperation(String, Map, Map)} method correctly maps
+   * Tests that the {@link WebServiceClass#invokeOperation(String, Map)} method correctly maps
    * parameters for methods that require a list of a custom class: here, {@link CustomParameterClass}.
    */
   @Test
@@ -365,7 +380,8 @@ public class TestWebServiceClass {
 
     // Given
     String argumentAsString = "[ {\"fieldOne\":\"VALUE\",\"fieldTwo\":1}, {\"fieldOne\":\"ANOTHER_VALUE\",\"fieldTwo\":2} ]";
-    nonHeaderParameters.put("customParameters", argumentAsString);
+    nonHeaderParameters.put("customParameter", WebParameter.parameter("customParameter", objectMapper.readTree(argumentAsString)));
+//    nonHeaderParameters.put("customParameters", argumentAsString);
 
     JavaType javaType = mock(JavaType.class);
     Type type = new TypeLiteral<List<CustomParameterClass>>() {
@@ -373,7 +389,7 @@ public class TestWebServiceClass {
     when(objectMapper.constructType(type)).thenReturn(javaType);
 
     // When
-    webServiceClass.invokeOperation("mockedMethodWithListOfCustomParameterClassArg", nonHeaderParameters, headerParameters);
+    webServiceClass.invokeOperation("mockedMethodWithListOfCustomParameterClassArg", nonHeaderParameters);
 
     // Then
     verify(objectMapper).constructType(type);

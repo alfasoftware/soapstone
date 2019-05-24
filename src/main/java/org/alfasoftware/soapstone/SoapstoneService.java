@@ -14,19 +14,8 @@
  */
 package org.alfasoftware.soapstone;
 
-import static javax.ws.rs.HttpMethod.DELETE;
-import static javax.ws.rs.HttpMethod.GET;
-import static javax.ws.rs.HttpMethod.POST;
-import static javax.ws.rs.HttpMethod.PUT;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static org.alfasoftware.soapstone.Utils.processHeaders;
-import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -42,9 +31,19 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
+import static javax.ws.rs.HttpMethod.DELETE;
+import static javax.ws.rs.HttpMethod.GET;
+import static javax.ws.rs.HttpMethod.POST;
+import static javax.ws.rs.HttpMethod.PUT;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static org.alfasoftware.soapstone.Utils.processHeaders;
+import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
 
 
 /**
@@ -86,28 +85,26 @@ public class SoapstoneService {
   /**
    * Maps incoming JSON HTTP GET requests to web service implementations and executes the relevant method.
    *
-   * @param headers The HTTP header information
+   * @param headers The HTTP headerParameter information
    * @param uriInfo The application and request URI information
+   * @return JSON representation of the underlying web service response
    */
   @GET
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   public String get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
     checkIfMethodSupported(uriInfo, GET);
-
-    Map<String, String> headerParameters = processHeaders(headers, vendor);
-    Map<String, String> nonHeaderParameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
-
-    return (String) execute(uriInfo.getPath(), nonHeaderParameters, headerParameters);
+    return process(headers, uriInfo, null);
   }
 
 
   /**
    * Maps incoming JSON HTTP POST requests to web service implementations and executes the relevant method.
    *
-   * @param headers The HTTP header information
+   * @param headers The HTTP headerParameter information
    * @param uriInfo The application and request URI information
    * @param entity The entity to be parsed as a JSON object
+   * @return JSON representation of the underlying web service response
    */
   @POST
   @Path("/{s:.*}")
@@ -121,9 +118,10 @@ public class SoapstoneService {
   /**
    * Maps incoming JSON HTTP PUT requests to web service implementations and executes the relevant method.
    *
-   * @param headers The HTTP header information
+   * @param headers The HTTP headerParameter information
    * @param uriInfo The application and request URI information
    * @param entity The entity to be parsed as a JSON object
+   * @return JSON representation of the underlying web service response
    */
   @PUT
   @Path("/{s:.*}")
@@ -138,9 +136,10 @@ public class SoapstoneService {
   /**
    * Maps incoming JSON HTTP DELETE requests to web service implementations and executes the relevant method.
    *
-   * @param headers The HTTP header information
+   * @param headers The HTTP headerParameter information
    * @param uriInfo The application and request URI information
    * @param entity The entity to be parsed as a JSON object
+   * @return JSON representation of the underlying web service response
    */
   @DELETE
   @Path("/{s:.*}")
@@ -157,31 +156,24 @@ public class SoapstoneService {
    */
   private String process(HttpHeaders headers, UriInfo uriInfo, String entity) {
 
-    Map<String, String> nonHeaderParameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
-    Map<String, String> headerParameter = processHeaders(headers, vendor);
+    Map<String, WebParameter> parameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
+    parameters.putAll(processHeaders(headers, vendor));
 
-    JsonNode jsonNode;
-    try {
-      jsonNode = Mappers.INSTANCE.getObjectMapper().readTree(entity);
-    } catch (IOException e) {
-      throw new BadRequestException(
-      Response.status(Response.Status.BAD_REQUEST)
-        .entity(entity)
-        .build());
+    if (entity != null) {
+      try {
+        JsonNode jsonNode = Mappers.INSTANCE.getObjectMapper().readTree(entity);
+        jsonNode.fields().forEachRemaining(entry ->
+          parameters.put(entry.getKey(), WebParameter.parameter(entry.getKey(), entry.getValue()))
+        );
+      } catch (IOException e) {
+        throw new BadRequestException(
+          Response.status(Response.Status.BAD_REQUEST)
+            .entity(entity)
+            .build());
+      }
     }
 
-    if (jsonNode != null) {
-      jsonNode.fields().forEachRemaining(entry -> {
-
-        String parameterName = entry.getKey();
-        JsonNode parameterValue = entry.getValue();
-        String stringValue = parameterValue.isTextual() ? parameterValue.asText() : parameterValue.toString();
-
-        nonHeaderParameters.put(parameterName, stringValue);
-      });
-    }
-
-    return (String) execute(uriInfo.getPath(), nonHeaderParameters, headerParameter);
+    return execute(uriInfo.getPath(), parameters);
   }
 
 
@@ -228,7 +220,7 @@ public class SoapstoneService {
   /*
    * Execute the request.
    */
-  private Object execute(String path, Map<String, String> nonHeaderParameters, Map<String, String> headerParameters) {
+  private String execute(String path, Map<String, WebParameter> parameters) {
     try {
 
       // Check we have a legal path: path/operation
@@ -247,7 +239,7 @@ public class SoapstoneService {
       }
 
       // Invoke the operation
-      Object object = webServiceClass.invokeOperation(operationName, nonHeaderParameters, headerParameters);
+      Object object = webServiceClass.invokeOperation(operationName, parameters);
       return Mappers.INSTANCE.getObjectMapper().writeValueAsString(object);
     } catch (JsonProcessingException e) {
       e.printStackTrace();
