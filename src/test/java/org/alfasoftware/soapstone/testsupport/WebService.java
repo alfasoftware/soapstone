@@ -60,7 +60,7 @@ public class WebService {
     private int integer;
     private double decimal;
     private boolean bool;
-    private LocalDate localDate;
+    private LocalDate date;
 
     public RequestObject getNestedObject() {
       return nestedObject;
@@ -88,7 +88,7 @@ public class WebService {
 
     @XmlJavaTypeAdapter(LocalDateAdapter.class)
     public LocalDate getDate() {
-      return localDate;
+      return date;
     }
   }
 
@@ -205,7 +205,7 @@ public class WebService {
     responseObject.integer = integer;
     responseObject.decimal = decimal;
     responseObject.bool = bool;
-    responseObject.localDate = date;
+    responseObject.date = date;
 
     return responseObject;
   }

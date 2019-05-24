@@ -12,9 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.alfasoftware.soapstone;
+package org.alfasoftware.soapstone.integration;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import com.google.common.collect.ImmutableMap;
+import org.alfasoftware.soapstone.SoapstoneService;
+import org.alfasoftware.soapstone.SoapstoneServiceBuilder;
+import org.alfasoftware.soapstone.WebServiceClass;
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
 import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
@@ -40,7 +46,11 @@ import static org.junit.Assert.assertTrue;
 public class IntegrationTest extends JerseyTest {
 
 
-  private static final String vendor = "Vendor";
+  private static final String VENDOR = "Vendor";
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+    .registerModule(new JaxbAnnotationModule())
+    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
 
   @Override
   protected Application configure() {
@@ -53,7 +63,8 @@ public class IntegrationTest extends JerseyTest {
         webServices.put("/path", WebServiceClass.forClass(WebService.class, WebService::new));
 
         SoapstoneService service = new SoapstoneServiceBuilder(webServices)
-          .withVendor(vendor)
+          .withVendor(VENDOR)
+          .withObjectMapper(OBJECT_MAPPER)
           .build();
 
         return Collections.singleton(service);
@@ -97,7 +108,7 @@ public class IntegrationTest extends JerseyTest {
       .accept(MediaType.APPLICATION_JSON)
       .post(Entity.entity(payload, MediaType.APPLICATION_JSON), String.class);
 
-    ResponseObject responseObject = Mappers.INSTANCE.getObjectMapper().readValue(responseString, ResponseObject.class);
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
 
     /*
      * Then
@@ -143,7 +154,7 @@ public class IntegrationTest extends JerseyTest {
       .accept(MediaType.APPLICATION_JSON)
       .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
 
-    ResponseObject responseObject = Mappers.INSTANCE.getObjectMapper().readValue(responseString, ResponseObject.class);
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
 
     /*
      * Then
