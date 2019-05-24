@@ -66,7 +66,8 @@ public class WebService {
   @XmlType
   public static class ResponseObject {
 
-    private String header;
+    private String headerString;
+    private int headerInteger;
     private RequestObject nestedObject;
 
     private String string;
@@ -95,8 +96,12 @@ public class WebService {
       return bool;
     }
 
-    public String getHeader() {
-      return header;
+    public String getHeaderString() {
+      return headerString;
+    }
+
+    public int getHeaderInteger() {
+      return headerInteger;
     }
 
     @XmlJavaTypeAdapter(LocalDateAdapter.class)
@@ -107,14 +112,19 @@ public class WebService {
 
 
   /**
-   * Complex header object
+   * Complex headerString object
    */
   public static class HeaderObject {
 
     private String string;
+    private int integer;
 
     public void setString(String string) {
       this.string = string;
+    }
+
+    public void setInteger(int integer) {
+      this.integer = integer;
     }
   }
 
@@ -189,10 +199,10 @@ public class WebService {
 
 
   /**
-   * Web service method to take a variety of complex and simple header non-header
+   * Web service method to take a variety of complex and simple headerString non-headerString
    * parameters and simply map them to a {@link ResponseObject}
    *
-   * @param header  mapped to {@link ResponseObject#getHeader()}
+   * @param header  mapped to {@link ResponseObject#getHeaderString()}
    * @param request mapped to {@link ResponseObject#getNestedObject()}
    * @param string  mapped to {@link ResponseObject#getString()}
    * @param integer mapped to {@link ResponseObject#getInteger()}
@@ -214,7 +224,8 @@ public class WebService {
     ResponseObject responseObject = new ResponseObject();
     responseObject.nestedObject = request;
     if (header != null) {
-      responseObject.header = header.string;
+      responseObject.headerString = header.string;
+      responseObject.headerInteger = header.integer;
     }
     responseObject.string = string;
     responseObject.integer = integer;
@@ -230,7 +241,7 @@ public class WebService {
    * Simplified version of {@link #doAThing(HeaderObject, RequestObject, String, int, double, boolean, LocalDate)}
    * which requires fewer inputs
    *
-   * @param header  mapped to {@link ResponseObject#getHeader()}
+   * @param header  mapped to {@link ResponseObject#getHeaderString()}
    * @param request mapped to {@link ResponseObject#getNestedObject()}
    * @param string  mapped to {@link ResponseObject#getString()}
    * @return mapped {@link ResponseObject}
@@ -244,7 +255,8 @@ public class WebService {
     ResponseObject responseObject = new ResponseObject();
     responseObject.nestedObject = request;
     if (header != null) {
-      responseObject.header = header.string;
+      responseObject.headerString = header.string;
+      responseObject.headerInteger = header.integer;
     }
     responseObject.string = string;
 

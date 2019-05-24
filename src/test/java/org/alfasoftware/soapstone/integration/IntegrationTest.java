@@ -128,7 +128,7 @@ public class IntegrationTest extends JerseyTest {
     String responseString = target()
       .path("path/doAThing")
       .request()
-      .header("X-Vendor-Header", "string=headerStringValue")
+      .header("X-Vendor-Header", "string=headerStringValue;integer=62")
       .accept(MediaType.APPLICATION_JSON)
       .post(Entity.entity(payload, MediaType.APPLICATION_JSON), String.class);
 
@@ -137,7 +137,8 @@ public class IntegrationTest extends JerseyTest {
     /*
      * Then
      */
-    assertEquals("headerStringValue", responseObject.getHeader());
+    assertEquals("headerStringValue", responseObject.getHeaderString());
+    assertEquals(62, responseObject.getHeaderInteger());
     assertEquals("value", responseObject.getString());
     assertEquals(65, responseObject.getInteger());
     assertEquals(33.45D, responseObject.getDecimal(), 0D);
@@ -174,7 +175,7 @@ public class IntegrationTest extends JerseyTest {
       .queryParam("bool", true)
       .queryParam("date", "2019-03-29")
       .request()
-      .header("X-Vendor-Header", "string=headerStringValue")
+      .header("X-Vendor-Header", "string=headerStringValue;integer=62")
       .accept(MediaType.APPLICATION_JSON)
       .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
 
@@ -183,12 +184,87 @@ public class IntegrationTest extends JerseyTest {
     /*
      * Then
      */
-    assertEquals("headerStringValue", responseObject.getHeader());
+    assertEquals("headerStringValue", responseObject.getHeaderString());
+    assertEquals(62, responseObject.getHeaderInteger());
     assertEquals("value", responseObject.getString());
     assertEquals(65, responseObject.getInteger());
     assertEquals(33.45D, responseObject.getDecimal(), 0D);
     assertTrue(responseObject.isBool());
     assertEquals(new LocalDate("2019-03-29"), responseObject.getDate());
+    assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can POST with individual header properties specified
+   */
+  @Test
+  public void testPostWithHeaderProperties() throws Exception {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+
+    /*
+     * When
+     */
+    String responseString = target()
+      .path("path/doASimpleThing")
+      .queryParam("string", "value")
+      .request()
+      .header("X-Vendor-Header-String", "headerStringValue")
+      .header("X-Vendor-Header-Integer", 62)
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
+
+    /*
+     * Then
+     */
+    assertEquals("headerStringValue", responseObject.getHeaderString());
+    assertEquals(62, responseObject.getHeaderInteger());
+    assertEquals("value", responseObject.getString());
+    assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can POST with full header and individual header properties specified
+   *
+   * <p>
+   * Individual properties should override the values on the full header
+   * </p>
+   */
+  @Test
+  public void testPostWithHeaderAndProperties() throws Exception {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+
+    /*
+     * When
+     */
+    String responseString = target()
+      .path("path/doASimpleThing")
+      .queryParam("string", "value")
+      .request()
+      .header("X-Vendor-Header", "string=headerStringValue;integer=62")
+      .header("X-Vendor-Header-Integer", 89)
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
+
+    /*
+     * Then
+     */
+    assertEquals("headerStringValue", responseObject.getHeaderString());
+    assertEquals(89, responseObject.getHeaderInteger());
+    assertEquals("value", responseObject.getString());
     assertEquals(requestObject, responseObject.getNestedObject());
   }
 
@@ -219,7 +295,7 @@ public class IntegrationTest extends JerseyTest {
     /*
      * Then
      */
-    assertNull(responseObject.getHeader());
+    assertNull(responseObject.getHeaderString());
     assertEquals("value", responseObject.getString());
     assertEquals(requestObject, responseObject.getNestedObject());
   }
