@@ -15,6 +15,7 @@
 package org.alfasoftware.soapstone.testsupport;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 import org.joda.time.LocalDate;
 
 import javax.jws.WebMethod;
@@ -22,11 +23,23 @@ import javax.jws.WebParam;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import java.util.Map;
+import java.util.Objects;
+
+import static org.junit.Assert.fail;
 
 /**
  * Simple JAX-WS web service class and supporting types
  */
 public class WebService {
+
+
+  /**
+   * Some exception which will be handled by an {@link org.alfasoftware.soapstone.ExceptionMapper}
+   */
+  public static class MyException extends Exception {
+  }
+
 
   /**
    * JAXB XmlAdapter for  translating between ISO-8601 date format strings and LocalDates
@@ -166,11 +179,11 @@ public class WebService {
     @Override
     public boolean equals(Object obj) {
       return obj instanceof RequestObject
-        && ((RequestObject) obj).string.equals(string)
-        && ((RequestObject) obj).bool == bool
-        && ((RequestObject) obj).integer == integer
-        && ((RequestObject) obj).decimal == decimal
-        && ((RequestObject) obj).date.equals(date);
+        && Objects.equals(((RequestObject) obj).string, string)
+        && Objects.equals(((RequestObject) obj).bool, bool)
+        && Objects.equals(((RequestObject) obj).integer, integer)
+        && Objects.equals(((RequestObject) obj).decimal, decimal)
+        && Objects.equals(((RequestObject) obj).date, date);
     }
   }
 
@@ -179,13 +192,13 @@ public class WebService {
    * Web service method to take a variety of complex and simple header non-header
    * parameters and simply map them to a {@link ResponseObject}
    *
-   * @param header mapped to {@link ResponseObject#getHeader()}
+   * @param header  mapped to {@link ResponseObject#getHeader()}
    * @param request mapped to {@link ResponseObject#getNestedObject()}
-   * @param string mapped to {@link ResponseObject#getString()}
+   * @param string  mapped to {@link ResponseObject#getString()}
    * @param integer mapped to {@link ResponseObject#getInteger()}
    * @param decimal mapped to {@link ResponseObject#getDecimal()}
-   * @param bool mapped to {@link ResponseObject#isBool()}
-   * @param date mapped to {@link ResponseObject#getDate()}
+   * @param bool    mapped to {@link ResponseObject#isBool()}
+   * @param date    mapped to {@link ResponseObject#getDate()}
    * @return mapped {@link ResponseObject}
    */
   @WebMethod()
@@ -200,7 +213,9 @@ public class WebService {
 
     ResponseObject responseObject = new ResponseObject();
     responseObject.nestedObject = request;
-    responseObject.header = header.string;
+    if (header != null) {
+      responseObject.header = header.string;
+    }
     responseObject.string = string;
     responseObject.integer = integer;
     responseObject.decimal = decimal;
@@ -208,5 +223,86 @@ public class WebService {
     responseObject.date = date;
 
     return responseObject;
+  }
+
+
+  /**
+   * Simplified version of {@link #doAThing(HeaderObject, RequestObject, String, int, double, boolean, LocalDate)}
+   * which requires fewer inputs
+   *
+   * @param header  mapped to {@link ResponseObject#getHeader()}
+   * @param request mapped to {@link ResponseObject#getNestedObject()}
+   * @param string  mapped to {@link ResponseObject#getString()}
+   * @return mapped {@link ResponseObject}
+   */
+  @WebMethod()
+  public ResponseObject doASimpleThing(
+    @WebParam(name = "header", header = true) HeaderObject header,
+    @WebParam(name = "request") RequestObject request,
+    @WebParam(name = "string") String string) {
+
+    ResponseObject responseObject = new ResponseObject();
+    responseObject.nestedObject = request;
+    if (header != null) {
+      responseObject.header = header.string;
+    }
+    responseObject.string = string;
+
+    return responseObject;
+  }
+
+
+  /**
+   * Web method marked for exclusion. It should not be invoked by soapstone
+   *
+   * @param request ignored
+   */
+  @WebMethod(exclude = true)
+  public void doNotDoAThing(@WebParam(name = "request") RequestObject request) {
+    fail("This method should not have been invoked");
+  }
+
+
+  /**
+   * Web method which will throw {@link MyException} if a request is provided or a
+   * {@link NullPointerException} if it is null
+   *
+   * @param request determines exception thrown
+   */
+  @WebMethod()
+  public void doAThingBadly(@WebParam(name = "request") RequestObject request) throws MyException {
+    if (request == null) {
+      throw new NullPointerException();
+    }
+    throw new MyException();
+  }
+
+
+  /**
+   * Web method designed to be matched by a pattern for GET
+   *
+   * @return {@code "{ "got" : "string" }"}
+   */
+  @WebMethod()
+  public Map<String, String> getAThing() {
+    return ImmutableMap.of("got", "thing");
+  }
+
+
+  /**
+   * Web method designed to be matched by a pattern for PUT
+   *
+   * @param request ignored
+   */
+  @WebMethod()
+  public void putAThing(@WebParam(name = "request") RequestObject request) {
+  }
+
+
+  /**
+   * Web method designed to be matched by a pattern for DELETE
+   */
+  @WebMethod()
+  public void deleteAThing() {
   }
 }
