@@ -14,28 +14,22 @@
  */
 package org.alfasoftware.soapstone;
 
-import static java.util.regex.Pattern.CASE_INSENSITIVE;
-import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.ws.rs.BadRequestException;
-import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.UriInfo;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static java.util.regex.Pattern.CASE_INSENSITIVE;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
+import static org.alfasoftware.soapstone.WebParameter.headerParameter;
+import static org.alfasoftware.soapstone.WebParameter.parameter;
 
 /**
  * Utility class containing methods used by the {@link SoapstoneService}.
@@ -56,7 +50,7 @@ class Utils {
   /**
    * Converts the first letter of the string to lower case to conform with camel case conventions.
    */
-  static String convertToCamelCase(String string) {
+  private static String convertToCamelCase(String string) {
 
     if (string == null || string.trim().isEmpty()) {
       return string;
@@ -71,21 +65,18 @@ class Utils {
 
   /**
    * We'll only allow one argument per query parameter so we can simplify from a multi-value map to a map
+   * @return map of parameter names to input parameters
    */
-  static Map<String, String> simplifyQueryParameters(UriInfo uriInfo, ObjectMapper objectMapper) {
+  static Collection<WebParameter> simplifyQueryParameters(UriInfo uriInfo, ObjectMapper objectMapper) {
     MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
-    Map<String, String> simplifiedQueryParameters = new HashMap<>();
+    Collection<WebParameter> simplifiedQueryParameters = new HashSet<>();
 
     for (String key : queryParameters.keySet()) {
       List<String> values = Optional.ofNullable(queryParameters.get(key)).orElseGet(ArrayList::new);
       if (values.size() == 1) {
-        simplifiedQueryParameters.put(key, values.get(0));
+        simplifiedQueryParameters.add(parameter(key, objectMapper.valueToTree(values.get(0))));
       } else {
-        try {
-          simplifiedQueryParameters.put(key, objectMapper.writeValueAsString(values));
-        } catch (JsonProcessingException e) {
-          throw new BadRequestException("Unable to recognise format of query parameter '" + key + "'");
-        }
+        simplifiedQueryParameters.add(parameter(key, objectMapper.valueToTree(values)));
       }
     }
     return simplifiedQueryParameters;
@@ -94,15 +85,16 @@ class Utils {
 
   /**
    * Processes the headers and add to a map in JSON format
+   * @return map of parameter names to input parameters
    */
-  static Map<String, String> processHeaders(HttpHeaders headers, String vendor) {
-    // Our map of header objects
-    Map<String, String> headerObjects = new HashMap<>();
+  static Collection<WebParameter> processHeaders(HttpHeaders headers, String vendor) {
+    // Our map of headerParameter objects
+    Collection<WebParameter> headerObjects = new HashSet<>();
 
-    // Get all the header names which describe an object
+    // Get all the headerParameter names which describe an object
     Set<String> objectHeaders = getObjectHeaders(headers, vendor);
 
-    // For each object header...
+    // For each object headerParameter...
     objectHeaders.forEach(objectHeader -> processHeaderObject(headers, objectHeader, headerObjects));
 
     return headerObjects;
@@ -110,20 +102,15 @@ class Utils {
 
 
   /*
-   * Process each header object and add it to the headerObjects map.
+   * Process each headerParameter object and add it to the headerObjects map.
    */
-  private static void processHeaderObject(HttpHeaders headers, String objectHeaderName, Map<String, String> headerObjects) {
+  private static void processHeaderObject(HttpHeaders headers, String objectHeaderName, Collection<WebParameter> headerObjects) {
     // ... create the object...
     Map<String, String> object = createObject(headers, objectHeaderName);
     // ... and add it to the map
     String key = Utils.convertToCamelCase(objectHeaderName.substring(objectHeaderName.lastIndexOf("-") + 1));
-    String value;
-    try {
-      value = Mappers.INSTANCE.getObjectMapper().writeValueAsString(object);
-    } catch (JsonProcessingException e) {
-      throw new InternalServerErrorException();
-    }
-    headerObjects.put(key, value);
+    JsonNode value = Mappers.INSTANCE.getObjectMapper().valueToTree(object);
+    headerObjects.add(headerParameter(key, value));
   }
 
 

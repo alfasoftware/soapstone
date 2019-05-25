@@ -36,6 +36,7 @@ public interface ExceptionMapper {
    * If {@link Optional#empty()} is returned, a generic {@link InternalServerErrorException} will be produced
    *
    * @param t Throwable to map
+   * @param objectMapper Jackson object mapper
    * @return mapped exception
    */
   Optional<WebApplicationException> mapThrowable(Throwable t, ObjectMapper objectMapper);

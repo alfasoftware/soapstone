@@ -18,14 +18,12 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import com.google.common.collect.ImmutableMap;
-import org.alfasoftware.soapstone.ExceptionMapper;
-import org.alfasoftware.soapstone.SoapstoneService;
-import org.alfasoftware.soapstone.SoapstoneServiceBuilder;
-import org.alfasoftware.soapstone.WebServiceClass;
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.MyException;
 import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
 import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
+import org.glassfish.jersey.filter.LoggingFilter;
+import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
 import org.joda.time.LocalDate;
 import org.junit.Test;
@@ -35,20 +33,14 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
-import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
-import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
-import static javax.ws.rs.core.Response.Status.NOT_FOUND;
-import static javax.ws.rs.core.Response.Status.OK;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static javax.ws.rs.core.Response.Status.*;
+import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_1;
+import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_2;
+import static org.junit.Assert.*;
 
 
 /**
@@ -69,26 +61,20 @@ public class TestSoapstoneService extends JerseyTest {
 
   @Override
   protected Application configure() {
-    return new Application() {
 
-      @Override
-      public Set<Object> getSingletons() {
+    Map<String, WebServiceClass<?>> webServices = new HashMap<>();
+    webServices.put("/path", WebServiceClass.forClass(WebService.class, WebService::new));
 
-        Map<String, WebServiceClass<?>> webServices = new HashMap<>();
-        webServices.put("/path", WebServiceClass.forClass(WebService.class, WebService::new));
+    SoapstoneService service = new SoapstoneServiceBuilder(webServices)
+      .withVendor(VENDOR)
+      .withObjectMapper(OBJECT_MAPPER)
+      .withExceptionMapper(EXCEPTION_MAPPER)
+      .withSupportedGetOperations("get.*")
+      .withSupportedPutOperations("put.*")
+      .withSupportedDeleteOperations("delete.*")
+      .build();
 
-        SoapstoneService service = new SoapstoneServiceBuilder(webServices)
-          .withVendor(VENDOR)
-          .withObjectMapper(OBJECT_MAPPER)
-          .withExceptionMapper(EXCEPTION_MAPPER)
-          .withSupportedGetOperations("get.*")
-          .withSupportedPutOperations("put.*")
-          .withSupportedDeleteOperations("delete.*")
-          .build();
-
-        return Collections.singleton(service);
-      }
-    };
+    return new ResourceConfig().registerInstances(service).register(LoggingFilter.class);
   }
 
 
@@ -187,6 +173,40 @@ public class TestSoapstoneService extends JerseyTest {
     assertTrue(responseObject.isBool());
     assertEquals(new LocalDate("2019-03-29"), responseObject.getDate());
     assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can POST with multiple values for a query parameter
+   */
+  @Test
+  public void testPostWithListQueryParams() {
+
+    Response response = target()
+      .path("path/doAListOfThings")
+      .queryParam("list", VALUE_1, VALUE_2)
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity("", MediaType.APPLICATION_JSON));
+
+    assertEquals(OK.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we can POST with a JSON list value for a query parameter
+   */
+  @Test
+  public void testPostWithJsonListQueryParams() {
+
+    Response response = target()
+      .path("path/doAListOfThings")
+      .queryParam("list", "[ \"VALUE_1\", \"VALUE_2\" ]")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity("", MediaType.APPLICATION_JSON));
+
+    assertEquals(OK.getStatusCode(), response.getStatus());
   }
 
 
@@ -297,6 +317,40 @@ public class TestSoapstoneService extends JerseyTest {
 
 
   /**
+   * Test that we get a bad request response if we pass junk in the payload
+   */
+  @Test
+  public void testPostJunkPayload() {
+
+    Response response = target()
+      .path("path/doASimpleThing")
+      .queryParam("string", "value")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", "boogie nights"), MediaType.APPLICATION_JSON));
+
+    assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we get a bad request response if we pass junk in a query parameter
+   */
+  @Test
+  public void testPostJunkQueryParameter() {
+
+    Response response = target()
+      .path("path/doAListOfThings")
+      .queryParam("list", "boogie nights")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity("", MediaType.APPLICATION_JSON));
+
+    assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
    * Test that we can use GET for a method which matches the pattern provided
    */
   @Test
@@ -394,6 +448,22 @@ public class TestSoapstoneService extends JerseyTest {
 
     Response response = target()
       .path("path/doNotDoAThing")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
+
+    assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we get a 404 for requesting a path without an operation
+   */
+  @Test
+  public void testMissingOperation() {
+
+    Response response = target()
+      .path("path")
       .request()
       .accept(MediaType.APPLICATION_JSON)
       .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
