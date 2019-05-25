@@ -317,6 +317,40 @@ public class TestSoapstoneService extends JerseyTest {
 
 
   /**
+   * Test that we get a bad request response if we pass junk in the payload
+   */
+  @Test
+  public void testPostJunkPayload() {
+
+    Response response = target()
+      .path("path/doASimpleThing")
+      .queryParam("string", "value")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", "boogie nights"), MediaType.APPLICATION_JSON));
+
+    assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we get a bad request response if we pass junk in a query parameter
+   */
+  @Test
+  public void testPostJunkQueryParameter() {
+
+    Response response = target()
+      .path("path/doAListOfThings")
+      .queryParam("list", "boogie nights")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity("", MediaType.APPLICATION_JSON));
+
+    assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
    * Test that we can use GET for a method which matches the pattern provided
    */
   @Test
@@ -414,6 +448,22 @@ public class TestSoapstoneService extends JerseyTest {
 
     Response response = target()
       .path("path/doNotDoAThing")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
+
+    assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we get a 404 for requesting a path without an operation
+   */
+  @Test
+  public void testMissingOperation() {
+
+    Response response = target()
+      .path("path")
       .request()
       .accept(MediaType.APPLICATION_JSON)
       .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));

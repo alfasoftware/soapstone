@@ -249,7 +249,7 @@ public class SoapstoneService {
       return Mappers.INSTANCE.getObjectMapper().writeValueAsString(object);
     } catch (JsonProcessingException e) {
       LOG.log(Level.SEVERE, e, () -> "Error marshalling response from " + path);
-      throw new BadRequestException();
+      throw new InternalServerErrorException();
     }
   }
 
