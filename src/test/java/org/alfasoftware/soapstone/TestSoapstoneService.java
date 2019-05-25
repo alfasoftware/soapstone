@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.alfasoftware.soapstone.integration;
+package org.alfasoftware.soapstone;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,7 +54,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Integration tests for soapstone
  */
-public class IntegrationTest extends JerseyTest {
+public class TestSoapstoneService extends JerseyTest {
 
 
   private static final String VENDOR = "Vendor";
