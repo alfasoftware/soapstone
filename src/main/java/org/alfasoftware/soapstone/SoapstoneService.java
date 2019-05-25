@@ -18,16 +18,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.StringUtils;
 
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
-import javax.ws.rs.NotAllowedException;
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
@@ -36,17 +31,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import static javax.ws.rs.HttpMethod.DELETE;
-import static javax.ws.rs.HttpMethod.GET;
-import static javax.ws.rs.HttpMethod.POST;
-import static javax.ws.rs.HttpMethod.PUT;
+import static javax.ws.rs.HttpMethod.*;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static org.alfasoftware.soapstone.Utils.processHeaders;
 import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
+import static org.alfasoftware.soapstone.WebParameter.parameter;
 
 
 /**
@@ -165,14 +159,14 @@ public class SoapstoneService {
    */
   private String process(HttpHeaders headers, UriInfo uriInfo, String entity) {
 
-    Map<String, WebParameter> parameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
-    parameters.putAll(processHeaders(headers, vendor));
+    Set<WebParameter> parameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
+    parameters.addAll(processHeaders(headers, vendor));
 
     if (StringUtils.isNotBlank(entity)) {
       try {
         JsonNode jsonNode = Mappers.INSTANCE.getObjectMapper().readTree(entity);
         jsonNode.fields().forEachRemaining(entry ->
-            parameters.put(entry.getKey(), WebParameter.parameter(entry.getKey(), entry.getValue()))
+            parameters.add(parameter(entry.getKey(), entry.getValue()))
         );
       } catch (IOException e) {
         throw new BadRequestException(
@@ -230,7 +224,7 @@ public class SoapstoneService {
   /*
    * Execute the request.
    */
-  private String execute(String path, Map<String, WebParameter> parameters) {
+  private String execute(String path, Set<WebParameter> parameters) {
 
     // Check we have a legal path: path/operation
     if (path.indexOf('/') < 0) {

@@ -27,13 +27,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -84,9 +78,9 @@ public class WebServiceClass<T> {
    * @param parameters       Parameters
    * @return the return value of the operation
    */
-  Object invokeOperation(String operationName, Map<String, WebParameter> parameters) {
+  Object invokeOperation(String operationName, Set<WebParameter> parameters) {
 
-    Method operation = getOperation(operationName, parameters.values());
+    Method operation = getOperation(operationName, parameters);
 
     Object[] operationArgs = Arrays.stream(operation.getParameters())
       .map(operationParameter -> parameterToType(operationParameter, parameters))
@@ -205,23 +199,24 @@ public class WebServiceClass<T> {
   /*
    * Map any primitives, strings or JSON to actual types.
    */
-  private Object parameterToType(Parameter operationParameter, Map<String, WebParameter> parameters) {
+  private Object parameterToType(Parameter operationParameter, Set<WebParameter> parameters) {
 
-    WebParameter argumentAsString = parameters.get(operationParameter.getAnnotation(WebParam.class).name());
+    Optional<WebParameter> parameter = parameters.stream()
+      .filter(param -> param.getName().equals(operationParameter.getAnnotation(WebParam.class).name()))
+      .findFirst();
 
-    if (argumentAsString == null || argumentAsString.getNode().isNull()) {
+    if (!parameter.map(WebParameter::getNode).isPresent()) {
       return null;
     }
 
-    if (argumentAsString.getNode().isTextual()) {
+    if (parameter.get().getNode().isTextual()) {
       if (operationParameter.getType().equals(String.class)) {
-        return argumentAsString.getNode().asText();
+        return parameter.get().getNode().asText();
       } else {
-        Object object = typeConverter.convertValue(argumentAsString.getNode().asText(), operationParameter.getType());
+        Object object = typeConverter.convertValue(parameter.get().getNode().asText(), operationParameter.getType());
         if (object != null) {
           return object;
         }
-
       }
     }
 
@@ -232,7 +227,7 @@ public class WebServiceClass<T> {
     JavaType type = INSTANCE.getObjectMapper().constructType(operationParameter.getParameterizedType());
 
     try {
-      return INSTANCE.getObjectMapper().treeToValue(argumentAsString.getNode(), type.getRawClass());
+      return INSTANCE.getObjectMapper().treeToValue(parameter.get().getNode(), type.getRawClass());
     } catch (IOException e) {
       e.printStackTrace();
       throw new BadRequestException();
