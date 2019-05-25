@@ -67,9 +67,9 @@ class Utils {
    * We'll only allow one argument per query parameter so we can simplify from a multi-value map to a map
    * @return map of parameter names to input parameters
    */
-  static Set<WebParameter> simplifyQueryParameters(UriInfo uriInfo, ObjectMapper objectMapper) {
+  static Collection<WebParameter> simplifyQueryParameters(UriInfo uriInfo, ObjectMapper objectMapper) {
     MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
-    Set<WebParameter> simplifiedQueryParameters = new HashSet<>();
+    Collection<WebParameter> simplifiedQueryParameters = new HashSet<>();
 
     for (String key : queryParameters.keySet()) {
       List<String> values = Optional.ofNullable(queryParameters.get(key)).orElseGet(ArrayList::new);
@@ -87,9 +87,9 @@ class Utils {
    * Processes the headers and add to a map in JSON format
    * @return map of parameter names to input parameters
    */
-  static Set<WebParameter> processHeaders(HttpHeaders headers, String vendor) {
+  static Collection<WebParameter> processHeaders(HttpHeaders headers, String vendor) {
     // Our map of headerParameter objects
-    Set<WebParameter> headerObjects = new HashSet<>();
+    Collection<WebParameter> headerObjects = new HashSet<>();
 
     // Get all the headerParameter names which describe an object
     Set<String> objectHeaders = getObjectHeaders(headers, vendor);
@@ -104,7 +104,7 @@ class Utils {
   /*
    * Process each headerParameter object and add it to the headerObjects map.
    */
-  private static void processHeaderObject(HttpHeaders headers, String objectHeaderName, Set<WebParameter> headerObjects) {
+  private static void processHeaderObject(HttpHeaders headers, String objectHeaderName, Collection<WebParameter> headerObjects) {
     // ... create the object...
     Map<String, String> object = createObject(headers, objectHeaderName);
     // ... and add it to the map

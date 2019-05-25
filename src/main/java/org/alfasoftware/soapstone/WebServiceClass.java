@@ -29,8 +29,10 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static java.util.logging.Level.SEVERE;
 import static org.alfasoftware.soapstone.Mappers.INSTANCE;
 
 /**
@@ -40,6 +42,8 @@ import static org.alfasoftware.soapstone.Mappers.INSTANCE;
  * @author Copyright (c) Alfa Financial Software 2019
  */
 public class WebServiceClass<T> {
+
+  private static final Logger LOG = Logger.getLogger(SoapstoneService.class.getSimpleName());
 
   private final Class<T> klass;
   private final Supplier<T> instance;
@@ -78,13 +82,16 @@ public class WebServiceClass<T> {
    * @param parameters       Parameters
    * @return the return value of the operation
    */
-  Object invokeOperation(String operationName, Set<WebParameter> parameters) {
+  Object invokeOperation(String operationName, Collection<WebParameter> parameters) {
 
     Method operation = getOperation(operationName, parameters);
 
     Object[] operationArgs = Arrays.stream(operation.getParameters())
       .map(operationParameter -> parameterToType(operationParameter, parameters))
       .toArray();
+
+    LOG.info("Invoking " + operationName);
+    LOG.fine("Parameters: " + parameters);
 
     try {
       return operation.invoke(instance.get(), operationArgs);
@@ -95,6 +102,7 @@ public class WebServiceClass<T> {
         .orElse(new InternalServerErrorException());
 
     } catch (IllegalAccessException e) {
+      LOG.log(SEVERE, e, () -> "Error attempting to access " + operationName);
       /*
        * We've already thoroughly checked that the method was valid and accessible, so this shouldn't happen.
        * If it does, it's something more nefarious than a 404
@@ -121,6 +129,7 @@ public class WebServiceClass<T> {
     }
 
     if (methods.size() > 1) {
+      LOG.severe(() -> "Multiple potential methods found for " + operationName);
       /*
        * This seems appropriate: the request has insufficient information for us to determine what method the user
        * is trying to call. This might because there are two methods with the same name and same-named arguments
@@ -199,7 +208,7 @@ public class WebServiceClass<T> {
   /*
    * Map any primitives, strings or JSON to actual types.
    */
-  private Object parameterToType(Parameter operationParameter, Set<WebParameter> parameters) {
+  private Object parameterToType(Parameter operationParameter, Collection<WebParameter> parameters) {
 
     Optional<WebParameter> parameter = parameters.stream()
       .filter(param -> param.getName().equals(operationParameter.getAnnotation(WebParam.class).name()))
@@ -229,7 +238,7 @@ public class WebServiceClass<T> {
     try {
       return INSTANCE.getObjectMapper().treeToValue(parameter.get().getNode(), type.getRawClass());
     } catch (IOException e) {
-      e.printStackTrace();
+      LOG.log(SEVERE, e, () -> "Error unmarshalling " + parameter.get().getName());
       throw new BadRequestException();
     }
   }

@@ -29,9 +29,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -159,7 +159,7 @@ public class SoapstoneService {
    */
   private String process(HttpHeaders headers, UriInfo uriInfo, String entity) {
 
-    Set<WebParameter> parameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
+    Collection<WebParameter> parameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
     parameters.addAll(processHeaders(headers, vendor));
 
     if (StringUtils.isNotBlank(entity)) {
@@ -224,7 +224,7 @@ public class SoapstoneService {
   /*
    * Execute the request.
    */
-  private String execute(String path, Set<WebParameter> parameters) {
+  private String execute(String path, Collection<WebParameter> parameters) {
 
     // Check we have a legal path: path/operation
     if (path.indexOf('/') < 0) {
