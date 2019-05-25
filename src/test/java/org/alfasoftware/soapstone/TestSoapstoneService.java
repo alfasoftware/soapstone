@@ -14,401 +14,445 @@
  */
 package org.alfasoftware.soapstone;
 
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
+import com.google.common.collect.ImmutableMap;
+import org.alfasoftware.soapstone.ExceptionMapper;
+import org.alfasoftware.soapstone.SoapstoneService;
+import org.alfasoftware.soapstone.SoapstoneServiceBuilder;
+import org.alfasoftware.soapstone.WebServiceClass;
+import org.alfasoftware.soapstone.testsupport.WebService;
+import org.alfasoftware.soapstone.testsupport.WebService.MyException;
+import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
+import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
+import org.glassfish.jersey.test.JerseyTest;
+import org.joda.time.LocalDate;
+import org.junit.Test;
 
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Application;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
-import javax.ws.rs.NotAllowedException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.UriInfo;
-
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
+import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
+import static javax.ws.rs.core.Response.Status.NOT_FOUND;
+import static javax.ws.rs.core.Response.Status.OK;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 
 /**
- * Test class for {@link SoapstoneService}
- *
- * @author Copyright (c) Alfa Financial Software 2019
+ * Integration tests for soapstone
  */
-@RunWith(MockitoJUnitRunner.class)
-public class TestSoapstoneService {
+public class TestSoapstoneService extends JerseyTest {
 
-  @Mock private ExceptionMapper exceptionMapper;
-  @Mock private HttpHeaders headers;
-  @Mock private UriInfo uriInfo;
-  @Mock private WebServiceClass<?> webServiceClass;
-
-  @Captor private ArgumentCaptor<Map<String, String>> captor;
-
-  @Rule public final ExpectedException exception = ExpectedException.none();
 
   private static final String VENDOR = "Vendor";
-  private static final String KEY_1 = "key1";
-  private static final String KEY_2 = "key2";
-  private static final String PATH = "/path/path/path";
-  private static final String ENTITY = "{ \"entityIdentifier\" : { \"entityDescriptor\":\"descriptor\", \"entityNumber\" : 1 } }";
-  private static final String ENTITY_SIMPLE_PARMS = "{ \"string\" : \"string\", \"boolean\" : true, \"integer\" : 123, \"decimal\" : 33.24 }";
-  private static final String ENTITY_IN_JSON = "{\"entityDescriptor\":\"descriptor\",\"entityNumber\":1}";
-  private static final String REQUEST_IN_JSON = "{\"realmId\":\"REALM\",\"localeCode\":\"en_gb\",\"userId\":\"USER\"}";
 
-  private final Map<String, WebServiceClass<?>> webServiceClasses = new HashMap<>();
-  private final MultivaluedMap<String, String> queryParameters = new MultivaluedHashMap<>();
-  private final MultivaluedMap<String, String> headersMap = new MultivaluedHashMap<>();
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+    .registerModule(new JaxbAnnotationModule())
+    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-  private SoapstoneService soapstoneService;
+  private static final ExceptionMapper EXCEPTION_MAPPER = (exception, o) ->
+    Optional.ofNullable(exception instanceof MyException ? new BadRequestException() : null);
 
 
-  /**
-   * Set up the tests
-   */
-  @Before
-  public void setUp() {
-    queryParameters.put(KEY_1, singletonList("value1"));
-    queryParameters.put(KEY_2, asList("value2", "value3"));
+  @Override
+  protected Application configure() {
+    return new Application() {
 
-    headersMap.put("X-Vendor-Context", singletonList("userId=USER;realmId=REALM;localeCode=en_gb"));
-    headersMap.put("X-NotVendor-Test", singletonList("someKey=SOME_VALUE; anotherKey=ANOTHER_VALUE"));
+      @Override
+      public Set<Object> getSingletons() {
 
-    webServiceClasses.put("/path/path/path", webServiceClass);
+        Map<String, WebServiceClass<?>> webServices = new HashMap<>();
+        webServices.put("/path", WebServiceClass.forClass(WebService.class, WebService::new));
 
-    String headerString = "X-" + VENDOR + "-Context";
-    String requestContext = "userId=USER;realmId=REALM;localeCode=en_gb";
+        SoapstoneService service = new SoapstoneServiceBuilder(webServices)
+          .withVendor(VENDOR)
+          .withObjectMapper(OBJECT_MAPPER)
+          .withExceptionMapper(EXCEPTION_MAPPER)
+          .withSupportedGetOperations("get.*")
+          .withSupportedPutOperations("put.*")
+          .withSupportedDeleteOperations("delete.*")
+          .build();
 
-    when(uriInfo.getQueryParameters()).thenReturn(queryParameters);
-    when(headers.getHeaderString(headerString)).thenReturn(requestContext);
-    when(headers.getRequestHeaders()).thenReturn(headersMap);
-
-
+        return Collections.singleton(service);
+      }
+    };
   }
 
 
   /**
-   * Tests the {@linkplain SoapstoneService#get(HttpHeaders, UriInfo)} method.
+   * Test that we can POST with all required parameters (other than header) passed in
+   * via the payload.
+   */
+  @Test
+  public void testPostWithPayload() throws Exception {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+    requestObject.setBool(false);
+    requestObject.setString("complexValue");
+    requestObject.setInteger(897);
+    requestObject.setDecimal(88.55D);
+    requestObject.setDate("2001-12-16");
+
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("request", requestObject);
+    payload.put("string", "value");
+    payload.put("integer", 65);
+    payload.put("decimal", 33.45D);
+    payload.put("bool", true);
+    payload.put("date", "2019-03-29");
+
+    /*
+     * When
+     */
+    String responseString = target()
+      .path("path/doAThing")
+      .request()
+      .header("X-Vendor-Header", "string=headerStringValue;integer=62")
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(payload, MediaType.APPLICATION_JSON), String.class);
+
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
+
+    /*
+     * Then
+     */
+    assertEquals("headerStringValue", responseObject.getHeaderString());
+    assertEquals(62, responseObject.getHeaderInteger());
+    assertEquals("value", responseObject.getString());
+    assertEquals(65, responseObject.getInteger());
+    assertEquals(33.45D, responseObject.getDecimal(), 0D);
+    assertTrue(responseObject.isBool());
+    assertEquals(new LocalDate("2019-03-29"), responseObject.getDate());
+    assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can POST with all simple parameters passed in as query parameters
+   */
+  @Test
+  public void testPostWithQueryParams() throws Exception {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+    requestObject.setBool(false);
+    requestObject.setString("complexValue");
+    requestObject.setInteger(897);
+    requestObject.setDecimal(88.55D);
+    requestObject.setDate("2001-12-16");
+
+    /*
+     * When
+     */
+    String responseString = target()
+      .path("path/doAThing")
+      .queryParam("string", "value")
+      .queryParam("integer", 65)
+      .queryParam("decimal", 33.45D)
+      .queryParam("bool", true)
+      .queryParam("date", "2019-03-29")
+      .request()
+      .header("X-Vendor-Header", "string=headerStringValue;integer=62")
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
+
+    /*
+     * Then
+     */
+    assertEquals("headerStringValue", responseObject.getHeaderString());
+    assertEquals(62, responseObject.getHeaderInteger());
+    assertEquals("value", responseObject.getString());
+    assertEquals(65, responseObject.getInteger());
+    assertEquals(33.45D, responseObject.getDecimal(), 0D);
+    assertTrue(responseObject.isBool());
+    assertEquals(new LocalDate("2019-03-29"), responseObject.getDate());
+    assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can POST with individual header properties specified
+   */
+  @Test
+  public void testPostWithHeaderProperties() throws Exception {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+
+    /*
+     * When
+     */
+    String responseString = target()
+      .path("path/doASimpleThing")
+      .queryParam("string", "value")
+      .request()
+      .header("X-Vendor-Header-String", "headerStringValue")
+      .header("X-Vendor-Header-Integer", 62)
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
+
+    /*
+     * Then
+     */
+    assertEquals("headerStringValue", responseObject.getHeaderString());
+    assertEquals(62, responseObject.getHeaderInteger());
+    assertEquals("value", responseObject.getString());
+    assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can POST with full header and individual header properties specified
+   *
+   * <p>
+   * Individual properties should override the values on the full header
+   * </p>
+   */
+  @Test
+  public void testPostWithHeaderAndProperties() throws Exception {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+
+    /*
+     * When
+     */
+    String responseString = target()
+      .path("path/doASimpleThing")
+      .queryParam("string", "value")
+      .request()
+      .header("X-Vendor-Header", "string=headerStringValue;integer=62")
+      .header("X-Vendor-Header-Integer", 89)
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
+
+    /*
+     * Then
+     */
+    assertEquals("headerStringValue", responseObject.getHeaderString());
+    assertEquals(89, responseObject.getHeaderInteger());
+    assertEquals("value", responseObject.getString());
+    assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can POST and header parameters are treated as optional
+   */
+  @Test
+  public void testPostWithNoHeader() throws Exception {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+
+    /*
+     * When
+     */
+    String responseString = target()
+      .path("path/doASimpleThing")
+      .queryParam("string", "value")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
+
+    /*
+     * Then
+     */
+    assertNull(responseObject.getHeaderString());
+    assertEquals("value", responseObject.getString());
+    assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can use GET for a method which matches the pattern provided
    */
   @Test
   public void testGet() {
 
-    // Given
-    String operation = "loadAll";
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    soapstoneService = createService();
+    Response response = target()
+      .path("path/getAThing")
+      .request()
+      .get();
 
-    // When
-    soapstoneService.get(headers, uriInfo);
-
-    // Then
-    // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
-
-    // Verify we populate the parameters with the correct query and context
-    Map<String, String> capturedNonHeaderValues = captor.getAllValues().get(0);
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
-    assertEquals("The first key and value query combination is incorrect", "value1", capturedNonHeaderValues.get(KEY_1));
-    assertEquals("The second key and value query combination is incorrect", "[\"value2\",\"value3\"]", capturedNonHeaderValues.get(KEY_2));
-    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedHeaderValues.get("context"));
+    assertEquals(OK.getStatusCode(), response.getStatus());
   }
 
 
   /**
-   * Tests the {@linkplain SoapstoneService#post(HttpHeaders, UriInfo, String)} method.
+   * Test that we cannot use GET for a method which does not match the pattern provided
    */
   @Test
-  public void testPost() {
+  public void testGetNotAllowed() {
 
-    // Given
-    String operation = "anyOperation";
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    soapstoneService = createService();
+    Response response = target()
+      .path("path/doAThing")
+      .request()
+      .get();
 
-    // When
-    soapstoneService.post(headers, uriInfo, ENTITY);
-
-    // Then
-    // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
-
-    // Verify we populate the parameters with the correct query and context
-    Map<String, String> capturedNonHeaderValues = captor.getAllValues().get(0);
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
-    assertEquals("The first key and value query combination is incorrect", "value1", capturedNonHeaderValues.get(KEY_1));
-    assertEquals("The second key and value query combination is incorrect", "[\"value2\",\"value3\"]", capturedNonHeaderValues.get(KEY_2));
-    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedHeaderValues.get("context"));
-    assertEquals("The entity is incorrect", ENTITY_IN_JSON, capturedNonHeaderValues.get("entityIdentifier"));
+    assertEquals(METHOD_NOT_ALLOWED.getStatusCode(), response.getStatus());
   }
 
 
   /**
-   * Tests that we correctly handle simple (e.g., String/primitive) parameters in payloads
-   */
-  @Test
-  public void testProcessingSimpleParameters() {
-
-    // Given
-    String operation = "anyOperation";
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    soapstoneService = createService();
-
-    // When
-    soapstoneService.post(headers, uriInfo, ENTITY_SIMPLE_PARMS);
-
-    // Then
-    // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
-
-    // Verify we populate the parameters with the correct simple parameter strings
-    Map<String, String> capturedNonHeaderValues = captor.getAllValues().get(0);
-    assertEquals("String parameter incorrectly handled", "string", capturedNonHeaderValues.get("string"));
-    assertEquals("Boolean parameter incorrectly handled", "true", capturedNonHeaderValues.get("boolean"));
-    assertEquals("Integer parameter incorrectly handled", "123", capturedNonHeaderValues.get("integer"));
-    assertEquals("Decimal parameter incorrectly handled", "33.24", capturedNonHeaderValues.get("decimal"));
-  }
-
-
-  /**
-   * Tests the {@linkplain SoapstoneService#put(HttpHeaders, UriInfo, String)} method.
+   * Test that we can use PUT for a method which matches the pattern provided
    */
   @Test
   public void testPut() {
 
-    // Given
-    String operation = "update";
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    soapstoneService = createService();
+    Response response = target()
+      .path("path/putAThing")
+      .request()
+      .put(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
-    // When
-    soapstoneService.put(headers, uriInfo, ENTITY);
-
-    // Then
-    // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    assertEquals(OK.getStatusCode(), response.getStatus());
   }
 
 
   /**
-   * Tests the {@linkplain SoapstoneService#delete(HttpHeaders, UriInfo, String)} method.
+   * Test that we cannot use PUT for a method which does not match the pattern provided
+   */
+  @Test
+  public void testPutNotAllowed() {
+
+    Response response = target()
+      .path("path/doAThing")
+      .request()
+      .put(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
+
+    assertEquals(METHOD_NOT_ALLOWED.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we can use DELETE for a method which matches the pattern provided
    */
   @Test
   public void testDelete() {
 
-    // Given
-    String operation = "remove";
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    soapstoneService = createService();
+    Response response = target()
+      .path("path/deleteAThing")
+      .request()
+      .delete();
 
-    // When
-    soapstoneService.delete(headers, uriInfo, ENTITY);
-
-    // Then
-    // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
+    assertEquals(OK.getStatusCode(), response.getStatus());
   }
 
 
   /**
-   * Tests that the appropriate {@link NotAllowedException} is thrown when a forbidden operation has been used.
-   */
-  @Test()
-  public void testMethodNotAllowed() {
-
-    // Given
-    String operation = "forbiddenMethod";
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    soapstoneService = createService();
-
-    // When / Then
-    exception.expect(NotAllowedException.class);
-    exception.expectMessage("HTTP 405 Method Not Allowed");
-    soapstoneService.get(headers, uriInfo);
-  }
-
-
-  /**
-   * Tests that the appropriate {@link NotAllowedException} is thrown when a forbidden operation has been used that is
-   * supported by another method type.
-   */
-  @Test()
-  public void testMethodNotAllowedButSupportedByDELETE() {
-
-    // Given
-    String operation = "deleteFile";
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    soapstoneService = createService();
-
-    // When / Then
-    try {
-      soapstoneService.get(headers, uriInfo);
-    } catch (NotAllowedException e) {
-      assertEquals("Exception message is incorrect", "HTTP 405 Method Not Allowed", e.getMessage());
-      assertEquals("Allowed methods is incorrect", "{Allow=[POST,DELETE]}", e.getResponse().getHeaders().toString()); // Post and Delete allowed
-    }
-  }
-
-
-  /**
-   * Tests that when processing a combined context header (e.g. of the format "X-Vendor-Context: userId=USER;realmId=REALM;localeCode=en_gb"), the
-   * contained parameters are correctly mapped by the service.
+   * Test that we cannot use DELETE for a method which does not match the pattern provided
    */
   @Test
-  public void testProcessingOfCombinedContextHeader() {
+  public void testDeleteNotAllowed() {
 
-    // Given
-    String operation = "loadAll";
-    MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
-    requestHeaders.put("X-Vendor-Context", singletonList("userId=USER;realmId=REALM;localeCode=en_gb"));
+    Response response = target()
+      .path("path/doAThing")
+      .request()
+      .delete();
 
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    when(headers.getRequestHeaders()).thenReturn(requestHeaders);
-
-    soapstoneService = createService();
-
-    // When
-    soapstoneService.get(headers, uriInfo);
-
-    // Then
-    // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
-
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
-    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedHeaderValues.get("context"));
+    assertEquals(METHOD_NOT_ALLOWED.getStatusCode(), response.getStatus());
   }
 
 
   /**
-   * Tests that when processing a series of individual property context headers (e.g. of the format
-   * "X-Vendor-Context-UserId: USER", "X-Vendor-Context-RealmId = REALM"... etc), the contained parameters are
-   * correctly mapped by the service.
+   * Test that we get a 404 for requesting a method which is not exposed
    */
   @Test
-  public void testProcessingOfIndividualPropertyContextHeader() {
+  public void testExcludedMethod() {
 
-    // Given
-    String operation = "loadAll";
+    Response response = target()
+      .path("path/doNotDoAThing")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
-    MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
-    requestHeaders.put("X-Vendor-Context-UserId", singletonList("USER"));
-    requestHeaders.put("X-Vendor-Context-RealmId", singletonList("REALM"));
-    requestHeaders.put("X-Vendor-Context-LocaleCode", singletonList("en_gb"));
-
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    when(headers.getRequestHeaders()).thenReturn(requestHeaders);
-    when(headers.getHeaderString("X-Vendor-Context-UserId")).thenReturn("USER");
-    when(headers.getHeaderString("X-Vendor-Context-RealmId")).thenReturn("REALM");
-    when(headers.getHeaderString("X-Vendor-Context-LocaleCode")).thenReturn("en_gb");
-
-    soapstoneService = createService();
-
-    // When
-    soapstoneService.get(headers, uriInfo);
-
-    // Then
-    // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
-
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
-    assertEquals("The context is incorrect", REQUEST_IN_JSON, capturedHeaderValues.get("context"));
+    assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
   }
 
 
   /**
-   * Tests that if both a combined context header and a series of individual context headers have been given, the
-   * service will correctly return a map containing only one set of the parameters (i.e. no potentially conflicting
-   * duplicates).
+   * Test that we get a 404 for requesting a path which does not correspond to an
+   * exposed service
    */
   @Test
-  public void testProcessingBothCombinedAndIndividualContextHeaders() {
+  public void testUnmappedService() {
 
-    // Given
-    String operation = "loadAll";
+    Response response = target()
+      .path("not-the-path/doAThing")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
-    MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
-    requestHeaders.put("X-Vendor-Context", singletonList("userId=USER;realmId=REALM;localeCode=en_gb"));
-    requestHeaders.put("X-Vendor-Context-UserId", singletonList("OTHER_USER"));
-    requestHeaders.put("X-Vendor-Context-RealmId", singletonList("USER"));
-    requestHeaders.put("X-Vendor-Context-LocaleCode", singletonList("en_us"));
-
-    when(uriInfo.getPath()).thenReturn(PATH + "/" + operation);
-    when(headers.getRequestHeaders()).thenReturn(requestHeaders);
-    when(headers.getHeaderString("X-Vendor-Context-UserId")).thenReturn("OTHER_USER");
-    when(headers.getHeaderString("X-Vendor-Context-RealmId")).thenReturn("OTHER_REALM");
-    when(headers.getHeaderString("X-Vendor-Context-LocaleCode")).thenReturn("en_us");
-
-    String requestInJson = "{\"realmId\":\"OTHER_REALM\",\"localeCode\":\"en_us\",\"userId\":\"OTHER_USER\"}";
-
-    soapstoneService = createService();
-
-    // When
-    soapstoneService.get(headers, uriInfo);
-
-    // Then
-    // Verify we invoke the operation
-    verify(webServiceClass).invokeOperation(eq(operation), captor.capture(), captor.capture());
-
-    Map<String, String> capturedHeaderValues = captor.getAllValues().get(1);
-    assertEquals("The captured header values map should contain only one entry", 1, capturedHeaderValues.size());
-    assertEquals("The context is incorrect", requestInJson, capturedHeaderValues.get("context"));
+    assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
   }
 
 
   /**
-   * Test that we get a 404 if we invoke on a path that does not match
-   * path/operation. I.e. contains at least one '/'
+   * Test that we get the correctly mapped error (bad request) if an exception is
+   * thrown which is handled by the exception mapper
    */
   @Test
-  public void testInvocationOnIllegalPath() {
+  public void testMappedException() {
 
-    when(uriInfo.getPath()).thenReturn("illegalpath");
+    Response response = target()
+      .path("path/doAThingBadly")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
-    soapstoneService = createService();
-
-    exception.expect(NotFoundException.class);
-    soapstoneService.post(headers, uriInfo, "{ \"hey\" : \"there\" }");
+    assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
   }
 
 
   /**
-   * Test that we get a 404 if we invoke on a path that is not mapped
+   * Test that we get an internal server error if an exception is thrown which is
+   * not handled by the exception mapper
    */
   @Test
-  public void testInvocationOnUnmappedPath() {
+  public void testUnmappedException() {
 
-    when(uriInfo.getPath()).thenReturn("incorrectpath/operation");
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("request", null);
 
-    soapstoneService = createService();
+    Response response = target()
+      .path("path/doAThingBadly")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(payload, MediaType.APPLICATION_JSON));
 
-    exception.expect(NotFoundException.class);
-    soapstoneService.post(headers, uriInfo, "{ \"hey\" : \"there\" }");
-  }
-
-
-  /*
-   * Creates a SoapstoneService for testing.
-   */
-  private SoapstoneService createService() {
-
-    return new SoapstoneServiceBuilder(webServiceClasses)
-        .withExceptionMapper(exceptionMapper)
-        .withVendor(VENDOR)
-        .withSupportedGetOperations("load.*", "list.*", "get.*")
-        .withSupportedDeleteOperations("delete.*", "remove.*")
-      .withSupportedPutOperations("update.*")
-        .build();
+    assertEquals(INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
   }
 
 }
