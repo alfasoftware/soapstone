@@ -22,7 +22,6 @@ import javax.ws.rs.BadRequestException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -236,8 +235,16 @@ public class WebServiceClass<T> {
     JavaType type = INSTANCE.getObjectMapper().constructType(operationParameter.getParameterizedType());
 
     try {
-      return INSTANCE.getObjectMapper().treeToValue(parameter.get().getNode(), type.getRawClass());
-    } catch (IOException e) {
+      /*
+       * If the node is textual and the type is not String (checked above), then we've probably been
+       * passed some JSON in a query parameter or something. convertValue wont work, but readValue
+       * should.
+       */
+      if (parameter.get().getNode().isTextual()) {
+        return INSTANCE.getObjectMapper().readValue(parameter.get().getNode().asText(), type);
+      }
+      return INSTANCE.getObjectMapper().convertValue(parameter.get().getNode(), type);
+    } catch (Exception e) {
       LOG.log(SEVERE, e, () -> "Error unmarshalling " + parameter.get().getName());
       throw new BadRequestException();
     }

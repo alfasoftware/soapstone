@@ -94,7 +94,7 @@ public class SoapstoneService {
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
   public String post(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
-    LOG.info("POST " + uriInfo);
+    LOG.info("POST " + uriInfo.getRequestUri());
     return process(headers, uriInfo, entity);
   }
 
@@ -110,7 +110,7 @@ public class SoapstoneService {
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   public String get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
-    LOG.info("GET " + uriInfo);
+    LOG.info("GET " + uriInfo.getRequestUri());
     checkIfMethodSupported(uriInfo, GET);
     return process(headers, uriInfo, null);
   }
@@ -129,7 +129,7 @@ public class SoapstoneService {
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
   public String put(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
-    LOG.info("PUT " + uriInfo);
+    LOG.info("PUT " + uriInfo.getRequestUri());
     checkIfMethodSupported(uriInfo, PUT);
     return process(headers, uriInfo, entity);
   }
@@ -148,7 +148,7 @@ public class SoapstoneService {
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
   public String delete(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
-    LOG.info("DELETE " + uriInfo);
+    LOG.info("DELETE " + uriInfo.getRequestUri());
     checkIfMethodSupported(uriInfo, DELETE);
     return process(headers, uriInfo, entity);
   }

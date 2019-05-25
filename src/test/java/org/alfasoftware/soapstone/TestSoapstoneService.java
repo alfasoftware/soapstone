@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static javax.ws.rs.core.Response.Status.*;
+import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_1;
+import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_2;
 import static org.junit.Assert.*;
 
 
@@ -171,6 +173,40 @@ public class TestSoapstoneService extends JerseyTest {
     assertTrue(responseObject.isBool());
     assertEquals(new LocalDate("2019-03-29"), responseObject.getDate());
     assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can POST with multiple values for a query parameter
+   */
+  @Test
+  public void testPostWithListQueryParams() {
+
+    Response response = target()
+      .path("path/doAListOfThings")
+      .queryParam("list", VALUE_1, VALUE_2)
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity("", MediaType.APPLICATION_JSON));
+
+    assertEquals(OK.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we can POST with a JSON list value for a query parameter
+   */
+  @Test
+  public void testPostWithJsonListQueryParams() {
+
+    Response response = target()
+      .path("path/doAListOfThings")
+      .queryParam("list", "[ \"VALUE_1\", \"VALUE_2\" ]")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity("", MediaType.APPLICATION_JSON));
+
+    assertEquals(OK.getStatusCode(), response.getStatus());
   }
 
 

@@ -23,9 +23,11 @@ import javax.jws.WebParam;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -119,10 +121,12 @@ public class WebService {
     private String string;
     private int integer;
 
+    @JsonProperty
     public void setString(String string) {
       this.string = string;
     }
 
+    @JsonProperty
     public void setInteger(int integer) {
       this.integer = integer;
     }
@@ -198,6 +202,11 @@ public class WebService {
   }
 
 
+  public enum Value {
+    VALUE_1, VALUE_2
+  }
+
+
   /**
    * Web service method to take a variety of complex and simple headerString non-headerString
    * parameters and simply map them to a {@link ResponseObject}
@@ -261,6 +270,24 @@ public class WebService {
     responseObject.string = string;
 
     return responseObject;
+  }
+
+
+  /**
+   * This exists to ensure that a collection of enum values is properly
+   * deserialised, and does not end up as a list of strings.
+   *
+   * @param list list of enum values
+   */
+  @WebMethod()
+  public void doAListOfThings(@WebParam(name = "list") List<Value> list) {
+
+    /*
+     * The following is not as redundant as it looks. Since we are invoked by
+     * reflection types are erased and the list could easily contain strings if
+     * the generics are not properly handled
+     */
+    list.forEach(value -> assertTrue(value instanceof Value));
   }
 
 
