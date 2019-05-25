@@ -78,19 +78,19 @@ class TypeConverter {
    */
   private static final int BAD_DATE_INCREMENT = 2000;
 
-  /**
-   * The year, within a century, which is used to determine if a two-digit
-   * year is in the 20th or 21st century. This value is <em>inclusive</em>,
-   * that is:
-   *
-   * <ul>
-   * <li>If <var>year</var> &lt; 1000 and <var>year</var> &gt;= {@value}, <code><var>year</var> += 1900</code>;
-   * <li>If <var>year</var> &lt; 1000 and <var>year</var> &lt; {@value}, <code><var>year</var> += 2000</code>.
-   * </li>
-   *
-   * @see SimpleDateFormat#set2DigitYearStart(Date)
-   */
-  private static final int CENTURY_SWITCH = 60;
+//  /**
+//   * The year, within a century, which is used to determine if a two-digit
+//   * year is in the 20th or 21st century. This value is <em>inclusive</em>,
+//   * that is:
+//   *
+//   * <ul>
+//   * <li>If <var>year</var> &lt; 1000 and <var>year</var> &gt;= {@value}, <code><var>year</var> += 1900</code>;
+//   * <li>If <var>year</var> &lt; 1000 and <var>year</var> &lt; {@value}, <code><var>year</var> += 2000</code>.
+//   * </li>
+//   *
+//   * @see SimpleDateFormat#set2DigitYearStart(Date)
+//   */
+//  private static final int CENTURY_SWITCH = 60;
 
   /**
    * Upper bound for the year on a converted date.
@@ -114,10 +114,10 @@ class TypeConverter {
    */
   private static final Date badDateSwitchDate;
 
-  /**
-   * Date corresponding to {@value #CENTURY_SWITCH}.
-   */
-  private static final Date centurySwitchDate;
+//  /**
+//   * Date corresponding to {@value #CENTURY_SWITCH}.
+//   */
+//  private static final Date centurySwitchDate;
 
   /**
    * The upper bound date that is supported in conversions.
@@ -134,7 +134,7 @@ class TypeConverter {
    */
   static {
     try {
-      centurySwitchDate = new SimpleDateFormat("yyyy").parse(Integer.toString(1900 + CENTURY_SWITCH));
+//      centurySwitchDate = new SimpleDateFormat("yyyy").parse(Integer.toString(1900 + CENTURY_SWITCH));
       badDateSwitchDate = new SimpleDateFormat("yyyy").parse("100");
       upperBoundDate = new SimpleDateFormat(ISO_8601_DATE_FORMAT).parse(DATE_YEAR_UPPER_BOUND + "-12-31");
       lowerBoundDate = new SimpleDateFormat(ISO_8601_DATE_FORMAT).parse(DATE_YEAR_LOWER_BOUND + "-01-01");
@@ -276,15 +276,16 @@ class TypeConverter {
         return (T) checkDateValue(format.parse(valueAsTrimmedString));
       } catch (ParseException e) {
         // Obviously wasn't ISO 8601!
+        throw new ParseException("Cannot convert [" + valueAsTrimmedString + "] to Date", 0); // NOPMD ParseException doesn't allow a nested exception to be provided
       }
 
-      DateFormat format = DateFormat.getDateInstance(DateFormat.SHORT, locale);
-      format.setLenient(false);
-      if (format instanceof SimpleDateFormat) {
-        ((SimpleDateFormat)format).set2DigitYearStart(centurySwitchDate);
-      }
-
-      return (T) checkDateValue(format.parse(valueAsTrimmedString));
+//      DateFormat format = DateFormat.getDateInstance(DateFormat.SHORT, locale);
+//      format.setLenient(false);
+//      if (format instanceof SimpleDateFormat) {
+//        ((SimpleDateFormat)format).set2DigitYearStart(centurySwitchDate);
+//      }
+//
+//      return (T) checkDateValue(format.parse(valueAsTrimmedString));
     }
 
     // -- Handle LocalDates...
@@ -295,13 +296,15 @@ class TypeConverter {
         return (T) checkLocalDateValue(LocalDate.parse(valueAsTrimmedString, ISODateTimeFormat.date()));
       } catch (IllegalArgumentException e) {
         // Not ISO-8601, we assume...
-      }
-      DateTimeFormatter formatter = DateTimeFormat.shortDate().withLocale(locale).withPivotYear(1950 + CENTURY_SWITCH);
-      try {
-        return (T) checkLocalDateValue(LocalDate.parse(valueAsTrimmedString, formatter));
-      } catch (IllegalArgumentException e) {
         throw new ParseException("Cannot convert [" + valueAsTrimmedString + "] to LocalDate", 0); // NOPMD ParseException doesn't allow a nested exception to be provided
       }
+
+//      DateTimeFormatter formatter = DateTimeFormat.shortDate().withLocale(locale).withPivotYear(1950 + CENTURY_SWITCH);
+//      try {
+//        return (T) checkLocalDateValue(LocalDate.parse(valueAsTrimmedString, formatter));
+//      } catch (IllegalArgumentException e) {
+//        throw new ParseException("Cannot convert [" + valueAsTrimmedString + "] to LocalDate", 0); // NOPMD ParseException doesn't allow a nested exception to be provided
+//      }
     }
 
     // -- Handle LocalTimes...
