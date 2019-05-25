@@ -14,19 +14,9 @@
  */
 package org.alfasoftware.soapstone;
 
-import static javax.ws.rs.HttpMethod.DELETE;
-import static javax.ws.rs.HttpMethod.GET;
-import static javax.ws.rs.HttpMethod.POST;
-import static javax.ws.rs.HttpMethod.PUT;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static org.alfasoftware.soapstone.Utils.processHeaders;
-import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.commons.lang.StringUtils;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -42,9 +32,21 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
+import static javax.ws.rs.HttpMethod.DELETE;
+import static javax.ws.rs.HttpMethod.GET;
+import static javax.ws.rs.HttpMethod.POST;
+import static javax.ws.rs.HttpMethod.PUT;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static org.alfasoftware.soapstone.Utils.processHeaders;
+import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
 
 
 /**
@@ -54,6 +56,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  */
 @Path("")
 public class SoapstoneService {
+
+  private static final Logger LOG = Logger.getLogger(SoapstoneService.class.getSimpleName());
 
   private final Map<String, WebServiceClass<?>> webServiceClasses;
   private final String vendor;
@@ -70,11 +74,11 @@ public class SoapstoneService {
    * @param supportedPutOperations may be null
    */
   SoapstoneService(
-    Map<String, WebServiceClass<?>> webServiceClasses,
-    String vendor,
-    Pattern supportedGetOperations,
-    Pattern supportedDeleteOperations,
-    Pattern supportedPutOperations) {
+      Map<String, WebServiceClass<?>> webServiceClasses,
+      String vendor,
+      Pattern supportedGetOperations,
+      Pattern supportedDeleteOperations,
+      Pattern supportedPutOperations) {
     this.webServiceClasses = webServiceClasses;
     this.vendor = vendor;
     this.supportedGetOperations = supportedGetOperations;
@@ -84,37 +88,37 @@ public class SoapstoneService {
 
 
   /**
-   * Maps incoming JSON HTTP GET requests to web service implementations and executes the relevant method.
-   *
-   * @param headers The HTTP header information
-   * @param uriInfo The application and request URI information
-   */
-  @GET
-  @Path("/{s:.*}")
-  @Produces(APPLICATION_JSON)
-  public String get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
-    checkIfMethodSupported(uriInfo, GET);
-
-    Map<String, String> headerParameters = processHeaders(headers, vendor);
-    Map<String, String> nonHeaderParameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
-
-    return (String) execute(uriInfo.getPath(), nonHeaderParameters, headerParameters);
-  }
-
-
-  /**
    * Maps incoming JSON HTTP POST requests to web service implementations and executes the relevant method.
    *
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
    * @param entity The entity to be parsed as a JSON object
+   * @return JSON representation of the underlying web service response
    */
   @POST
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
   public String post(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
+    LOG.info("POST " + uriInfo);
     return process(headers, uriInfo, entity);
+  }
+
+
+  /**
+   * Maps incoming JSON HTTP GET requests to web service implementations and executes the relevant method.
+   *
+   * @param headers The HTTP header information
+   * @param uriInfo The application and request URI information
+   * @return JSON representation of the underlying web service response
+   */
+  @GET
+  @Path("/{s:.*}")
+  @Produces(APPLICATION_JSON)
+  public String get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
+    LOG.info("GET " + uriInfo);
+    checkIfMethodSupported(uriInfo, GET);
+    return process(headers, uriInfo, null);
   }
 
 
@@ -124,12 +128,14 @@ public class SoapstoneService {
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
    * @param entity The entity to be parsed as a JSON object
+   * @return JSON representation of the underlying web service response
    */
   @PUT
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
   public String put(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
+    LOG.info("PUT " + uriInfo);
     checkIfMethodSupported(uriInfo, PUT);
     return process(headers, uriInfo, entity);
   }
@@ -141,12 +147,14 @@ public class SoapstoneService {
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
    * @param entity The entity to be parsed as a JSON object
+   * @return JSON representation of the underlying web service response
    */
   @DELETE
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
   public String delete(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
+    LOG.info("DELETE " + uriInfo);
     checkIfMethodSupported(uriInfo, DELETE);
     return process(headers, uriInfo, entity);
   }
@@ -157,31 +165,24 @@ public class SoapstoneService {
    */
   private String process(HttpHeaders headers, UriInfo uriInfo, String entity) {
 
-    Map<String, String> nonHeaderParameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
-    Map<String, String> headerParameter = processHeaders(headers, vendor);
+    Map<String, WebParameter> parameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
+    parameters.putAll(processHeaders(headers, vendor));
 
-    JsonNode jsonNode;
-    try {
-      jsonNode = Mappers.INSTANCE.getObjectMapper().readTree(entity);
-    } catch (IOException e) {
-      throw new BadRequestException(
-      Response.status(Response.Status.BAD_REQUEST)
-        .entity(entity)
-        .build());
+    if (StringUtils.isNotBlank(entity)) {
+      try {
+        JsonNode jsonNode = Mappers.INSTANCE.getObjectMapper().readTree(entity);
+        jsonNode.fields().forEachRemaining(entry ->
+            parameters.put(entry.getKey(), WebParameter.parameter(entry.getKey(), entry.getValue()))
+        );
+      } catch (IOException e) {
+        throw new BadRequestException(
+            Response.status(Response.Status.BAD_REQUEST)
+                .entity(entity)
+                .build());
+      }
     }
 
-    if (jsonNode != null) {
-      jsonNode.fields().forEachRemaining(entry -> {
-
-        String parameterName = entry.getKey();
-        JsonNode parameterValue = entry.getValue();
-        String stringValue = parameterValue.isTextual() ? parameterValue.asText() : parameterValue.toString();
-
-        nonHeaderParameters.put(parameterName, stringValue);
-      });
-    }
-
-    return (String) execute(uriInfo.getPath(), nonHeaderParameters, headerParameter);
+    return execute(uriInfo.getPath(), parameters);
   }
 
 
@@ -220,6 +221,7 @@ public class SoapstoneService {
     List<String> supportedTypes = getSupportedMethods(uriInfo); // Return a list of supported operations
 
     if (!supportedTypes.contains(type)) { // If our method type is not supported...
+      LOG.severe(() -> type + " not supported for " + uriInfo);
       throw new NotAllowedException(POST, supportedTypes.toArray(new String[0])); // ... throw a 405 Method Not Allowed, specifying which method types ARE allowed
     }
   }
@@ -228,29 +230,31 @@ public class SoapstoneService {
   /*
    * Execute the request.
    */
-  private Object execute(String path, Map<String, String> nonHeaderParameters, Map<String, String> headerParameters) {
+  private String execute(String path, Map<String, WebParameter> parameters) {
+
+    // Check we have a legal path: path/operation
+    if (path.indexOf('/') < 0) {
+      LOG.severe(() -> "Path " + path + "should include an operation");
+      throw new NotFoundException();
+    }
+
+    // Split into path and operation
+    String operationName = path.substring(path.lastIndexOf('/') + 1);
+    String pathKey = path.substring(0, path.lastIndexOf('/'));
+
+    // Check the path is mapped to a web service class
+    WebServiceClass<?> webServiceClass = webServiceClasses.get(pathKey);
+    if (webServiceClass == null) {
+      LOG.severe(() -> "No web service class mapped for " + pathKey);
+      throw new NotFoundException();
+    }
+
+    // Invoke the operation
+    Object object = webServiceClass.invokeOperation(operationName, parameters);
     try {
-
-      // Check we have a legal path: path/operation
-      if (path.indexOf('/') < 0) {
-        throw new NotFoundException();
-      }
-
-      // Split into path and operation
-      String operationName = path.substring(path.lastIndexOf('/') + 1);
-      String pathKey = path.substring(0, path.lastIndexOf('/'));
-
-      // Check the path is mapped to a web service class
-      WebServiceClass<?> webServiceClass = webServiceClasses.get(pathKey);
-      if (webServiceClass == null) {
-        throw new NotFoundException();
-      }
-
-      // Invoke the operation
-      Object object = webServiceClass.invokeOperation(operationName, nonHeaderParameters, headerParameters);
       return Mappers.INSTANCE.getObjectMapper().writeValueAsString(object);
     } catch (JsonProcessingException e) {
-      e.printStackTrace();
+      LOG.log(Level.SEVERE, e, () -> "Error marshalling response from " + path);
       throw new BadRequestException();
     }
   }
