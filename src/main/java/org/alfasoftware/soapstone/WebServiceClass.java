@@ -15,6 +15,13 @@
 package org.alfasoftware.soapstone;
 
 import com.fasterxml.jackson.databind.JavaType;
+
+import javax.jws.WebMethod;
+import javax.jws.WebParam;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.core.Response;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -28,15 +35,9 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import javax.jws.WebMethod;
-import javax.jws.WebParam;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.Response;
 
 import static java.util.logging.Level.SEVERE;
-import static org.alfasoftware.soapstone.Mappers.INSTANCE;
+import static org.alfasoftware.soapstone.Mappers.MAPPERS;
 
 /**
  * A wrapper around a class representing a web service endpoint
@@ -100,8 +101,8 @@ public class WebServiceClass<T> {
       return operation.invoke(instance.get(), operationArgs);
     } catch (InvocationTargetException e) {
 
-      throw Optional.ofNullable(INSTANCE.getExceptionMapper())
-        .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), INSTANCE.getObjectMapper()))
+      throw Optional.ofNullable(MAPPERS.getExceptionMapper())
+        .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), MAPPERS.getObjectMapper()))
         .orElse(new InternalServerErrorException());
 
     } catch (IllegalAccessException e) {
@@ -236,7 +237,7 @@ public class WebServiceClass<T> {
      * The only other option is JSON. Try the mapper. If it doesn't work, then the request is
      * presumably malformed
      */
-    JavaType type = INSTANCE.getObjectMapper().constructType(operationParameter.getParameterizedType());
+    JavaType type = MAPPERS.getObjectMapper().constructType(operationParameter.getParameterizedType());
 
     try {
       /*
@@ -245,9 +246,9 @@ public class WebServiceClass<T> {
        * should.
        */
       if (parameter.get().getNode().isTextual()) {
-        return INSTANCE.getObjectMapper().readValue(parameter.get().getNode().asText(), type);
+        return MAPPERS.getObjectMapper().readValue(parameter.get().getNode().asText(), type);
       }
-      return INSTANCE.getObjectMapper().convertValue(parameter.get().getNode(), type);
+      return MAPPERS.getObjectMapper().convertValue(parameter.get().getNode(), type);
     } catch (Exception e) {
       LOG.log(SEVERE, e, () -> "Error unmarshalling " + parameter.get().getName());
       throw new BadRequestException();

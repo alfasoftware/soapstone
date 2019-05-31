@@ -66,7 +66,7 @@ public class SoapstoneServiceBuilder {
    * @return this
    */
   public SoapstoneServiceBuilder withObjectMapper(ObjectMapper objectMapper) {
-    Mappers.INSTANCE.setObjectMapper(objectMapper);
+    Mappers.MAPPERS.setObjectMapper(objectMapper);
     return this;
   }
 
@@ -83,7 +83,7 @@ public class SoapstoneServiceBuilder {
    * @return this
    */
   public SoapstoneServiceBuilder withExceptionMapper(ExceptionMapper exceptionMapper) {
-    Mappers.INSTANCE.setExceptionMapper(exceptionMapper);
+    Mappers.MAPPERS.setExceptionMapper(exceptionMapper);
     return this;
   }
 

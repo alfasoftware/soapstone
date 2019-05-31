@@ -18,11 +18,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.StringUtils;
 
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotAllowedException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
-import javax.ws.rs.*;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
@@ -36,11 +42,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import static javax.ws.rs.HttpMethod.*;
+import static javax.ws.rs.HttpMethod.DELETE;
+import static javax.ws.rs.HttpMethod.GET;
+import static javax.ws.rs.HttpMethod.POST;
+import static javax.ws.rs.HttpMethod.PUT;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static org.alfasoftware.soapstone.Utils.processHeaders;
-import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
 import static org.alfasoftware.soapstone.WebParameter.parameter;
+import static org.alfasoftware.soapstone.WebParameters.fromHeaders;
+import static org.alfasoftware.soapstone.WebParameters.fromQueryParams;
 
 
 /**
@@ -159,12 +168,12 @@ public class SoapstoneService {
    */
   private String process(HttpHeaders headers, UriInfo uriInfo, String entity) {
 
-    Collection<WebParameter> parameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
-    parameters.addAll(processHeaders(headers, vendor));
+    Collection<WebParameter> parameters = fromQueryParams(uriInfo);
+    parameters.addAll(fromHeaders(headers, vendor));
 
     if (StringUtils.isNotBlank(entity)) {
       try {
-        JsonNode jsonNode = Mappers.INSTANCE.getObjectMapper().readTree(entity);
+        JsonNode jsonNode = Mappers.MAPPERS.getObjectMapper().readTree(entity);
         jsonNode.fields().forEachRemaining(entry ->
             parameters.add(parameter(entry.getKey(), entry.getValue()))
         );
@@ -246,7 +255,7 @@ public class SoapstoneService {
     // Invoke the operation
     Object object = webServiceClass.invokeOperation(operationName, parameters);
     try {
-      return Mappers.INSTANCE.getObjectMapper().writeValueAsString(object);
+      return Mappers.MAPPERS.getObjectMapper().writeValueAsString(object);
     } catch (JsonProcessingException e) {
       LOG.log(Level.SEVERE, e, () -> "Error marshalling response from " + path);
       throw new InternalServerErrorException();
