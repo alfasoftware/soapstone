@@ -17,7 +17,6 @@ package org.alfasoftware.soapstone;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
-import com.google.common.collect.ImmutableMap;
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.MyException;
 import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
@@ -33,6 +32,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -166,7 +166,7 @@ public class TestSoapstoneService extends JerseyTest {
       .request()
       .header("X-Vendor-Header", "string=headerStringValue;integer=62")
       .accept(MediaType.APPLICATION_JSON)
-      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+      .post(Entity.entity(Collections.singletonMap("request", requestObject), MediaType.APPLICATION_JSON), String.class);
 
     ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
 
@@ -239,7 +239,7 @@ public class TestSoapstoneService extends JerseyTest {
       .header("X-Vendor-Header-String", "headerStringValue")
       .header("X-Vendor-Header-Integer", 62)
       .accept(MediaType.APPLICATION_JSON)
-      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+      .post(Entity.entity(Collections.singletonMap("request", requestObject), MediaType.APPLICATION_JSON), String.class);
 
     ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
 
@@ -278,7 +278,7 @@ public class TestSoapstoneService extends JerseyTest {
       .header("X-Vendor-Header", "string=headerStringValue;integer=62")
       .header("X-Vendor-Header-Integer", 89)
       .accept(MediaType.APPLICATION_JSON)
-      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+      .post(Entity.entity(Collections.singletonMap("request", requestObject), MediaType.APPLICATION_JSON), String.class);
 
     ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
 
@@ -311,7 +311,7 @@ public class TestSoapstoneService extends JerseyTest {
       .queryParam("string", "value")
       .request()
       .accept(MediaType.APPLICATION_JSON)
-      .post(Entity.entity(ImmutableMap.of("request", requestObject), MediaType.APPLICATION_JSON), String.class);
+      .post(Entity.entity(Collections.singletonMap("request", requestObject), MediaType.APPLICATION_JSON), String.class);
 
     ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
 
@@ -335,7 +335,7 @@ public class TestSoapstoneService extends JerseyTest {
       .queryParam("string", "value")
       .request()
       .accept(MediaType.APPLICATION_JSON)
-      .post(Entity.entity(ImmutableMap.of("request", "boogie nights"), MediaType.APPLICATION_JSON));
+      .post(Entity.entity(Collections.singletonMap("request", "boogie nights"), MediaType.APPLICATION_JSON));
 
     assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
   }
@@ -397,7 +397,7 @@ public class TestSoapstoneService extends JerseyTest {
     Response response = target()
       .path("path/putAThing")
       .request()
-      .put(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
+      .put(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
     assertEquals(OK.getStatusCode(), response.getStatus());
   }
@@ -412,7 +412,7 @@ public class TestSoapstoneService extends JerseyTest {
     Response response = target()
       .path("path/doAThing")
       .request()
-      .put(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
+      .put(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
     assertEquals(METHOD_NOT_ALLOWED.getStatusCode(), response.getStatus());
   }
@@ -458,7 +458,7 @@ public class TestSoapstoneService extends JerseyTest {
       .path("path/doNotDoAThing")
       .request()
       .accept(MediaType.APPLICATION_JSON)
-      .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
+      .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
     assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
   }
@@ -474,7 +474,7 @@ public class TestSoapstoneService extends JerseyTest {
       .path("path")
       .request()
       .accept(MediaType.APPLICATION_JSON)
-      .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
+      .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
     assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
   }
@@ -491,7 +491,7 @@ public class TestSoapstoneService extends JerseyTest {
       .path("not-the-path/doAThing")
       .request()
       .accept(MediaType.APPLICATION_JSON)
-      .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
+      .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
     assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
   }
@@ -508,7 +508,7 @@ public class TestSoapstoneService extends JerseyTest {
       .path("path/doAThingBadly")
       .request()
       .accept(MediaType.APPLICATION_JSON)
-      .post(Entity.entity(ImmutableMap.of("request", new RequestObject()), MediaType.APPLICATION_JSON));
+      .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
     assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
   }

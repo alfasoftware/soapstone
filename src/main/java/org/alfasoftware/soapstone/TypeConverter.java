@@ -14,7 +14,6 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.google.common.collect.ImmutableSet;
 import ognl.OgnlOps;
 import ognl.OgnlRuntime;
 import org.apache.commons.lang.LocaleUtils;
@@ -40,13 +39,14 @@ import java.text.ParseException;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import static java.lang.Integer.parseInt;
 import static java.lang.Math.max;
+import static java.util.Arrays.asList;
 
 /**
  * Provides a central mechanism for converting a value to a target type.
@@ -145,7 +145,7 @@ class TypeConverter {
   /**
    * All of the integer types.
    */
-  private static final Set<Class<?>> integerTypes = ImmutableSet.of(Integer.class, Long.class, BigInteger.class);
+  private static final List<Class<?>> INTEGER_TYPES = asList(Integer.class, Long.class, BigInteger.class);
 
   /**
    * A function that allows {@link LocalDate} instances to be interned where the application provides it. Otherwise it will pass through the instance.
@@ -249,7 +249,7 @@ class TypeConverter {
     if (!value.getClass().isArray() && Number.class.isAssignableFrom(objectClass(toType))) {
 
       boolean isBigDecimal = BigDecimal.class.isAssignableFrom(toType);
-      boolean isInteger    = integerTypes.contains(toTypeClass);
+      boolean isInteger    = INTEGER_TYPES.contains(toTypeClass);
       boolean isBigInteger = BigInteger.class.isAssignableFrom(toType);
       boolean isLong = Long.class.isAssignableFrom(toTypeClass);
 
