@@ -17,6 +17,8 @@ package org.alfasoftware.soapstone;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -38,8 +40,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import static javax.ws.rs.HttpMethod.DELETE;
@@ -60,7 +60,7 @@ import static org.alfasoftware.soapstone.WebParameters.fromQueryParams;
 @Path("")
 public class SoapstoneService {
 
-  private static final Logger LOG = Logger.getLogger(SoapstoneService.class.getSimpleName());
+  private static final Logger LOG = LoggerFactory.getLogger(SoapstoneService.class);
 
   private final Map<String, WebServiceClass<?>> webServiceClasses;
   private final String vendor;
@@ -224,7 +224,7 @@ public class SoapstoneService {
     List<String> supportedTypes = getSupportedMethods(uriInfo); // Return a list of supported operations
 
     if (!supportedTypes.contains(type)) { // If our method type is not supported...
-      LOG.severe(() -> type + " not supported for " + uriInfo);
+      LOG.error(type + " not supported for " + uriInfo);
       throw new NotAllowedException(POST, supportedTypes.toArray(new String[0])); // ... throw a 405 Method Not Allowed, specifying which method types ARE allowed
     }
   }
@@ -237,7 +237,7 @@ public class SoapstoneService {
 
     // Check we have a legal path: path/operation
     if (path.indexOf('/') < 0) {
-      LOG.severe(() -> "Path " + path + "should include an operation");
+      LOG.error("Path " + path + "should include an operation");
       throw new NotFoundException();
     }
 
@@ -248,7 +248,7 @@ public class SoapstoneService {
     // Check the path is mapped to a web service class
     WebServiceClass<?> webServiceClass = webServiceClasses.get(pathKey);
     if (webServiceClass == null) {
-      LOG.severe(() -> "No web service class mapped for " + pathKey);
+      LOG.error("No web service class mapped for " + pathKey);
       throw new NotFoundException();
     }
 
@@ -257,7 +257,7 @@ public class SoapstoneService {
     try {
       return Mappers.MAPPERS.getObjectMapper().writeValueAsString(object);
     } catch (JsonProcessingException e) {
-      LOG.log(Level.SEVERE, e, () -> "Error marshalling response from " + path);
+      LOG.error("Error marshalling response from " + path, e);
       throw new InternalServerErrorException();
     }
   }

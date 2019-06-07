@@ -15,6 +15,8 @@
 package org.alfasoftware.soapstone;
 
 import com.fasterxml.jackson.databind.JavaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
@@ -33,10 +35,8 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import static java.util.logging.Level.SEVERE;
 import static org.alfasoftware.soapstone.Mappers.MAPPERS;
 
 /**
@@ -47,7 +47,7 @@ import static org.alfasoftware.soapstone.Mappers.MAPPERS;
  */
 public class WebServiceClass<T> {
 
-  private static final Logger LOG = Logger.getLogger(SoapstoneService.class.getSimpleName());
+  private static final Logger LOG = LoggerFactory.getLogger(SoapstoneService.class);
 
   private final Class<T> klass;
   private final Supplier<T> instance;
@@ -95,7 +95,7 @@ public class WebServiceClass<T> {
       .toArray();
 
     LOG.info("Invoking " + operationName);
-    LOG.fine("Parameters: " + parameters);
+    LOG.debug("Parameters: " + parameters);
 
     try {
       return operation.invoke(instance.get(), operationArgs);
@@ -106,7 +106,7 @@ public class WebServiceClass<T> {
         .orElse(new InternalServerErrorException());
 
     } catch (IllegalAccessException e) {
-      LOG.log(SEVERE, e, () -> "Error attempting to access " + operationName);
+      LOG.error("Error attempting to access " + operationName, e);
       /*
        * We've already thoroughly checked that the method was valid and accessible, so this shouldn't happen.
        * If it does, it's something more nefarious than a 404
@@ -133,7 +133,7 @@ public class WebServiceClass<T> {
     }
 
     if (methods.size() > 1) {
-      LOG.severe(() -> "Multiple potential methods found for " + operationName);
+      LOG.error("Multiple potential methods found for " + operationName);
       /*
        * This seems appropriate: the request has insufficient information for us to determine what method the user
        * is trying to call. This might because there are two methods with the same name and same-named arguments
@@ -250,7 +250,7 @@ public class WebServiceClass<T> {
       }
       return MAPPERS.getObjectMapper().convertValue(parameter.get().getNode(), type);
     } catch (Exception e) {
-      LOG.log(SEVERE, e, () -> "Error unmarshalling " + parameter.get().getName());
+      LOG.error("Error unmarshalling " + parameter.get().getName(), e);
       throw new BadRequestException();
     }
   }
