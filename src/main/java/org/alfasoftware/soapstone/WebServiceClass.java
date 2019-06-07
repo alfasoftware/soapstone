@@ -74,6 +74,11 @@ public class WebServiceClass<T> {
   }
 
 
+  Class<T> getUnderlyingClass() {
+    return klass;
+  }
+
+
   /**
    * Invoke the web service operation and return its return value
    *
