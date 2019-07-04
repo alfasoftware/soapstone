@@ -145,9 +145,9 @@ public class SoapstoneService {
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
-  public String delete(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
+  public String delete(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.info("DELETE " + uriInfo.getRequestUri());
-    return process(headers, uriInfo, null, DELETE);
+    return process(headers, uriInfo, entity, DELETE);
   }
 
 
