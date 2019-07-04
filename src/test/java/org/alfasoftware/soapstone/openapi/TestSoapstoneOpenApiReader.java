@@ -17,6 +17,7 @@ import org.alfasoftware.soapstone.WebServiceClass;
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -42,6 +43,7 @@ public class TestSoapstoneOpenApiReader {
 
 
   @Test
+  @Ignore
   public void test() throws Exception {
     ObjectMapper objectMapper = new ObjectMapper().registerModule(new JaxbAnnotationModule())
       .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
