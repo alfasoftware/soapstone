@@ -15,7 +15,6 @@
 package org.alfasoftware.soapstone.testsupport;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableMap;
 import org.joda.time.LocalDate;
 
 import javax.jws.WebMethod;
@@ -23,6 +22,7 @@ import javax.jws.WebParam;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -324,7 +324,7 @@ public class WebService {
    */
   @WebMethod()
   public Map<String, String> getAThing() {
-    return ImmutableMap.of("got", "thing");
+    return Collections.singletonMap("got", "thing");
   }
 
 

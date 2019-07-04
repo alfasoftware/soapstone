@@ -37,9 +37,9 @@ public class TestExternalCreation {
     pathToWebServiceClassMap.put("path", WebServiceClass.forClass(Object.class, Object::new));
 
     new SoapstoneServiceBuilder(pathToWebServiceClassMap)
-      .withExceptionMapper((t, objectMapper) -> Optional.empty())
-      .withObjectMapper(new ObjectMapper())
       .withVendor("vendor")
+      .withObjectMapper(new ObjectMapper())
+      .withExceptionMapper((t, objectMapper) -> Optional.empty())
       .withSupportedGetOperations("get.*")
       .withSupportedPutOperations("put.*")
       .withSupportedDeleteOperations("delete.*")

@@ -14,8 +14,16 @@
  */
 package org.alfasoftware.soapstone;
 
-import static java.lang.Integer.parseInt;
-import static java.lang.Math.max;
+import ognl.OgnlOps;
+import ognl.OgnlRuntime;
+import org.apache.commons.lang.LocaleUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateUtils;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -31,24 +39,14 @@ import java.text.ParseException;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang.LocaleUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DateUtils;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
-
-import com.google.common.collect.ImmutableSet;
-import com.google.common.math.DoubleMath;
-import ognl.OgnlOps;
-import ognl.OgnlRuntime;
+import static java.lang.Integer.parseInt;
+import static java.lang.Math.max;
+import static java.util.Arrays.asList;
 
 /**
  * Provides a central mechanism for converting a value to a target type.
@@ -147,7 +145,7 @@ class TypeConverter {
   /**
    * All of the integer types.
    */
-  private static final Set<Class<?>> integerTypes = ImmutableSet.of(Integer.class, Long.class, BigInteger.class);
+  private static final List<Class<?>> INTEGER_TYPES = asList(Integer.class, Long.class, BigInteger.class);
 
   /**
    * A function that allows {@link LocalDate} instances to be interned where the application provides it. Otherwise it will pass through the instance.
@@ -251,7 +249,7 @@ class TypeConverter {
     if (!value.getClass().isArray() && Number.class.isAssignableFrom(objectClass(toType))) {
 
       boolean isBigDecimal = BigDecimal.class.isAssignableFrom(toType);
-      boolean isInteger    = integerTypes.contains(toTypeClass);
+      boolean isInteger    = INTEGER_TYPES.contains(toTypeClass);
       boolean isBigInteger = BigInteger.class.isAssignableFrom(toType);
       boolean isLong = Long.class.isAssignableFrom(toTypeClass);
 
@@ -581,7 +579,7 @@ class TypeConverter {
       number = format.parse(tidied, position);
 
       if (number != null && number.getClass().isAssignableFrom(Double.class) &&
-          isTargetInteger && !DoubleMath.isMathematicalInteger((Double)number)) { // It's been parsed as a double. are we targetting an integer?
+          isTargetInteger && !isMathematicalInteger((Double)number)) { // It's been parsed as a double. are we targetting an integer?
         throw new ParseException("Unparseable number: \"" + value + "\"", 0);
       }
 
@@ -598,6 +596,15 @@ class TypeConverter {
     }
 
     return number;
+  }
+
+  /**
+   *
+   * Check whether a double value is an integer in mathematical terms (i.e., is finite and has no non-zero component
+   * right of the decimal point)
+   */
+  private static boolean isMathematicalInteger(double number) {
+    return StrictMath.rint(number) == number && Double.isFinite(number);
   }
 
 

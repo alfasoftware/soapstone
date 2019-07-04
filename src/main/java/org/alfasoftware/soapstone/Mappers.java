@@ -29,7 +29,7 @@ import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
  */
 enum Mappers {
 
-  INSTANCE;
+  MAPPERS;
 
   private ObjectMapper objectMapper = new ObjectMapper().registerModule(new JaxbAnnotationModule())
     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

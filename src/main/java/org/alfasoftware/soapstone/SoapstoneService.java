@@ -14,33 +14,44 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import org.apache.commons.lang.StringUtils;
+import static javax.ws.rs.HttpMethod.DELETE;
+import static javax.ws.rs.HttpMethod.GET;
+import static javax.ws.rs.HttpMethod.POST;
+import static javax.ws.rs.HttpMethod.PUT;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static org.alfasoftware.soapstone.WebParameter.parameter;
+import static org.alfasoftware.soapstone.WebParameters.fromHeaders;
+import static org.alfasoftware.soapstone.WebParameters.fromQueryParams;
 
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.*;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import static javax.ws.rs.HttpMethod.*;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static org.alfasoftware.soapstone.Utils.processHeaders;
-import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
-import static org.alfasoftware.soapstone.WebParameter.parameter;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotAllowedException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
+
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 
 
 /**
@@ -51,7 +62,7 @@ import static org.alfasoftware.soapstone.WebParameter.parameter;
 @Path("")
 public class SoapstoneService {
 
-  private static final Logger LOG = Logger.getLogger(SoapstoneService.class.getSimpleName());
+  private static final Logger LOG = LoggerFactory.getLogger(SoapstoneService.class);
 
   private final Map<String, WebServiceClass<?>> webServiceClasses;
   private final String vendor;
@@ -159,12 +170,12 @@ public class SoapstoneService {
    */
   private String process(HttpHeaders headers, UriInfo uriInfo, String entity) {
 
-    Collection<WebParameter> parameters = simplifyQueryParameters(uriInfo, Mappers.INSTANCE.getObjectMapper());
-    parameters.addAll(processHeaders(headers, vendor));
+    Collection<WebParameter> parameters = fromQueryParams(uriInfo);
+    parameters.addAll(fromHeaders(headers, vendor));
 
     if (StringUtils.isNotBlank(entity)) {
       try {
-        JsonNode jsonNode = Mappers.INSTANCE.getObjectMapper().readTree(entity);
+        JsonNode jsonNode = Mappers.MAPPERS.getObjectMapper().readTree(entity);
         jsonNode.fields().forEachRemaining(entry ->
             parameters.add(parameter(entry.getKey(), entry.getValue()))
         );
@@ -215,7 +226,7 @@ public class SoapstoneService {
     List<String> supportedTypes = getSupportedMethods(uriInfo); // Return a list of supported operations
 
     if (!supportedTypes.contains(type)) { // If our method type is not supported...
-      LOG.severe(() -> type + " not supported for " + uriInfo);
+      LOG.error(type + " not supported for " + uriInfo);
       throw new NotAllowedException(POST, supportedTypes.toArray(new String[0])); // ... throw a 405 Method Not Allowed, specifying which method types ARE allowed
     }
   }
@@ -228,7 +239,7 @@ public class SoapstoneService {
 
     // Check we have a legal path: path/operation
     if (path.indexOf('/') < 0) {
-      LOG.severe(() -> "Path " + path + "should include an operation");
+      LOG.error("Path " + path + "should include an operation");
       throw new NotFoundException();
     }
 
@@ -239,16 +250,16 @@ public class SoapstoneService {
     // Check the path is mapped to a web service class
     WebServiceClass<?> webServiceClass = webServiceClasses.get(pathKey);
     if (webServiceClass == null) {
-      LOG.severe(() -> "No web service class mapped for " + pathKey);
+      LOG.error("No web service class mapped for " + pathKey);
       throw new NotFoundException();
     }
 
     // Invoke the operation
     Object object = webServiceClass.invokeOperation(operationName, parameters);
     try {
-      return Mappers.INSTANCE.getObjectMapper().writeValueAsString(object);
+      return Mappers.MAPPERS.getObjectMapper().writeValueAsString(object);
     } catch (JsonProcessingException e) {
-      LOG.log(Level.SEVERE, e, () -> "Error marshalling response from " + path);
+      LOG.error("Error marshalling response from " + path, e);
       throw new InternalServerErrorException();
     }
   }

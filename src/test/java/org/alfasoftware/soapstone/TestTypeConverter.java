@@ -14,25 +14,6 @@
  */
 package org.alfasoftware.soapstone;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.lang.reflect.InvocationTargetException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Currency;
-import java.util.Date;
-import java.util.Locale;
-
 import org.alfasoftware.soapstone.testsupport.DummyCustomClass;
 import org.alfasoftware.soapstone.testsupport.DummyGetInstanceClass;
 import org.alfasoftware.soapstone.testsupport.DummyParseableClass;
@@ -45,7 +26,25 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Test;
 
-import com.google.common.collect.Lists;
+import java.lang.reflect.InvocationTargetException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Currency;
+import java.util.Date;
+import java.util.Locale;
+
+import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 
 /**
@@ -340,7 +339,7 @@ public class TestTypeConverter {
     final LocalTime mediumTime = new LocalTime(10,10,10);
     final LocalTime mediumTime2 = new LocalTime(9,9,9);
 
-    for(Locale locale : Lists.newArrayList(Locale.UK, Locale.US, Locale.CANADA, Locale.FRANCE)) {
+    for(Locale locale : asList(Locale.UK, Locale.US, Locale.CANADA, Locale.FRANCE)) {
       TypeConverter typeConverter = new TypeConverter(locale);
 
       // When
