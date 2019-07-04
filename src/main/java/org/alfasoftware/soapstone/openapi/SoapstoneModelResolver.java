@@ -30,7 +30,7 @@ import javax.xml.bind.annotation.XmlElementRef;
 import javax.xml.bind.annotation.XmlElementRefs;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.alfasoftware.soapstone.Configuration;
+import org.alfasoftware.soapstone.SoapstoneServiceConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,12 +84,12 @@ import io.swagger.v3.oas.models.media.XML;
  * <a href="https://github.com/swagger-api/swagger-core/blob/master/modules/swagger-core/src/main/java/io/swagger/v3/core/jackson/ModelResolver.java">See on GitHub.</a>
  * <p>
  * The code is largely copied wholesale and amended to:
+ * </p>
  * <ul>
  *   <li>strip out swagger annotation support, which we don't need</li>
  *   <li>improve handling of JAXB concepts (particularly XmlAdapters)</li>
  *   <li>allow insertion of documentation via {@link DocumentationProvider}s</li>
  * </ul>
- * </p>
  */
 public class SoapstoneModelResolver extends AbstractModelConverter implements ModelConverter {
 
@@ -497,11 +497,11 @@ public class SoapstoneModelResolver extends AbstractModelConverter implements Mo
 
           // Document the property
           if (propMember instanceof AnnotatedMethod) {
-            Configuration.get().getMemberDocumentationProvider()
+            SoapstoneServiceConfiguration.get().getMemberDocumentationProvider()
               .flatMap(provider -> provider.forElement(propMember))
               .ifPresent(property::setDescription);
           } else if (aType.getType() instanceof Class<?>) {
-            Configuration.get().getClassDocumentationProvider()
+            SoapstoneServiceConfiguration.get().getClassDocumentationProvider()
               .flatMap(provider -> provider.forElement((Class<?>) aType.getType()))
               .ifPresent(property::setDescription);
           }
@@ -605,7 +605,7 @@ public class SoapstoneModelResolver extends AbstractModelConverter implements Mo
     // Document the model
     if (model != null) {
       Class<?> rawType = type.getRawClass();
-      Configuration.get().getClassDocumentationProvider()
+      SoapstoneServiceConfiguration.get().getClassDocumentationProvider()
         .flatMap(provider -> provider.forElement(rawType))
         .ifPresent(model::setDescription);
     }

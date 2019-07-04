@@ -14,12 +14,12 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import static java.util.regex.Pattern.CASE_INSENSITIVE;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
+import static org.alfasoftware.soapstone.WebParameter.headerParameter;
+import static org.alfasoftware.soapstone.WebParameter.parameter;
 
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.UriInfo;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -32,12 +32,12 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static java.util.regex.Pattern.CASE_INSENSITIVE;
-import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
-import static org.alfasoftware.soapstone.Mappers.MAPPERS;
-import static org.alfasoftware.soapstone.WebParameter.headerParameter;
-import static org.alfasoftware.soapstone.WebParameter.parameter;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.UriInfo;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Utility class containing methods used for extracting {@link WebParameter}s from requests.
@@ -67,9 +67,9 @@ class WebParameters {
     for (String key : queryParameters.keySet()) {
       List<String> values = Optional.ofNullable(queryParameters.get(key)).orElseGet(ArrayList::new);
       if (values.size() == 1) {
-        webParameters.add(parameter(key, MAPPERS.getObjectMapper().valueToTree(values.get(0))));
+        webParameters.add(parameter(key, SoapstoneServiceConfiguration.get().getObjectMapper().valueToTree(values.get(0))));
       } else {
-        webParameters.add(parameter(key, MAPPERS.getObjectMapper().valueToTree(values)));
+        webParameters.add(parameter(key, SoapstoneServiceConfiguration.get().getObjectMapper().valueToTree(values)));
       }
     }
     return webParameters;
@@ -103,7 +103,7 @@ class WebParameters {
     Map<String, String> object = createObject(headers, objectHeaderName);
     // ... and add it to the map
     String key = convertToCamelCase(objectHeaderName.substring(objectHeaderName.lastIndexOf("-") + 1));
-    JsonNode value = Configuration.get().getObjectMapper().valueToTree(object);
+    JsonNode value = SoapstoneServiceConfiguration.get().getObjectMapper().valueToTree(object);
     headerObjects.add(headerParameter(key, value));
   }
 
@@ -172,7 +172,7 @@ class WebParameters {
    */
   private static void setObjectProperty(HttpHeaders headers, String objectPropertyHeaderName, Map<String, String> object) {
     String value = headers.getHeaderString(objectPropertyHeaderName);
-    String key = Utils.convertToCamelCase(objectPropertyHeaderName.substring(objectPropertyHeaderName.lastIndexOf("-") + 1));
+    String key = convertToCamelCase(objectPropertyHeaderName.substring(objectPropertyHeaderName.lastIndexOf("-") + 1));
     object.put(key, value);
   }
 

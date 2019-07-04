@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.alfasoftware.soapstone.Configuration;
+import org.alfasoftware.soapstone.SoapstoneServiceConfiguration;
 import org.alfasoftware.soapstone.WebServiceClass;
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.junit.After;
@@ -53,9 +53,9 @@ public class TestSoapstoneOpenApiReader {
       .map(WebServiceClass::getUnderlyingClass)
       .collect(Collectors.toSet());
 
-    Configuration.get().setWebServiceClasses(webServices);
-    Configuration.get().setVendor("TestVendor");
-    Configuration.get().setObjectMapper(objectMapper);
+    SoapstoneServiceConfiguration.get().setWebServiceClasses(webServices);
+    SoapstoneServiceConfiguration.get().setVendor("TestVendor");
+    SoapstoneServiceConfiguration.get().setObjectMapper(objectMapper);
 
     SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(null);
     reader.setConfiguration(new SwaggerConfiguration());
