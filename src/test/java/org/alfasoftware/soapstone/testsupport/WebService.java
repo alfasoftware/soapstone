@@ -42,6 +42,33 @@ public class WebService {
   public static class MyException extends Exception {
   }
 
+  public static class Adaptable {
+
+    private final Adaptable innerAdaptable;
+
+    public Adaptable(Adaptable innerAdaptable) {
+      this.innerAdaptable = innerAdaptable;
+    }
+
+    public String getInnerAdaptableState() {
+      return innerAdaptable == null ? "null" : "non-null";
+    }
+  }
+
+
+  public static class AdaptableAdapter extends XmlAdapter<String, Adaptable> {
+
+    @Override
+    public Adaptable unmarshal(String v) {
+      return v.equalsIgnoreCase("non-null") ? new Adaptable(new Adaptable(null)) : new Adaptable(null);
+    }
+
+    @Override
+    public String marshal(Adaptable v) {
+      return v.getInnerAdaptableState();
+    }
+  }
+
 
   /**
    * JAXB XmlAdapter for  translating between ISO-8601 date format strings and LocalDates
@@ -77,6 +104,7 @@ public class WebService {
     private double decimal;
     private boolean bool;
     private LocalDate date;
+    private Adaptable adaptable;
 
     public RequestObject getNestedObject() {
       return nestedObject;
@@ -109,6 +137,11 @@ public class WebService {
     @XmlJavaTypeAdapter(LocalDateAdapter.class)
     public LocalDate getDate() {
       return date;
+    }
+
+    @XmlJavaTypeAdapter(AdaptableAdapter.class)
+    public Adaptable getAdaptable() {
+      return adaptable;
     }
   }
 

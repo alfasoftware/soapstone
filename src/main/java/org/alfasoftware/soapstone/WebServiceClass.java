@@ -35,9 +35,11 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import static org.alfasoftware.soapstone.Mappers.MAPPERS;
+import static java.util.logging.Level.SEVERE;
+import static org.alfasoftware.soapstone.Mappers.INSTANCE;
 
 /**
  * A wrapper around a class representing a web service endpoint
@@ -74,7 +76,7 @@ public class WebServiceClass<T> {
   }
 
 
-  Class<T> getUnderlyingClass() {
+  public Class<T> getUnderlyingClass() {
     return klass;
   }
 
@@ -106,8 +108,8 @@ public class WebServiceClass<T> {
       return operation.invoke(instance.get(), operationArgs);
     } catch (InvocationTargetException e) {
 
-      throw Optional.ofNullable(MAPPERS.getExceptionMapper())
-        .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), MAPPERS.getObjectMapper()))
+      throw Optional.ofNullable(Configuration.get().getExceptionMapper())
+        .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), Configuration.get().getObjectMapper()))
         .orElse(new InternalServerErrorException());
 
     } catch (IllegalAccessException e) {
@@ -242,7 +244,7 @@ public class WebServiceClass<T> {
      * The only other option is JSON. Try the mapper. If it doesn't work, then the request is
      * presumably malformed
      */
-    JavaType type = MAPPERS.getObjectMapper().constructType(operationParameter.getParameterizedType());
+    JavaType type = Configuration.get().getObjectMapper().constructType(operationParameter.getParameterizedType());
 
     try {
       /*
@@ -251,9 +253,9 @@ public class WebServiceClass<T> {
        * should.
        */
       if (parameter.get().getNode().isTextual()) {
-        return MAPPERS.getObjectMapper().readValue(parameter.get().getNode().asText(), type);
+        return Configuration.get().getObjectMapper().readValue(parameter.get().getNode().asText(), type);
       }
-      return MAPPERS.getObjectMapper().convertValue(parameter.get().getNode(), type);
+      return Configuration.get().getObjectMapper().convertValue(parameter.get().getNode(), type);
     } catch (Exception e) {
       LOG.error("Error unmarshalling " + parameter.get().getName(), e);
       throw new BadRequestException();

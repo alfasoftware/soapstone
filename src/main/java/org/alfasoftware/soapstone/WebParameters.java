@@ -103,7 +103,7 @@ class WebParameters {
     Map<String, String> object = createObject(headers, objectHeaderName);
     // ... and add it to the map
     String key = convertToCamelCase(objectHeaderName.substring(objectHeaderName.lastIndexOf("-") + 1));
-    JsonNode value = MAPPERS.getObjectMapper().valueToTree(object);
+    JsonNode value = Configuration.get().getObjectMapper().valueToTree(object);
     headerObjects.add(headerParameter(key, value));
   }
 
@@ -172,7 +172,7 @@ class WebParameters {
    */
   private static void setObjectProperty(HttpHeaders headers, String objectPropertyHeaderName, Map<String, String> object) {
     String value = headers.getHeaderString(objectPropertyHeaderName);
-    String key = convertToCamelCase(objectPropertyHeaderName.substring(objectPropertyHeaderName.lastIndexOf("-") + 1));
+    String key = Utils.convertToCamelCase(objectPropertyHeaderName.substring(objectPropertyHeaderName.lastIndexOf("-") + 1));
     object.put(key, value);
   }
 

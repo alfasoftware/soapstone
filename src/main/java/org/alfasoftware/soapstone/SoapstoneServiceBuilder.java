@@ -21,6 +21,16 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import javax.ws.rs.WebApplicationException;
+
+import org.alfasoftware.soapstone.openapi.DocumentationProvider.ClassDocumentationProvider;
+import org.alfasoftware.soapstone.openapi.DocumentationProvider.MemberDocumentationProvider;
+import org.alfasoftware.soapstone.openapi.DocumentationProvider.MethodDocumentationProvider;
+import org.alfasoftware.soapstone.openapi.DocumentationProvider.MethodReturnDocumentationProvider;
+import org.alfasoftware.soapstone.openapi.DocumentationProvider.ParameterDocumentationProvider;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * Builder for the {@link SoapstoneService}
  *
@@ -33,11 +43,12 @@ import java.util.regex.Pattern;
  */
 public class SoapstoneServiceBuilder {
 
-  private final Map<String, WebServiceClass<?>> pathToWebServiceClassMap;
-  private String vendorName;
-  private Pattern supportedGetOperations;
-  private Pattern supportedDeleteOperations;
-  private Pattern supportedPutOperations;
+  private SoapstoneServiceConfiguration configuration = SoapstoneServiceConfiguration.get();
+//  private final Map<String, WebServiceClass<?>> pathToWebServiceClassMap;
+//  private String vendorName;
+//  private Pattern supportedGetOperations;
+//  private Pattern supportedDeleteOperations;
+//  private Pattern supportedPutOperations;
 
 
   /**
@@ -49,8 +60,9 @@ public class SoapstoneServiceBuilder {
    * @param pathToWebServiceClassMap map of paths to web service classes
    */
   public SoapstoneServiceBuilder(Map<String, WebServiceClass<?>> pathToWebServiceClassMap) {
-    this.pathToWebServiceClassMap = pathToWebServiceClassMap;
-    }
+    configuration.setWebServiceClasses(pathToWebServiceClassMap);
+//    this.pathToWebServiceClassMap = pathToWebServiceClassMap;
+  }
 
 
   /**
@@ -66,7 +78,8 @@ public class SoapstoneServiceBuilder {
    * @return this
    */
   public SoapstoneServiceBuilder withObjectMapper(ObjectMapper objectMapper) {
-    Mappers.MAPPERS.setObjectMapper(objectMapper);
+    configuration.setObjectMapper(objectMapper);
+//    Mappers.INSTANCE.setObjectMapper(objectMapper);
     return this;
   }
 
@@ -83,7 +96,8 @@ public class SoapstoneServiceBuilder {
    * @return this
    */
   public SoapstoneServiceBuilder withExceptionMapper(ExceptionMapper exceptionMapper) {
-    Mappers.MAPPERS.setExceptionMapper(exceptionMapper);
+    configuration.setExceptionMapper(exceptionMapper);
+//    Mappers.INSTANCE.setExceptionMapper(exceptionMapper);
     return this;
   }
 
@@ -100,7 +114,8 @@ public class SoapstoneServiceBuilder {
    * @return this
    */
   public SoapstoneServiceBuilder withVendor(String vendor) {
-   this.vendorName = vendor;
+    configuration.setVendor(vendor);
+//    this.vendorName = vendor;
     return this;
   }
 
@@ -115,7 +130,8 @@ public class SoapstoneServiceBuilder {
    * @return this
    */
   public SoapstoneServiceBuilder withSupportedGetOperations(String... regex) {
-    supportedGetOperations = createSupportedRegexPattern(regex);
+    configuration.setSupportedGetOperations(createSupportedRegexPattern(regex));
+//    supportedGetOperations = createSupportedRegexPattern(regex);
     return this;
   }
 
@@ -130,7 +146,8 @@ public class SoapstoneServiceBuilder {
    * @return this
    */
   public SoapstoneServiceBuilder withSupportedDeleteOperations(String... regex) {
-    supportedDeleteOperations = createSupportedRegexPattern(regex);
+    configuration.setSupportedDeleteOperations(createSupportedRegexPattern(regex));
+//    supportedDeleteOperations = createSupportedRegexPattern(regex);
     return this;
   }
 
@@ -145,7 +162,38 @@ public class SoapstoneServiceBuilder {
    * @return this
    */
   public SoapstoneServiceBuilder withSupportedPutOperations(String... regex) {
-    supportedPutOperations = createSupportedRegexPattern(regex);
+    configuration.setSupportedPutOperations(createSupportedRegexPattern(regex));
+//    supportedPutOperations = createSupportedRegexPattern(regex);
+    return this;
+  }
+
+
+  public SoapstoneServiceBuilder withClassDocumentationProvider(ClassDocumentationProvider documentationProvider) {
+    configuration.setClassDocumentationProvider(documentationProvider);
+    return this;
+  }
+
+
+  public SoapstoneServiceBuilder withMethodDocumentationProvider(MethodDocumentationProvider documentationProvider) {
+    configuration.setMethodDocumentationProvider(documentationProvider);
+    return this;
+  }
+
+
+  public SoapstoneServiceBuilder withMethodReturnDocumentationProvider(MethodReturnDocumentationProvider documentationProvider) {
+    configuration.setMethodReturnDocumentationProvider(documentationProvider);
+    return this;
+  }
+
+
+  public SoapstoneServiceBuilder withParameterDocumentationProvider(ParameterDocumentationProvider documentationProvider) {
+    configuration.setParameterDocumentationProvider(documentationProvider);
+    return this;
+  }
+
+
+  public SoapstoneServiceBuilder withMemberDocumentationProvider(MemberDocumentationProvider documentationProvider) {
+    configuration.setMemberDocumentationProvider(documentationProvider);
     return this;
   }
 
@@ -155,12 +203,7 @@ public class SoapstoneServiceBuilder {
    * @return a {@link SoapstoneService} with the appropriate fields set
    */
   public SoapstoneService build() {
-    return  new SoapstoneService(
-      pathToWebServiceClassMap,
-      vendorName,
-      supportedGetOperations,
-      supportedDeleteOperations,
-      supportedPutOperations);
+    return new SoapstoneService(configuration);
   }
 
 

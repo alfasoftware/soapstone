@@ -14,44 +14,33 @@
  */
 package org.alfasoftware.soapstone;
 
-import static javax.ws.rs.HttpMethod.DELETE;
-import static javax.ws.rs.HttpMethod.GET;
-import static javax.ws.rs.HttpMethod.POST;
-import static javax.ws.rs.HttpMethod.PUT;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static org.alfasoftware.soapstone.WebParameter.parameter;
-import static org.alfasoftware.soapstone.WebParameters.fromHeaders;
-import static org.alfasoftware.soapstone.WebParameters.fromQueryParams;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.commons.lang.StringUtils;
 
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.NotAllowedException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
-
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
+import static javax.ws.rs.HttpMethod.*;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static org.alfasoftware.soapstone.Utils.processHeaders;
+import static org.alfasoftware.soapstone.Utils.simplifyQueryParameters;
+import static org.alfasoftware.soapstone.WebParameter.parameter;
 
 
 /**
@@ -64,6 +53,10 @@ public class SoapstoneService {
 
   private static final Logger LOG = LoggerFactory.getLogger(SoapstoneService.class);
 
+  private final Map<String, OpenAPI> openAPIDefinitions = new ConcurrentHashMap<>();
+
+
+  private final ObjectMapper objectMapper;
   private final Map<String, WebServiceClass<?>> webServiceClasses;
   private final String vendor;
   private final Pattern supportedGetOperations;
@@ -78,17 +71,13 @@ public class SoapstoneService {
    * @param supportedDeleteOperations may be null
    * @param supportedPutOperations may be null
    */
-  SoapstoneService(
-      Map<String, WebServiceClass<?>> webServiceClasses,
-      String vendor,
-      Pattern supportedGetOperations,
-      Pattern supportedDeleteOperations,
-      Pattern supportedPutOperations) {
-    this.webServiceClasses = webServiceClasses;
-    this.vendor = vendor;
-    this.supportedGetOperations = supportedGetOperations;
-    this.supportedDeleteOperations = supportedDeleteOperations;
-    this.supportedPutOperations = supportedPutOperations;
+  SoapstoneService(SoapstoneServiceConfiguration configuration) {
+    this.objectMapper = configuration.getObjectMapper();
+    this.webServiceClasses = configuration.getWebServiceClasses();
+    this.vendor = configuration.getVendor();
+    this.supportedGetOperations = configuration.getSupportedGetOperations();
+    this.supportedDeleteOperations = configuration.getSupportedDeleteOperations();
+    this.supportedPutOperations = configuration.getSupportedPutOperations();
   }
 
 
@@ -97,7 +86,7 @@ public class SoapstoneService {
    *
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
-   * @param entity The entity to be parsed as a JSON object
+   * @param entity  The entity to be parsed as a JSON object
    * @return JSON representation of the underlying web service response
    */
   @POST
@@ -132,7 +121,7 @@ public class SoapstoneService {
    *
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
-   * @param entity The entity to be parsed as a JSON object
+   * @param entity  The entity to be parsed as a JSON object
    * @return JSON representation of the underlying web service response
    */
   @PUT
@@ -151,7 +140,7 @@ public class SoapstoneService {
    *
    * @param headers The HTTP header information
    * @param uriInfo The application and request URI information
-   * @param entity The entity to be parsed as a JSON object
+   * @param entity  The entity to be parsed as a JSON object
    * @return JSON representation of the underlying web service response
    */
   @DELETE
@@ -165,6 +154,60 @@ public class SoapstoneService {
   }
 
 
+  @GET
+  @Path("openapi.json/tags")
+  @Produces(APPLICATION_JSON)
+  public Set<String> getOpenApiTags() {
+    LOG.info("Retrieving list of tags for Open API");
+    return webServiceClasses.keySet().stream()
+      .map(path -> path.split("/")[1])
+      .collect(Collectors.toCollection(TreeSet::new));
+  }
+
+
+  @GET
+  @Path("openapi.json")
+  @Produces(APPLICATION_JSON)
+  public String getOpenApiJson(@Context UriInfo uriInfo, @QueryParam("tag") Set<String> tags) {
+    LOG.info("Retrieving Open API JSON");
+    return Json.pretty(getOpenAPI(uriInfo.getBaseUri().toASCIIString(), tags));
+  }
+
+
+  @GET
+  @Path("openapi.yaml")
+  @Produces("application/yaml")
+  public String getOpenApiYaml(@Context UriInfo uriInfo, @QueryParam("tag") Set<String> tags) {
+    LOG.info("Retrieving Open API YAML");
+    return Yaml.pretty(getOpenAPI(uriInfo.getBaseUri().toASCIIString(), tags));
+  }
+
+
+  /**
+   * This is pretty rough and ready. Cache the openAPI definitions as they are quite expensive to
+   * generate. They are also quite large, so caching may not be the cleverest thing to do...
+   */
+  private OpenAPI getOpenAPI(final String baseUri, final Set<String> tags) {
+
+    synchronized (openAPIDefinitions) {
+
+      Function<String, OpenAPI> f = str -> {
+        SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(baseUri);
+        reader.setConfiguration(new SwaggerConfiguration());
+
+        return reader.read(tags);
+      };
+
+      String tagsKey = "_";
+      if (tags != null && ! tags.isEmpty()) {
+        tagsKey = tags.stream().sorted().collect(Collectors.joining("_"));
+      }
+
+      return openAPIDefinitions.computeIfAbsent(tagsKey, f);
+    }
+  }
+
+
   /*
    * Processes the request.
    */
@@ -175,7 +218,7 @@ public class SoapstoneService {
 
     if (StringUtils.isNotBlank(entity)) {
       try {
-        JsonNode jsonNode = Mappers.MAPPERS.getObjectMapper().readTree(entity);
+        JsonNode jsonNode = objectMapper.readTree(entity);
         jsonNode.fields().forEachRemaining(entry ->
             parameters.add(parameter(entry.getKey(), entry.getValue()))
         );
@@ -257,7 +300,7 @@ public class SoapstoneService {
     // Invoke the operation
     Object object = webServiceClass.invokeOperation(operationName, parameters);
     try {
-      return Mappers.MAPPERS.getObjectMapper().writeValueAsString(object);
+      return objectMapper.writeValueAsString(object);
     } catch (JsonProcessingException e) {
       LOG.error("Error marshalling response from " + path, e);
       throw new InternalServerErrorException();
