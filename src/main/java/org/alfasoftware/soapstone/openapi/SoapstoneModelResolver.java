@@ -1,3 +1,17 @@
+/* Copyright 2019 Alfa Financial Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.alfasoftware.soapstone.openapi;
 
 import static io.swagger.v3.core.util.RefUtils.constructRef;
@@ -30,7 +44,7 @@ import javax.xml.bind.annotation.XmlElementRef;
 import javax.xml.bind.annotation.XmlElementRefs;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.alfasoftware.soapstone.SoapstoneServiceConfiguration;
+import org.alfasoftware.soapstone.SoapstoneConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +72,7 @@ import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.introspect.POJOPropertyBuilder;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.util.Converter;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverterContext;
@@ -67,6 +82,7 @@ import io.swagger.v3.core.util.AnnotationsUtils;
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.PrimitiveType;
 import io.swagger.v3.core.util.ReflectionUtils;
+import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.models.media.ArraySchema;
 import io.swagger.v3.oas.models.media.ComposedSchema;
 import io.swagger.v3.oas.models.media.Discriminator;
@@ -86,19 +102,24 @@ import io.swagger.v3.oas.models.media.XML;
  * The code is largely copied wholesale and amended to:
  * </p>
  * <ul>
- *   <li>strip out swagger annotation support, which we don't need</li>
- *   <li>improve handling of JAXB concepts (particularly XmlAdapters)</li>
- *   <li>allow insertion of documentation via {@link DocumentationProvider}s</li>
+ * <li>strip out swagger annotation support, which we don't need</li>
+ * <li>improve handling of JAXB concepts (particularly XmlAdapters)</li>
+ * <li>allow insertion of documentation via {@link ElementDocumentationProvider}s</li>
  * </ul>
+ *
+ * @author Copyright (c) Alfa Financial Software 2019
  */
 public class SoapstoneModelResolver extends AbstractModelConverter implements ModelConverter {
 
 
-  private Logger LOGGER = LoggerFactory.getLogger(SoapstoneModelResolver.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(SoapstoneModelResolver.class);
+
+  private final DocumentationProvider documentationProvider;
 
 
-  SoapstoneModelResolver(ObjectMapper mapper) {
-    super(mapper);
+  public SoapstoneModelResolver(SoapstoneConfiguration configuration) {
+    super(Yaml.mapper().registerModule(new JaxbAnnotationModule()));
+    this.documentationProvider = configuration.getDocumentationProvider();
   }
 
 
@@ -192,14 +213,6 @@ public class SoapstoneModelResolver extends AbstractModelConverter implements Mo
         }
       }
     }
-
-    // This is dependent on swagger annotations, which we don't support
-//    if (model == null && annotatedType.getJsonUnwrappedHandler() != null) {
-//      model = annotatedType.getJsonUnwrappedHandler().apply(annotatedType);
-//      if (model == null) {
-//        return null;
-//      }
-//    }
 
     // If the type is simply 'Object' then the case is very simple
     if ("Object".equals(name)) {
@@ -497,13 +510,9 @@ public class SoapstoneModelResolver extends AbstractModelConverter implements Mo
 
           // Document the property
           if (propMember instanceof AnnotatedMethod) {
-            SoapstoneServiceConfiguration.get().getMemberDocumentationProvider()
-              .flatMap(provider -> provider.forElement(propMember))
-              .ifPresent(property::setDescription);
+            documentationProvider.forMember(propMember).ifPresent(property::setDescription);
           } else if (aType.getType() instanceof Class<?>) {
-            SoapstoneServiceConfiguration.get().getClassDocumentationProvider()
-              .flatMap(provider -> provider.forElement((Class<?>) aType.getType()))
-              .ifPresent(property::setDescription);
+            documentationProvider.forClass((Class<?>) aType.getType()).ifPresent(property::setDescription);
           }
 
           if (property.get$ref() == null) {
@@ -604,10 +613,7 @@ public class SoapstoneModelResolver extends AbstractModelConverter implements Mo
 
     // Document the model
     if (model != null) {
-      Class<?> rawType = type.getRawClass();
-      SoapstoneServiceConfiguration.get().getClassDocumentationProvider()
-        .flatMap(provider -> provider.forElement(rawType))
-        .ifPresent(model::setDescription);
+      documentationProvider.forClass(type.getRawClass()).ifPresent(model::setDescription);
     }
 
     if (model != null && annotatedType.isResolveAsRef() && "object".equals(model.getType()) && StringUtils.isNotBlank(model.getName())) {

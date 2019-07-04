@@ -14,22 +14,17 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import javax.ws.rs.WebApplicationException;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import javax.ws.rs.WebApplicationException;
 
-import org.alfasoftware.soapstone.openapi.DocumentationProvider.ClassDocumentationProvider;
-import org.alfasoftware.soapstone.openapi.DocumentationProvider.MemberDocumentationProvider;
-import org.alfasoftware.soapstone.openapi.DocumentationProvider.MethodDocumentationProvider;
-import org.alfasoftware.soapstone.openapi.DocumentationProvider.MethodReturnDocumentationProvider;
-import org.alfasoftware.soapstone.openapi.DocumentationProvider.ParameterDocumentationProvider;
+import org.alfasoftware.soapstone.openapi.DocumentationProvider;
+import org.alfasoftware.soapstone.openapi.SoapstoneModelResolver;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.core.converter.ModelConverters;
 
 /**
  * Builder for the {@link SoapstoneService}
@@ -43,12 +38,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class SoapstoneServiceBuilder {
 
-  private SoapstoneServiceConfiguration configuration = SoapstoneServiceConfiguration.get();
-//  private final Map<String, WebServiceClass<?>> pathToWebServiceClassMap;
-//  private String vendorName;
-//  private Pattern supportedGetOperations;
-//  private Pattern supportedDeleteOperations;
-//  private Pattern supportedPutOperations;
+  private SoapstoneConfiguration configuration = new SoapstoneConfiguration();
 
 
   /**
@@ -61,7 +51,6 @@ public class SoapstoneServiceBuilder {
    */
   public SoapstoneServiceBuilder(Map<String, WebServiceClass<?>> pathToWebServiceClassMap) {
     configuration.setWebServiceClasses(pathToWebServiceClassMap);
-//    this.pathToWebServiceClassMap = pathToWebServiceClassMap;
   }
 
 
@@ -79,7 +68,6 @@ public class SoapstoneServiceBuilder {
    */
   public SoapstoneServiceBuilder withObjectMapper(ObjectMapper objectMapper) {
     configuration.setObjectMapper(objectMapper);
-//    Mappers.INSTANCE.setObjectMapper(objectMapper);
     return this;
   }
 
@@ -97,7 +85,6 @@ public class SoapstoneServiceBuilder {
    */
   public SoapstoneServiceBuilder withExceptionMapper(ExceptionMapper exceptionMapper) {
     configuration.setExceptionMapper(exceptionMapper);
-//    Mappers.INSTANCE.setExceptionMapper(exceptionMapper);
     return this;
   }
 
@@ -115,7 +102,6 @@ public class SoapstoneServiceBuilder {
    */
   public SoapstoneServiceBuilder withVendor(String vendor) {
     configuration.setVendor(vendor);
-//    this.vendorName = vendor;
     return this;
   }
 
@@ -131,7 +117,6 @@ public class SoapstoneServiceBuilder {
    */
   public SoapstoneServiceBuilder withSupportedGetOperations(String... regex) {
     configuration.setSupportedGetOperations(createSupportedRegexPattern(regex));
-//    supportedGetOperations = createSupportedRegexPattern(regex);
     return this;
   }
 
@@ -147,7 +132,6 @@ public class SoapstoneServiceBuilder {
    */
   public SoapstoneServiceBuilder withSupportedDeleteOperations(String... regex) {
     configuration.setSupportedDeleteOperations(createSupportedRegexPattern(regex));
-//    supportedDeleteOperations = createSupportedRegexPattern(regex);
     return this;
   }
 
@@ -163,39 +147,25 @@ public class SoapstoneServiceBuilder {
    */
   public SoapstoneServiceBuilder withSupportedPutOperations(String... regex) {
     configuration.setSupportedPutOperations(createSupportedRegexPattern(regex));
-//    supportedPutOperations = createSupportedRegexPattern(regex);
     return this;
   }
 
 
-  public SoapstoneServiceBuilder withClassDocumentationProvider(ClassDocumentationProvider documentationProvider) {
-    configuration.setClassDocumentationProvider(documentationProvider);
+  /**
+   * Provide a documentation provider for extracting documentation for use in Open API definitions
+   *
+   * <p>
+   * Use the {@link org.alfasoftware.soapstone.openapi.DocumentationProviderBuilder} to construct the provider.
+   * </p>
+   *
+   * @param documentationProvider documentation provider
+   * @return this
+   */
+  public SoapstoneServiceBuilder withDocumentationProvider(DocumentationProvider documentationProvider) {
+    configuration.setDocumentationProvider(documentationProvider);
     return this;
   }
 
-
-  public SoapstoneServiceBuilder withMethodDocumentationProvider(MethodDocumentationProvider documentationProvider) {
-    configuration.setMethodDocumentationProvider(documentationProvider);
-    return this;
-  }
-
-
-  public SoapstoneServiceBuilder withMethodReturnDocumentationProvider(MethodReturnDocumentationProvider documentationProvider) {
-    configuration.setMethodReturnDocumentationProvider(documentationProvider);
-    return this;
-  }
-
-
-  public SoapstoneServiceBuilder withParameterDocumentationProvider(ParameterDocumentationProvider documentationProvider) {
-    configuration.setParameterDocumentationProvider(documentationProvider);
-    return this;
-  }
-
-
-  public SoapstoneServiceBuilder withMemberDocumentationProvider(MemberDocumentationProvider documentationProvider) {
-    configuration.setMemberDocumentationProvider(documentationProvider);
-    return this;
-  }
 
 
   /**
@@ -203,6 +173,7 @@ public class SoapstoneServiceBuilder {
    * @return a {@link SoapstoneService} with the appropriate fields set
    */
   public SoapstoneService build() {
+    ModelConverters.getInstance().addConverter(new SoapstoneModelResolver(configuration));
     return new SoapstoneService(configuration);
   }
 

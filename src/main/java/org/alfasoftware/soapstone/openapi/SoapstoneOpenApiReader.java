@@ -1,5 +1,20 @@
+/* Copyright 2019 Alfa Financial Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.alfasoftware.soapstone.openapi;
 
+import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.UPPER_CAMEL;
 
 import java.lang.reflect.Method;
@@ -20,22 +35,18 @@ import java.util.stream.Collectors;
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
 
-import org.alfasoftware.soapstone.SoapstoneServiceConfiguration;
+import org.alfasoftware.soapstone.SoapstoneConfiguration;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
-import com.google.common.base.CaseFormat;
 import com.google.common.base.Strings;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
-import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.PrimitiveType;
 import io.swagger.v3.core.util.ReflectionUtils;
-import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.integration.api.OpenAPIConfiguration;
 import io.swagger.v3.oas.integration.api.OpenApiReader;
 import io.swagger.v3.oas.models.Components;
@@ -56,23 +67,22 @@ import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.servers.Server;
 
+/**
+ * @author Copyright (c) Alfa Financial Software 2019
+ */
 public class SoapstoneOpenApiReader implements OpenApiReader {
 
   private static final Logger LOG = LoggerFactory.getLogger(SoapstoneOpenApiReader.class.getSimpleName());
+
   private final String hostUrl;
+  private final SoapstoneConfiguration soapstoneConfiguration;
 
   private OpenAPIConfiguration openApiConfiguration;
 
-  // Force use of JAXB annotation handling and initialise and create our resolver
-  static {
-    Yaml.mapper().registerModule(new JaxbAnnotationModule());
-    Json.mapper().registerModule(new JaxbAnnotationModule());
-    ModelConverters.getInstance().addConverter(new SoapstoneModelResolver(Yaml.mapper()));
-  }
 
-
-  public SoapstoneOpenApiReader(String hostUrl) {
+  public SoapstoneOpenApiReader(String hostUrl, SoapstoneConfiguration soapstoneConfiguration) {
     this.hostUrl = hostUrl;
+    this.soapstoneConfiguration = soapstoneConfiguration;
   }
 
 
@@ -91,15 +101,14 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
   /**
    * We completely ignore any passed entities since we will always handle all and only
    * what is provided to the {@link org.alfasoftware.soapstone.SoapstoneServiceBuilder}
-   * and accessible via {@link SoapstoneServiceConfiguration#getWebServiceClasses()}.
+   * and accessible via {@link SoapstoneConfiguration#getWebServiceClasses()}.
    *
    * @param tags Set of tags to include in the model. If empty, all tags will be included
-   *
    * @return Complete OpenAPI model for the given tags
    */
   public OpenAPI read(Set<String> tags) {
 
-    Map<String, Class<?>> pathByClass = SoapstoneServiceConfiguration.get().getWebServiceClasses().entrySet().stream()
+    Map<String, Class<?>> pathByClass = soapstoneConfiguration.getWebServiceClasses().entrySet().stream()
       .collect(Collectors.toMap(
         Entry::getKey,
         entry -> entry.getValue().getUnderlyingClass(),
@@ -121,9 +130,9 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
 
     // TODO we can allow this to be specified via configuration
     Info info = new Info()
-      .title(SoapstoneServiceConfiguration.get().getVendor() + " soapstone")
+      .title(soapstoneConfiguration.getVendor() + " soapstone")
       .version("unversioned")
-      .description("Soapstone Generated API for " + SoapstoneServiceConfiguration.get().getVendor());
+      .description("Soapstone Generated API for " + soapstoneConfiguration.getVendor());
 
     openAPI.setInfo(info);
 
@@ -160,7 +169,8 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
     return openAPI;
   }
 
-  private static PathItem methodToPathItem(String tag, Method method, String operationName, Components components) {
+
+  private PathItem methodToPathItem(String tag, Method method, String operationName, Components components) {
 
     List<Parameter> methodParameters = Arrays.stream(method.getParameters())
       .filter(methodParameter -> methodParameter.isAnnotationPresent(WebParam.class))
@@ -168,7 +178,7 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
 
     List<io.swagger.v3.oas.models.parameters.Parameter> headerParameters = methodParameters.stream()
       .filter(methodParameter -> methodParameter.getAnnotation(WebParam.class).header())
-      .map(SoapstoneOpenApiReader::parameterToHeaderParameter)
+      .map(this::parameterToHeaderParameter)
       .collect(Collectors.toList());
 
     List<Parameter> bodyParameters = methodParameters.stream()
@@ -184,8 +194,7 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
     response.setContent(methodToResponseContent(method, components));
     LOG.debug("        Done");
 
-    SoapstoneServiceConfiguration.get().getMethodReturnDocumentationProvider()
-      .flatMap(provider -> provider.forElement(method))
+    soapstoneConfiguration.getDocumentationProvider().forMethodReturn(method)
       .ifPresent(response::setDescription);
 
     responses.addApiResponse("200", response);
@@ -196,13 +205,12 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
     operation.setResponses(responses);
     operation.addTagsItem(tag);
 
-    SoapstoneServiceConfiguration.get().getMethodDocumentationProvider()
-      .flatMap(provider -> provider.forElement(method))
+    soapstoneConfiguration.getDocumentationProvider().forMethod(method)
       .ifPresent(operation::setDescription);
 
     PathItem pathItem = new PathItem();
 
-    if (SoapstoneServiceConfiguration.get().getSupportedGetOperations().matcher(operationName).matches()) {
+    if (soapstoneConfiguration.getSupportedGetOperations().matcher(operationName).matches()) {
 
       // Convert parameters to query parameters
       List<io.swagger.v3.oas.models.parameters.Parameter> queryParameters = bodyParameters.stream()
@@ -225,7 +233,7 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
       } else {
         pathItem.post(operation);
       }
-    } else if (SoapstoneServiceConfiguration.get().getSupportedDeleteOperations().matcher(operationName).matches()) {
+    } else if (soapstoneConfiguration.getSupportedDeleteOperations().matcher(operationName).matches()) {
 
       // Convert parameters to query parameters
       List<io.swagger.v3.oas.models.parameters.Parameter> queryParameters = bodyParameters.stream()
@@ -248,7 +256,7 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
       } else {
         pathItem.post(operation);
       }
-    } else if (SoapstoneServiceConfiguration.get().getSupportedPutOperations().matcher(operationName).matches()) {
+    } else if (soapstoneConfiguration.getSupportedPutOperations().matcher(operationName).matches()) {
       pathItem.put(operation);
     } else {
       pathItem.post(operation);
@@ -257,7 +265,8 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
     return pathItem;
   }
 
-  private static Content methodToResponseContent(Method method, Components components) {
+
+  private Content methodToResponseContent(Method method, Components components) {
 
     Type type = method.getGenericReturnType();
 
@@ -274,7 +283,8 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
     return content;
   }
 
-  private static QueryParameter parameterToQueryParameter(Parameter parameter, Components components) {
+
+  private QueryParameter parameterToQueryParameter(Parameter parameter, Components components) {
 
     QueryParameter queryParameter = new QueryParameter();
 
@@ -292,14 +302,14 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
     queryParameter.setSchema(schema);
     LOG.debug("        Done");
 
-    SoapstoneServiceConfiguration.get().getParameterDocumentationProvider()
-      .flatMap(provider -> provider.forElement(parameter))
+    soapstoneConfiguration.getDocumentationProvider().forParameter(parameter)
       .ifPresent(queryParameter::setDescription);
 
     return queryParameter;
   }
 
-  private static HeaderParameter parameterToHeaderParameter(Parameter parameter) {
+
+  private HeaderParameter parameterToHeaderParameter(Parameter parameter) {
 
     HeaderParameter headerParameter = new HeaderParameter();
 
@@ -307,7 +317,7 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
       .orElse(parameter.getName());
     LOG.debug("      Mapping header: " + parameterName);
 
-    headerParameter.setName("X-" + SoapstoneServiceConfiguration.get().getVendor() + "-" + CaseFormat.LOWER_CAMEL.to(UPPER_CAMEL, parameterName));
+    headerParameter.setName("X-" + soapstoneConfiguration.getVendor() + "-" + LOWER_CAMEL.to(UPPER_CAMEL, parameterName));
     headerParameter.setAllowEmptyValue(false);
     headerParameter.setStyle(StyleEnum.SIMPLE);
     headerParameter.setExplode(true);
@@ -324,14 +334,14 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
     headerParameter.setSchema(schema);
     LOG.debug("        Done");
 
-    SoapstoneServiceConfiguration.get().getParameterDocumentationProvider()
-      .flatMap(provider -> provider.forElement(parameter))
+    soapstoneConfiguration.getDocumentationProvider().forParameter(parameter)
       .ifPresent(headerParameter::setDescription);
 
     return headerParameter;
   }
 
-  private static RequestBody parametersToRequestBody(Collection<Parameter> parameters, Components components) {
+
+  private RequestBody parametersToRequestBody(Collection<Parameter> parameters, Components components) {
 
     if (parameters.isEmpty()) {
       return null;
@@ -346,8 +356,7 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
 
       Schema typeToSchema = typeToSchema(parameter.getParameterizedType(), components);
       if (typeToSchema != null) {
-        SoapstoneServiceConfiguration.get().getParameterDocumentationProvider()
-          .flatMap(provider -> provider.forElement(parameter))
+        soapstoneConfiguration.getDocumentationProvider().forParameter(parameter)
           .ifPresent(typeToSchema::setDescription);
       }
 
@@ -369,9 +378,9 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private static Schema typeToSchema(Type type, Components components) {
+  private Schema typeToSchema(Type type, Components components) {
 
-    JavaType javaType = SoapstoneServiceConfiguration.get().getObjectMapper().constructType(type);
+    JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
     LOG.debug("          " + javaType.toString());
 
     Schema propertySchema = PrimitiveType.createProperty(type);
@@ -389,12 +398,6 @@ public class SoapstoneOpenApiReader implements OpenApiReader {
       Schema schema = resolvedSchema.schema;
 
       resolvedSchema.referencedSchemas.forEach(components::addSchemas);
-
-//      if (type instanceof Class<?>) {
-//        SoapstoneServiceConfiguration.get().getClassDocumentationProvider()
-//          .flatMap(provider -> provider.forElement((Class<?>) type))
-//          .ifPresent(schema::setDescription);
-//      }
 
       return schema;
     }

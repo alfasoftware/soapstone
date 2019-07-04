@@ -19,14 +19,9 @@ import static javax.ws.rs.HttpMethod.GET;
 import static javax.ws.rs.HttpMethod.POST;
 import static javax.ws.rs.HttpMethod.PUT;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static org.alfasoftware.soapstone.WebParameter.parameter;
-import static org.alfasoftware.soapstone.WebParameters.fromHeaders;
-import static org.alfasoftware.soapstone.WebParameters.fromQueryParams;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -35,11 +30,9 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
-import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotAllowedException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
@@ -49,17 +42,12 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
 import org.alfasoftware.soapstone.openapi.SoapstoneOpenApiReader;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
@@ -79,23 +67,17 @@ public class SoapstoneService {
   private final Map<String, OpenAPI> openAPIDefinitions = new ConcurrentHashMap<>();
 
 
-  private final ObjectMapper objectMapper;
-  private final Map<String, WebServiceClass<?>> webServiceClasses;
-  private final String vendor;
-  private final Pattern supportedGetOperations;
-  private final Pattern supportedDeleteOperations;
-  private final Pattern supportedPutOperations;
+  private final SoapstoneConfiguration configuration;
+  private final WebParameterMapper webParameterMapper;
+  private final WebServiceInvoker invoker;
 
 
   /**
    */
-  SoapstoneService(SoapstoneServiceConfiguration configuration) {
-    this.objectMapper = configuration.getObjectMapper();
-    this.webServiceClasses = configuration.getWebServiceClasses();
-    this.vendor = configuration.getVendor();
-    this.supportedGetOperations = configuration.getSupportedGetOperations();
-    this.supportedDeleteOperations = configuration.getSupportedDeleteOperations();
-    this.supportedPutOperations = configuration.getSupportedPutOperations();
+  SoapstoneService(SoapstoneConfiguration configuration) {
+    this.configuration = configuration;
+    this.webParameterMapper = new WebParameterMapper(configuration);
+    this.invoker = new WebServiceInvoker(configuration);
   }
 
 
@@ -113,7 +95,7 @@ public class SoapstoneService {
   @Consumes(APPLICATION_JSON)
   public String post(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.info("POST " + uriInfo.getRequestUri());
-    return process(headers, uriInfo, entity);
+    return process(headers, uriInfo, entity, POST);
   }
 
 
@@ -129,8 +111,7 @@ public class SoapstoneService {
   @Produces(APPLICATION_JSON)
   public String get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
     LOG.info("GET " + uriInfo.getRequestUri());
-    checkIfMethodSupported(uriInfo, GET);
-    return process(headers, uriInfo, null);
+    return process(headers, uriInfo, null, GET);
   }
 
 
@@ -148,8 +129,7 @@ public class SoapstoneService {
   @Consumes(APPLICATION_JSON)
   public String put(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.info("PUT " + uriInfo.getRequestUri());
-    checkIfMethodSupported(uriInfo, PUT);
-    return process(headers, uriInfo, entity);
+    return process(headers, uriInfo, entity, PUT);
   }
 
 
@@ -165,10 +145,9 @@ public class SoapstoneService {
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
-  public String delete(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
+  public String delete(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
     LOG.info("DELETE " + uriInfo.getRequestUri());
-    checkIfMethodSupported(uriInfo, DELETE);
-    return process(headers, uriInfo, entity);
+    return process(headers, uriInfo, null, DELETE);
   }
 
 
@@ -177,7 +156,7 @@ public class SoapstoneService {
   @Produces(APPLICATION_JSON)
   public Set<String> getOpenApiTags() {
     LOG.info("Retrieving list of tags for Open API");
-    return webServiceClasses.keySet().stream()
+    return configuration.getWebServiceClasses().keySet().stream()
       .map(path -> path.split("/")[1])
       .collect(Collectors.toCollection(TreeSet::new));
   }
@@ -210,7 +189,7 @@ public class SoapstoneService {
     synchronized (openAPIDefinitions) {
 
       Function<String, OpenAPI> f = str -> {
-        SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(baseUri);
+        SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(baseUri, configuration);
         reader.setConfiguration(new SwaggerConfiguration());
 
         return reader.read(tags);
@@ -229,100 +208,82 @@ public class SoapstoneService {
   /*
    * Processes the request.
    */
-  private String process(HttpHeaders headers, UriInfo uriInfo, String entity) {
+  private String process(HttpHeaders headers, UriInfo uriInfo, String entity, String method) {
 
-    Collection<WebParameter> parameters = fromQueryParams(uriInfo);
-    parameters.addAll(fromHeaders(headers, vendor));
-
-    if (StringUtils.isNotBlank(entity)) {
-      try {
-        JsonNode jsonNode = objectMapper.readTree(entity);
-        jsonNode.fields().forEachRemaining(entry ->
-            parameters.add(parameter(entry.getKey(), entry.getValue()))
-        );
-      } catch (IOException e) {
-        throw new BadRequestException(
-            Response.status(Response.Status.BAD_REQUEST)
-                .entity(entity)
-                .build());
-      }
+    String fullPath = uriInfo.getPath();
+    // Check we have a legal path: path/operation
+    if (fullPath.indexOf('/') < 0) {
+      LOG.error("Path " + fullPath + "should include an operation");
+      throw new NotFoundException();
     }
 
-    return execute(uriInfo.getPath(), parameters);
-  }
+    // Split into path and operation
+    String operationName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
+    String path = fullPath.substring(0, fullPath.lastIndexOf('/'));
 
+    // Check that the method used is supported for the requested operation
+    assertMethodSupported(operationName, method);
 
-  /*
-   * Returns a list of supported method types.
-   */
-  private List<String> getSupportedMethods(UriInfo uriInfo) {
-
-    String path = uriInfo.getPath();
-    String operationName = path.substring(path.lastIndexOf('/') + 1);
-
-    // Find supported operations
-    List<String> supportedTypes = new ArrayList<>();
-
-    if (supportedGetOperations != null && supportedGetOperations.matcher(operationName).matches()) {
-      supportedTypes.add(GET);
+    // Locate the web service class
+    WebServiceClass<?> webServiceClass = configuration.getWebServiceClasses().get(path);
+    if (webServiceClass == null) {
+      LOG.error("No web service class mapped for " + path);
+      throw new NotFoundException();
     }
 
-    if (supportedDeleteOperations != null && supportedDeleteOperations.matcher(operationName).matches()) {
-      supportedTypes.add(DELETE);
-    }
+    // Construct parameters
+    Collection<WebParameter> parameters = webParameterMapper.fromQueryParams(uriInfo.getQueryParameters());
+    parameters.addAll(webParameterMapper.fromHeaders(headers, configuration.getVendor()));
+    parameters.addAll(webParameterMapper.fromEntity(entity));
 
-    if (supportedPutOperations != null && supportedPutOperations.matcher(operationName).matches()) {
-      supportedTypes.add(PUT);
-    }
-
-    return supportedTypes;
+    // Invoke the operation
+    return invoker.invokeOperation(webServiceClass, operationName, parameters);
   }
 
 
   /*
    * Checks if the method type is supported. If not, throws a 405 Method Not Allowed exception.
    */
-  private void checkIfMethodSupported(UriInfo uriInfo, String type) {
+  private void assertMethodSupported(String operationName, String method) {
 
-    List<String> supportedTypes = getSupportedMethods(uriInfo); // Return a list of supported operations
+    // POST is always supported
+    if (POST.equals(method)) {
+      return;
+    }
 
-    if (!supportedTypes.contains(type)) { // If our method type is not supported...
-      LOG.error(type + " not supported for " + uriInfo);
+    Set<String> supportedTypes = getSupportedMethods(operationName); // Return a set of supported methods
+
+    if (!supportedTypes.contains(method)) { // If our method type is not supported...
+      LOG.error(method + " not supported for " + operationName);
       throw new NotAllowedException(POST, supportedTypes.toArray(new String[0])); // ... throw a 405 Method Not Allowed, specifying which method types ARE allowed
     }
   }
 
 
   /*
-   * Execute the request.
+   * Returns a list of supported method types.
    */
-  private String execute(String path, Collection<WebParameter> parameters) {
+  private Set<String> getSupportedMethods(String operationName) {
 
-    // Check we have a legal path: path/operation
-    if (path.indexOf('/') < 0) {
-      LOG.error("Path " + path + "should include an operation");
-      throw new NotFoundException();
+    // Find supported operations
+    Set<String> supportedMethods = new HashSet<>();
+
+    Pattern supportedGetOperations = configuration.getSupportedGetOperations();
+    if (supportedGetOperations != null && supportedGetOperations.matcher(operationName).matches()) {
+      supportedMethods.add(GET);
     }
 
-    // Split into path and operation
-    String operationName = path.substring(path.lastIndexOf('/') + 1);
-    String pathKey = path.substring(0, path.lastIndexOf('/'));
-
-    // Check the path is mapped to a web service class
-    WebServiceClass<?> webServiceClass = webServiceClasses.get(pathKey);
-    if (webServiceClass == null) {
-      LOG.error("No web service class mapped for " + pathKey);
-      throw new NotFoundException();
+    Pattern supportedDeleteOperations = configuration.getSupportedDeleteOperations();
+    if (supportedDeleteOperations != null && supportedDeleteOperations.matcher(operationName).matches()) {
+      supportedMethods.add(DELETE);
     }
 
-    // Invoke the operation
-    Object object = webServiceClass.invokeOperation(operationName, parameters);
-    try {
-      return objectMapper.writeValueAsString(object);
-    } catch (JsonProcessingException e) {
-      LOG.error("Error marshalling response from " + path, e);
-      throw new InternalServerErrorException();
+    Pattern supportedPutOperations = configuration.getSupportedPutOperations();
+    if (supportedPutOperations != null && supportedPutOperations.matcher(operationName).matches()) {
+      supportedMethods.add(PUT);
     }
+
+    return supportedMethods;
   }
 
 }

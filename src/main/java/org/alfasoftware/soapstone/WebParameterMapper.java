@@ -14,15 +14,19 @@
  */
 package org.alfasoftware.soapstone;
 
+import static com.google.common.base.CaseFormat.LOWER_CAMEL;
+import static com.google.common.base.CaseFormat.UPPER_CAMEL;
 import static java.util.regex.Pattern.CASE_INSENSITIVE;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 import static org.alfasoftware.soapstone.WebParameter.headerParameter;
 import static org.alfasoftware.soapstone.WebParameter.parameter;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +39,9 @@ import java.util.regex.Pattern;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.UriInfo;
+import javax.ws.rs.core.Response;
+
+import org.apache.commons.lang.StringUtils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -44,14 +50,16 @@ import com.fasterxml.jackson.databind.JsonNode;
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
-class WebParameters {
+class WebParameterMapper {
 
 
   private static final Pattern VALID_HEADER_FORMAT = Pattern.compile("((:?\\w+)=(\\w+)(;|$))+");
 
+  private final SoapstoneConfiguration configuration;
 
-  private WebParameters() {
-    throw new AssertionError("Not intended for instantiation. Access methods statically.");
+
+  WebParameterMapper(SoapstoneConfiguration configuration) {
+    this.configuration = configuration;
   }
 
 
@@ -60,19 +68,48 @@ class WebParameters {
    *
    * @return collection of {@link WebParameter}
    */
-  static Collection<WebParameter> fromQueryParams(UriInfo uriInfo) {
-    MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
+  Collection<WebParameter> fromQueryParams(MultivaluedMap<String, String> queryParameters) {
+
     Collection<WebParameter> webParameters = new HashSet<>();
 
     for (String key : queryParameters.keySet()) {
       List<String> values = Optional.ofNullable(queryParameters.get(key)).orElseGet(ArrayList::new);
       if (values.size() == 1) {
-        webParameters.add(parameter(key, SoapstoneServiceConfiguration.get().getObjectMapper().valueToTree(values.get(0))));
+        webParameters.add(parameter(key, configuration.getObjectMapper().valueToTree(values.get(0))));
       } else {
-        webParameters.add(parameter(key, SoapstoneServiceConfiguration.get().getObjectMapper().valueToTree(values)));
+        webParameters.add(parameter(key, configuration.getObjectMapper().valueToTree(values)));
       }
     }
     return webParameters;
+  }
+
+
+  /**
+   * Convert an entity in the form of a JSON string representing a map of
+   * parameter names and values into a collection of {@link WebParameter}s
+   *
+   * @param entity JSON entity string
+   * @return collection of {@link WebParameter}
+   */
+  Collection<WebParameter> fromEntity(String entity) {
+
+    if (StringUtils.isBlank(entity)) {
+      return Collections.emptyList();
+    }
+
+    Collection<WebParameter> webParameters = new HashSet<>();
+     try {
+        JsonNode jsonNode = configuration.getObjectMapper().readTree(entity);
+        jsonNode.fields().forEachRemaining(entry ->
+            webParameters.add(parameter(entry.getKey(), entry.getValue()))
+        );
+      } catch (IOException e) {
+        throw new BadRequestException(
+            Response.status(Response.Status.BAD_REQUEST)
+                .entity(entity)
+                .build());
+      }
+     return webParameters;
   }
 
 
@@ -81,7 +118,7 @@ class WebParameters {
    *
    * @return collection of {@link WebParameter}
    */
-  static Collection<WebParameter> fromHeaders(HttpHeaders headers, String vendor) {
+  Collection<WebParameter> fromHeaders(HttpHeaders headers, String vendor) {
     // Our map of headerParameter objects
     Collection<WebParameter> headerObjects = new HashSet<>();
 
@@ -98,12 +135,13 @@ class WebParameters {
   /*
    * Process each headerParameter object and add it to the headerObjects map.
    */
-  private static void processHeaderObject(HttpHeaders headers, String objectHeaderName, Collection<WebParameter> headerObjects) {
+  private void processHeaderObject(
+    HttpHeaders headers, String objectHeaderName, Collection<WebParameter> headerObjects) {
     // ... create the object...
     Map<String, String> object = createObject(headers, objectHeaderName);
     // ... and add it to the map
-    String key = convertToCamelCase(objectHeaderName.substring(objectHeaderName.lastIndexOf("-") + 1));
-    JsonNode value = SoapstoneServiceConfiguration.get().getObjectMapper().valueToTree(object);
+    String key = UPPER_CAMEL.to(LOWER_CAMEL, objectHeaderName.substring(objectHeaderName.lastIndexOf("-") + 1));
+    JsonNode value = configuration.getObjectMapper().valueToTree(object);
     headerObjects.add(headerParameter(key, value));
   }
 
@@ -126,7 +164,7 @@ class WebParameters {
   /*
    * Returns a set of all of the object property headers.
    */
-  private static Set<String> getObjectPropertyHeaders(HttpHeaders headers, String objectHeaderName) {
+  private Set<String> getObjectPropertyHeaders(HttpHeaders headers, String objectHeaderName) {
 
     Pattern pattern = Pattern.compile(objectHeaderName + "-\\w+", CASE_INSENSITIVE);
 
@@ -141,7 +179,7 @@ class WebParameters {
   /*
    * Creates a map of all of the objects.
    */
-  private static Map<String, String> createObject(HttpHeaders headers, String objectHeaderName) {
+  private Map<String, String> createObject(HttpHeaders headers, String objectHeaderName) {
 
     Map<String, String> object = new HashMap<>();
 
@@ -170,25 +208,15 @@ class WebParameters {
   /*
    * Sets the object property key value pairs.
    */
-  private static void setObjectProperty(HttpHeaders headers, String objectPropertyHeaderName, Map<String, String> object) {
+  private void setObjectProperty(
+    HttpHeaders headers, String objectPropertyHeaderName, Map<String, String> object) {
+
     String value = headers.getHeaderString(objectPropertyHeaderName);
-    String key = convertToCamelCase(objectPropertyHeaderName.substring(objectPropertyHeaderName.lastIndexOf("-") + 1));
+
+    String propertyName = objectPropertyHeaderName.substring(objectPropertyHeaderName.lastIndexOf("-") + 1);
+    String key = UPPER_CAMEL.to(LOWER_CAMEL, propertyName);
+
     object.put(key, value);
   }
 
-
-  /**
-   * Converts the first letter of the string to lower case to conform with camel case conventions.
-   */
-  private static String convertToCamelCase(String string) {
-
-    if (string == null || string.trim().isEmpty()) {
-      return string;
-    }
-
-    char[] stringAsCharArray = string.toCharArray();
-    stringAsCharArray[0] = Character.toLowerCase(stringAsCharArray[0]);
-
-    return new String(stringAsCharArray);
-  }
 }

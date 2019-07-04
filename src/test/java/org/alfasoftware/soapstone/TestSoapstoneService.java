@@ -14,29 +14,6 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
-import org.alfasoftware.soapstone.testsupport.WebService;
-import org.alfasoftware.soapstone.testsupport.WebService.MyException;
-import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
-import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
-import org.glassfish.jersey.filter.LoggingFilter;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.test.JerseyTest;
-import org.joda.time.LocalDate;
-import org.junit.Test;
-
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Application;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
@@ -47,6 +24,32 @@ import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_2;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+import javax.jws.WebMethod;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Application;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+import org.alfasoftware.soapstone.testsupport.WebService;
+import org.alfasoftware.soapstone.testsupport.WebService.MyException;
+import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
+import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
+import org.glassfish.jersey.filter.LoggingFilter;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.test.JerseyTest;
+import org.joda.time.LocalDate;
+import org.junit.Test;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 
 
 /**
@@ -366,6 +369,7 @@ public class TestSoapstoneService extends JerseyTest {
 
     Response response = target()
       .path("path/getAThing")
+      .queryParam("string", "thing")
       .request()
       .get();
 
@@ -457,7 +461,37 @@ public class TestSoapstoneService extends JerseyTest {
     Response response = target()
       .path("path/doNotDoAThing")
       .request()
-      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
+
+    assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we can successfully invoke a method by a name specified via {@link WebMethod#operationName()}
+   */
+  @Test
+  public void testMethodWithOperationName() {
+
+    Response response = target()
+      .path("path/doAThingWithThisName")
+      .request()
+      .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
+
+    assertEquals(OK.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we if a method has an operation name specified via {@link WebMethod#operationName()}, we cannot invoke
+   * it via the method name
+   */
+  @Test
+  public void testMethodMaskedByOperationName() {
+
+    Response response = target()
+      .path("path/doNotDoAThingWithThisName")
+      .request()
       .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
     assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
