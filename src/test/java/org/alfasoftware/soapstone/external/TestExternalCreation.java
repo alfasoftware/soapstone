@@ -14,13 +14,16 @@
  */
 package org.alfasoftware.soapstone.external;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.HashMap;
+import java.util.Optional;
+
+import org.alfasoftware.soapstone.DocumentationProviderBuilder;
 import org.alfasoftware.soapstone.SoapstoneServiceBuilder;
 import org.alfasoftware.soapstone.WebServiceClass;
 import org.junit.Test;
 
-import java.util.HashMap;
-import java.util.Optional;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Functions;
 
 /**
  * Trivial test to ensure everything is publicly visible that needs to be
@@ -43,6 +46,8 @@ public class TestExternalCreation {
       .withSupportedGetOperations("get.*")
       .withSupportedPutOperations("put.*")
       .withSupportedDeleteOperations("delete.*")
+      .withDocumentationProvider(new DocumentationProviderBuilder().build())
+      .withTagProvider(Functions.identity())
       .build();
   }
 }

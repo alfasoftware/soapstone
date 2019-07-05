@@ -1,17 +1,32 @@
+/* Copyright 2019 Alfa Financial Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.alfasoftware.soapstone;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.regex.Pattern;
-
-import org.alfasoftware.soapstone.openapi.DocumentationProvider;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
+ * Configuration model for Soapstone and Open API generation
+ *
  * @author Copyright (c) Alfa Financial Software 2019
  */
-public class SoapstoneConfiguration {
+class SoapstoneConfiguration {
 
   private ObjectMapper objectMapper;
   private ExceptionMapper exceptionMapper;
@@ -21,72 +36,78 @@ public class SoapstoneConfiguration {
   private Pattern supportedPutOperations;
   private Pattern supportedDeleteOperations;
   private DocumentationProvider documentationProvider;
+  private Function<String, String> tagProvider;
 
 
-  public SoapstoneConfiguration() {
-  }
-
-  public ObjectMapper getObjectMapper() {
+  ObjectMapper getObjectMapper() {
     return objectMapper;
   }
 
-  public void setObjectMapper(ObjectMapper objectMapper) {
+  void setObjectMapper(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
   }
 
-  public Optional<ExceptionMapper> getExceptionMapper() {
+  Optional<ExceptionMapper> getExceptionMapper() {
     return Optional.ofNullable(exceptionMapper);
   }
 
-  public void setExceptionMapper(ExceptionMapper exceptionMapper) {
+  void setExceptionMapper(ExceptionMapper exceptionMapper) {
     this.exceptionMapper = exceptionMapper;
   }
 
-  public Map<String, WebServiceClass<?>> getWebServiceClasses() {
+  Map<String, WebServiceClass<?>> getWebServiceClasses() {
     return webServiceClasses;
   }
 
-  public void setWebServiceClasses(Map<String, WebServiceClass<?>> webServiceClasses) {
+  void setWebServiceClasses(Map<String, WebServiceClass<?>> webServiceClasses) {
     this.webServiceClasses = webServiceClasses;
   }
 
-  public String getVendor() {
+  String getVendor() {
     return vendor;
   }
 
-  public void setVendor(String vendor) {
+  void setVendor(String vendor) {
     this.vendor = vendor;
   }
 
-  public Pattern getSupportedGetOperations() {
+  Pattern getSupportedGetOperations() {
     return supportedGetOperations;
   }
 
-  public void setSupportedGetOperations(Pattern supportedGetOperations) {
+  void setSupportedGetOperations(Pattern supportedGetOperations) {
     this.supportedGetOperations = supportedGetOperations;
   }
 
-  public Pattern getSupportedPutOperations() {
+  Pattern getSupportedPutOperations() {
     return supportedPutOperations;
   }
 
-  public void setSupportedPutOperations(Pattern supportedPutOperations) {
+  void setSupportedPutOperations(Pattern supportedPutOperations) {
     this.supportedPutOperations = supportedPutOperations;
   }
 
-  public Pattern getSupportedDeleteOperations() {
+  Pattern getSupportedDeleteOperations() {
     return supportedDeleteOperations;
   }
 
-  public void setSupportedDeleteOperations(Pattern supportedDeleteOperations) {
+  void setSupportedDeleteOperations(Pattern supportedDeleteOperations) {
     this.supportedDeleteOperations = supportedDeleteOperations;
   }
 
-  public DocumentationProvider getDocumentationProvider() {
-    return documentationProvider;
+  Optional<DocumentationProvider> getDocumentationProvider() {
+    return Optional.ofNullable(documentationProvider);
   }
 
-  public void setDocumentationProvider(DocumentationProvider documentationProvider) {
+  void setDocumentationProvider(DocumentationProvider documentationProvider) {
     this.documentationProvider = documentationProvider;
+  }
+
+  Optional<Function<String, String>> getTagProvider() {
+    return Optional.ofNullable(tagProvider);
+  }
+
+  void setTagProvider(Function<String, String> tagProvider) {
+    this.tagProvider = tagProvider;
   }
 }

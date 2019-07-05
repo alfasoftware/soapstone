@@ -41,6 +41,8 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.google.common.base.Strings;
 
 /**
+ * Locates and invokes web service operations in accordance with JAX-WS annotations and conventions.
+ *
  * @author Copyright (c) Alfa Financial Software 2019
  */
 class WebServiceInvoker {
@@ -65,8 +67,9 @@ class WebServiceInvoker {
    * e.g., will be null if the underlying return type is void; will be boxed if the underlying
    * return type is primitive.
    *
-   * @param operationName Name of the operation
-   * @param parameters    Parameters
+   * @param webServiceClass class for which to invoke
+   * @param operationName   Name of the operation
+   * @param parameters      Parameters
    * @return the return value of the operation mapped to a JSON string
    */
   String invokeOperation(WebServiceClass webServiceClass, String operationName, Collection<WebParameter> parameters) {

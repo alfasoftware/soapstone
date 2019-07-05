@@ -14,16 +14,18 @@
  */
 package org.alfasoftware.soapstone;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import javax.ws.rs.WebApplicationException;
 
-import org.alfasoftware.soapstone.openapi.DocumentationProvider;
-import org.alfasoftware.soapstone.openapi.SoapstoneModelResolver;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import io.swagger.v3.core.converter.ModelConverters;
 
 /**
@@ -39,6 +41,8 @@ import io.swagger.v3.core.converter.ModelConverters;
 public class SoapstoneServiceBuilder {
 
   private SoapstoneConfiguration configuration = new SoapstoneConfiguration();
+  private String vendor;
+  private ObjectMapper objectMapper;
 
 
   /**
@@ -46,6 +50,7 @@ public class SoapstoneServiceBuilder {
    *
    * <p>
    * Requires a map of URL paths to {@link WebServiceClass}. See {@link WebServiceClass#forClass(Class, Supplier)}.
+   * </p>
    *
    * @param pathToWebServiceClassMap map of paths to web service classes
    */
@@ -62,12 +67,13 @@ public class SoapstoneServiceBuilder {
    * the {@link com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule} and sets
    * {@link com.fasterxml.jackson.databind.DeserializationFeature#FAIL_ON_IGNORED_PROPERTIES}
    * to false.
+   * </p>
    *
    * @param objectMapper provided mapper
    * @return this
    */
   public SoapstoneServiceBuilder withObjectMapper(ObjectMapper objectMapper) {
-    configuration.setObjectMapper(objectMapper);
+    this.objectMapper = objectMapper;
     return this;
   }
 
@@ -79,6 +85,7 @@ public class SoapstoneServiceBuilder {
    * <p>
    * This is optional. If not specified then all invocation errors will be mapped to
    * internal server errors (HTTP code 500).
+   * </p>
    *
    * @param exceptionMapper provided mapper
    * @return this
@@ -96,12 +103,15 @@ public class SoapstoneServiceBuilder {
    * This will be used wherever the vendor would, by convention be used, e.g. for custom headers:
    * </p>
    * {@code X-Vendor-Header}
+   * <p>
+   * This is optional and will default to 'Soapstone'.
+   * </p>
    *
    * @param vendor vendor name
    * @return this
    */
   public SoapstoneServiceBuilder withVendor(String vendor) {
-    configuration.setVendor(vendor);
+    this.vendor = vendor;
     return this;
   }
 
@@ -110,7 +120,8 @@ public class SoapstoneServiceBuilder {
    * Provide a list of regular expressions for operation names which should be supported as GET methods
    *
    * <p>
-   * All expressions will be treated as case-insensitive
+   * Optional. All expressions will be treated as case-insensitive.
+   * </p>
    *
    * @param regex regular expressions for matching operation names
    * @return this
@@ -125,7 +136,8 @@ public class SoapstoneServiceBuilder {
    * Provide a list of regular expressions for operation names which should be supported as DELETE methods
    *
    * <p>
-   * All expressions will be treated as case-insensitive
+   * Optional. All expressions will be treated as case-insensitive.
+   * </p>
    *
    * @param regex regular expressions for matching operation names
    * @return this
@@ -140,7 +152,8 @@ public class SoapstoneServiceBuilder {
    * Provide a list of regular expressions for operation names which should be supported as PUT methods
    *
    * <p>
-   * All expressions will be treated as case-insensitive
+   * Optional. All expressions will be treated as case-insensitive.
+   * </p>
    *
    * @param regex regular expressions for matching operation names
    * @return this
@@ -152,10 +165,14 @@ public class SoapstoneServiceBuilder {
 
 
   /**
-   * Provide a documentation provider for extracting documentation for use in Open API definitions
+   * Provide a {@link DocumentationProvider} for extracting documentation for use in Open API documents
    *
    * <p>
-   * Use the {@link org.alfasoftware.soapstone.openapi.DocumentationProviderBuilder} to construct the provider.
+   * Use the {@link DocumentationProviderBuilder} to construct the provider.
+   * </p>
+   *
+   * <p>
+   * This is optional. If not provided, no documentation will be added to Open API documents produced.
    * </p>
    *
    * @param documentationProvider documentation provider
@@ -167,13 +184,43 @@ public class SoapstoneServiceBuilder {
   }
 
 
+  /**
+   * Provide a function for assigning tags to web service operations based on path.
+   * Tags are used to group operations when represented in Open API documents
+   *
+   * <p>
+   * The function should accept the path to a web service class (as provided in {@link #SoapstoneServiceBuilder(Map)})
+   * and return a tag as a string.
+   * </p>
+   *
+   * <p>
+   * This is optional. If not provided, no tags will be added to Open API documents produced.
+   * </p>
+   *
+   * @param tagProvider tag provider
+   * @return this
+   */
+  public SoapstoneServiceBuilder withTagProvider(Function<String, String> tagProvider) {
+    configuration.setTagProvider(tagProvider);
+    return this;
+  }
+
+
 
   /**
    * Builds the {@link SoapstoneService}.
    * @return a {@link SoapstoneService} with the appropriate fields set
    */
   public SoapstoneService build() {
+    // This is the easiest place to put this to ensure that it is added once and once only
     ModelConverters.getInstance().addConverter(new SoapstoneModelResolver(configuration));
+
+    // Vendor and object mapper have defaults, so apply them here if required
+    configuration.setVendor(vendor == null ? "Soapstone" : vendor);
+    configuration.setObjectMapper(Optional.ofNullable(objectMapper).orElseGet(
+      () -> new ObjectMapper().registerModule(new JaxbAnnotationModule()).configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
+    ));
+
     return new SoapstoneService(configuration);
   }
 

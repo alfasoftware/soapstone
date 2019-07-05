@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.alfasoftware.soapstone.openapi;
+package org.alfasoftware.soapstone;
 
 import static io.swagger.v3.oas.models.parameters.Parameter.StyleEnum.SIMPLE;
 import static org.hamcrest.Matchers.allOf;
@@ -26,10 +26,10 @@ import static org.junit.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.alfasoftware.soapstone.SoapstoneConfiguration;
-import org.alfasoftware.soapstone.WebServiceClass;
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.Documentation;
 import org.junit.BeforeClass;
@@ -47,6 +47,13 @@ import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 
 /**
+ * Test the {@link SoapstoneOpenApiReader}
+ *
+ * <p>
+ * We'll slightly abuse unit test practice here and generate a single document once and then run
+ * a series of tests to assert that document.
+ * </p>
+ *
  * @author Copyright (c) Alfa Financial Software 2019
  */
 public class TestSoapstoneOpenApiReader {
@@ -55,6 +62,9 @@ public class TestSoapstoneOpenApiReader {
   private static OpenAPI openAPI;
 
 
+  /**
+   * Build the {@link SoapstoneConfiguration} for the service the reader should run over
+   */
   @BeforeClass
   public static void setup() {
 
@@ -66,6 +76,15 @@ public class TestSoapstoneOpenApiReader {
       .withMemberDocumentationProvider(member -> Optional.ofNullable(member.getAnnotation(Documentation.class)).map(Documentation::value))
       .build();
 
+    final Pattern tagPattern = Pattern.compile("/(?<tag>.*?)(?:/.*)?");
+    Function<String, String> tagProvider = path -> {
+      Matcher matcher = tagPattern.matcher(path);
+      if (matcher.matches()) {
+        return matcher.group("tag");
+      }
+      return null;
+    };
+
     ObjectMapper objectMapper = new ObjectMapper().registerModule(new JaxbAnnotationModule())
       .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
@@ -76,6 +95,7 @@ public class TestSoapstoneOpenApiReader {
     soapstoneConfiguration.setWebServiceClasses(webServices);
     soapstoneConfiguration.setObjectMapper(objectMapper);
     soapstoneConfiguration.setDocumentationProvider(documentationProvider);
+    soapstoneConfiguration.setTagProvider(tagProvider);
     soapstoneConfiguration.setSupportedGetOperations(Pattern.compile("get.*"));
     soapstoneConfiguration.setSupportedDeleteOperations(Pattern.compile("delete.*"));
     soapstoneConfiguration.setSupportedPutOperations(Pattern.compile("put.*"));

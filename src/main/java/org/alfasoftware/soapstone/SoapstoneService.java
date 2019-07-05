@@ -44,7 +44,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.UriInfo;
 
-import org.alfasoftware.soapstone.openapi.SoapstoneOpenApiReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,14 +64,13 @@ public class SoapstoneService {
   private static final Logger LOG = LoggerFactory.getLogger(SoapstoneService.class);
 
   private final Map<String, OpenAPI> openAPIDefinitions = new ConcurrentHashMap<>();
-
-
   private final SoapstoneConfiguration configuration;
   private final WebParameterMapper webParameterMapper;
   private final WebServiceInvoker invoker;
 
 
   /**
+   *
    */
   SoapstoneService(SoapstoneConfiguration configuration) {
     this.configuration = configuration;
@@ -151,8 +149,13 @@ public class SoapstoneService {
   }
 
 
+  /**
+   * Enumerate all tags available for inclusion in Open API documents
+   *
+   * @return set of tags
+   */
   @GET
-  @Path("openapi.json/tags")
+  @Path("openapi/tags")
   @Produces(APPLICATION_JSON)
   public Set<String> getOpenApiTags() {
     LOG.info("Retrieving list of tags for Open API");
@@ -162,6 +165,17 @@ public class SoapstoneService {
   }
 
 
+  /**
+   * Get an Open API document including all provided tags in JSON format.
+   *
+   * <p>
+   * If no tags are specified then all tags will be included.
+   * </p>
+   *
+   * @param uriInfo The application and request URI information
+   * @param tags set of tags to include in the document. If none provided then all tags will be used.
+   * @return Open API document as JSON
+   */
   @GET
   @Path("openapi.json")
   @Produces(APPLICATION_JSON)
@@ -171,6 +185,17 @@ public class SoapstoneService {
   }
 
 
+  /**
+   * Get an Open API document including all provided tags in YAML format.
+   *
+   * <p>
+   * If no tags are specified then all tags will be included.
+   * </p>
+   *
+   * @param uriInfo The application and request URI information
+   * @param tags set of tags to include in the document. If none provided then all tags will be used.
+   * @return Open API document as YAML
+   */
   @GET
   @Path("openapi.yaml")
   @Produces("application/yaml")
@@ -183,6 +208,8 @@ public class SoapstoneService {
   /**
    * This is pretty rough and ready. Cache the openAPI definitions as they are quite expensive to
    * generate. They are also quite large, so caching may not be the cleverest thing to do...
+   *
+   * This should be superseded by some merge function.
    */
   private OpenAPI getOpenAPI(final String baseUri, final Set<String> tags) {
 

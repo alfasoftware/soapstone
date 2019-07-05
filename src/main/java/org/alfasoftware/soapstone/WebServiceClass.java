@@ -16,9 +16,6 @@ package org.alfasoftware.soapstone;
 
 import java.util.function.Supplier;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * A wrapper around a class representing a web service endpoint
  *
@@ -27,11 +24,8 @@ import org.slf4j.LoggerFactory;
  */
 public class WebServiceClass<T> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SoapstoneService.class);
-
   private final Class<T> klass;
   private final Supplier<T> instance;
-
 
 
   /**
@@ -53,7 +47,7 @@ public class WebServiceClass<T> {
   }
 
 
-  public Class<T> getUnderlyingClass() {
+  Class<T> getUnderlyingClass() {
     return klass;
   }
 

@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.alfasoftware.soapstone.openapi;
+package org.alfasoftware.soapstone;
 
 import static io.swagger.v3.core.util.RefUtils.constructRef;
 
@@ -44,7 +44,6 @@ import javax.xml.bind.annotation.XmlElementRef;
 import javax.xml.bind.annotation.XmlElementRefs;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.alfasoftware.soapstone.SoapstoneConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,27 +103,22 @@ import io.swagger.v3.oas.models.media.XML;
  * <ul>
  * <li>strip out swagger annotation support, which we don't need</li>
  * <li>improve handling of JAXB concepts (particularly XmlAdapters)</li>
- * <li>allow insertion of documentation via {@link ElementDocumentationProvider}s</li>
+ * <li>allow insertion of documentation via {@link DocumentationProvider}</li>
  * </ul>
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
-public class SoapstoneModelResolver extends AbstractModelConverter implements ModelConverter {
+class SoapstoneModelResolver extends AbstractModelConverter implements ModelConverter {
 
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SoapstoneModelResolver.class);
 
-  private final DocumentationProvider documentationProvider;
+  private final SoapstoneConfiguration soapstoneConfiguration;
 
 
-  public SoapstoneModelResolver(SoapstoneConfiguration configuration) {
+  SoapstoneModelResolver(SoapstoneConfiguration configuration) {
     super(Yaml.mapper().registerModule(new JaxbAnnotationModule()));
-    this.documentationProvider = configuration.getDocumentationProvider();
-  }
-
-
-  public ObjectMapper objectMapper() {
-    return _mapper;
+    this.soapstoneConfiguration = configuration;
   }
 
 
@@ -510,9 +504,13 @@ public class SoapstoneModelResolver extends AbstractModelConverter implements Mo
 
           // Document the property
           if (propMember instanceof AnnotatedMethod) {
-            documentationProvider.forMember(propMember).ifPresent(property::setDescription);
+            soapstoneConfiguration.getDocumentationProvider()
+              .flatMap(provider -> provider.forMember(propMember))
+              .ifPresent(property::setDescription);
           } else if (aType.getType() instanceof Class<?>) {
-            documentationProvider.forClass((Class<?>) aType.getType()).ifPresent(property::setDescription);
+            soapstoneConfiguration.getDocumentationProvider()
+              .flatMap(provider -> provider.forClass((Class<?>) aType.getType()))
+              .ifPresent(property::setDescription);
           }
 
           if (property.get$ref() == null) {
@@ -613,7 +611,10 @@ public class SoapstoneModelResolver extends AbstractModelConverter implements Mo
 
     // Document the model
     if (model != null) {
-      documentationProvider.forClass(type.getRawClass()).ifPresent(model::setDescription);
+      final Class<?> rawClass = type.getRawClass();
+      soapstoneConfiguration.getDocumentationProvider()
+        .flatMap(provider -> provider.forClass(rawClass))
+        .ifPresent(model::setDescription);
     }
 
     if (model != null && annotatedType.isResolveAsRef() && "object".equals(model.getType()) && StringUtils.isNotBlank(model.getName())) {
@@ -807,7 +808,7 @@ public class SoapstoneModelResolver extends AbstractModelConverter implements Mo
     protected abstract Schema processAsId(String propertyName, AnnotatedType type,
                                           ModelConverterContext context, ObjectMapper mapper);
 
-    public static Schema processJsonIdentity(AnnotatedType type, ModelConverterContext context,
+    static Schema processJsonIdentity(AnnotatedType type, ModelConverterContext context,
                                              ObjectMapper mapper, JsonIdentityInfo identityInfo,
                                              JsonIdentityReference identityReference) {
       final GeneratorWrapper wrapper = identityInfo != null ? getWrapper(identityInfo.generator()) : null;
