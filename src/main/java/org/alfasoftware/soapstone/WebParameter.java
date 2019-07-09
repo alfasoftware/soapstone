@@ -31,6 +31,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  * <p>
  * Values are stored as JsonNodes until ready for full deserialisation.
  * </p>
+ *
+ * @author Copyright (c) Alfa Financial Software 2019
  */
 class WebParameter {
 

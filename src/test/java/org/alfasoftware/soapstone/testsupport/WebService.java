@@ -14,32 +14,84 @@
  */
 package org.alfasoftware.soapstone.testsupport;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import org.joda.time.LocalDate;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import java.lang.annotation.Retention;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.joda.time.LocalDate;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Simple JAX-WS web service class and supporting types
+ *
+ * @author Copyright (c) Alfa Financial Software 2019
  */
 public class WebService {
+
+
+  /**
+   * Custom annotation to use for documentation
+   */
+  @Retention(RUNTIME)
+  public @interface Documentation {
+    String value();
+    String returnValue() default "";
+  }
 
 
   /**
    * Some exception which will be handled by an {@link org.alfasoftware.soapstone.ExceptionMapper}
    */
   public static class MyException extends Exception {
+  }
+
+
+  /**
+   * A slightly interesting complex class with an XmlAdapter
+   */
+  @Documentation("Class: Adaptable")
+  @XmlJavaTypeAdapter(AdaptableAdapter.class)
+  public static class Adaptable {
+
+    private final Adaptable innerAdaptable;
+
+    public Adaptable(Adaptable innerAdaptable) {
+      this.innerAdaptable = innerAdaptable;
+    }
+
+    public String getInnerAdaptableState() {
+      return innerAdaptable == null ? "null" : "non-null";
+    }
+  }
+
+
+  /**
+   * XmlAdapter for {@link Adaptable}
+   */
+  public static class AdaptableAdapter extends XmlAdapter<String, Adaptable> {
+
+    @Override
+    public Adaptable unmarshal(String v) {
+      return v.equalsIgnoreCase("non-null") ? new Adaptable(new Adaptable(null)) : new Adaptable(null);
+    }
+
+    @Override
+    public String marshal(Adaptable v) {
+      return v.getInnerAdaptableState();
+    }
   }
 
 
@@ -65,11 +117,14 @@ public class WebService {
   /**
    * Complex response object
    */
+  @Documentation("Class: ResponseObject")
   @XmlType
   public static class ResponseObject {
 
+    @Documentation("Field: ResponseObject#headerString")
     private String headerString;
     private int headerInteger;
+    @Documentation("Field: ResponseObject#nestedObject")
     private RequestObject nestedObject;
 
     private String string;
@@ -77,6 +132,7 @@ public class WebService {
     private double decimal;
     private boolean bool;
     private LocalDate date;
+    private Adaptable adaptable;
 
     public RequestObject getNestedObject() {
       return nestedObject;
@@ -110,18 +166,27 @@ public class WebService {
     public LocalDate getDate() {
       return date;
     }
+
+    @XmlJavaTypeAdapter(AdaptableAdapter.class)
+    @Documentation("Method: ResponseObject#getAdaptable()")
+    public Adaptable getAdaptable() {
+      return adaptable;
+    }
   }
 
 
   /**
    * Complex headerString object
    */
+  @Documentation("Class: HeaderObject")
   public static class HeaderObject {
 
     private String string;
+    @Documentation("Field: HeaderObject#integer")
     private int integer;
 
     @JsonProperty
+    @Documentation("Method: HeaderObject#setString")
     public void setString(String string) {
       this.string = string;
     }
@@ -136,12 +201,15 @@ public class WebService {
   /**
    * Complex request object
    */
+  @Documentation("Class: RequestObject")
   public static class RequestObject {
 
+    @Documentation("Field: RequestObject#string")
     private String string;
     private int integer;
     private double decimal;
     private boolean bool;
+    @Documentation("Field: RequestObject#date")
     private String date;
 
     public void setString(String string) {
@@ -152,6 +220,7 @@ public class WebService {
       this.integer = integer;
     }
 
+    @Documentation("Method: RequestObject#setDecimal")
     public void setDecimal(double decimal) {
       this.decimal = decimal;
     }
@@ -169,6 +238,7 @@ public class WebService {
       return string;
     }
 
+    @Documentation("Method: RequestObject#getInteger")
     @JsonProperty
     public int getInteger() {
       return integer;
@@ -179,6 +249,7 @@ public class WebService {
       return decimal;
     }
 
+    @Documentation("Method: RequestObject#isBool")
     @JsonProperty
     public boolean isBool() {
       return bool;
@@ -220,13 +291,19 @@ public class WebService {
    * @param date    mapped to {@link ResponseObject#getDate()}
    * @return mapped {@link ResponseObject}
    */
+  @Documentation(value = "Operation: doAThing", returnValue = "OperationResponse: doAThing#ResponseObject")
   @WebMethod()
   public ResponseObject doAThing(
     @WebParam(name = "header", header = true) HeaderObject header,
+    @Documentation("Param: doAThing#request")
     @WebParam(name = "request") RequestObject request,
+    @Documentation("Param: doAThing#string")
     @WebParam(name = "string") String string,
+    @Documentation("Param: doAThing#integer")
     @WebParam(name = "integer") int integer,
+    @Documentation("Param: doAThing#decimal")
     @WebParam(name = "decimal") double decimal,
+    @Documentation("Param: doAThing#bool")
     @WebParam(name = "bool") boolean bool,
     @WebParam(name = "date") LocalDate date) {
 
@@ -255,6 +332,7 @@ public class WebService {
    * @param string  mapped to {@link ResponseObject#getString()}
    * @return mapped {@link ResponseObject}
    */
+  @Documentation(value = "Operation: doASimpleThing", returnValue = "OperationResponse: doASimpleThing#ResponseObject")
   @WebMethod()
   public ResponseObject doASimpleThing(
     @WebParam(name = "header", header = true) HeaderObject header,
@@ -303,6 +381,17 @@ public class WebService {
 
 
   /**
+   * Web method identified by an operationName set in the WebMethod annotation,
+   * rather than by method name
+   *
+   * @param request ignored
+   */
+  @WebMethod(operationName = "doAThingWithThisName")
+  public void doNotDoAThingWithThisName(@WebParam(name = "request") RequestObject request) {
+  }
+
+
+  /**
    * Web method which will throw {@link MyException} if a request is provided or a
    * {@link NullPointerException} if it is null
    *
@@ -323,8 +412,10 @@ public class WebService {
    * @return {@code "{ "got" : "string" }"}
    */
   @WebMethod()
-  public Map<String, String> getAThing() {
-    return Collections.singletonMap("got", "thing");
+  public Map<String, String> getAThing(
+    @Documentation("Param: getAThing#string")
+    @WebParam(name = "string") String string) {
+    return Collections.singletonMap("got", string);
   }
 
 

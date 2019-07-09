@@ -14,29 +14,6 @@
  */
 package org.alfasoftware.soapstone;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
-import org.alfasoftware.soapstone.testsupport.WebService;
-import org.alfasoftware.soapstone.testsupport.WebService.MyException;
-import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
-import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
-import org.glassfish.jersey.filter.LoggingFilter;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.test.JerseyTest;
-import org.joda.time.LocalDate;
-import org.junit.Test;
-
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Application;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
@@ -47,6 +24,37 @@ import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_2;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.jws.WebMethod;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Application;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+import org.alfasoftware.soapstone.testsupport.WebService;
+import org.alfasoftware.soapstone.testsupport.WebService.MyException;
+import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
+import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
+import org.glassfish.hk2.api.TypeLiteral;
+import org.glassfish.jersey.filter.LoggingFilter;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.test.JerseyTest;
+import org.joda.time.LocalDate;
+import org.junit.Test;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 
 
 /**
@@ -66,6 +74,15 @@ public class TestSoapstoneService extends JerseyTest {
   private static final ExceptionMapper EXCEPTION_MAPPER = (exception, o) ->
     Optional.ofNullable(exception instanceof MyException ? new BadRequestException() : null);
 
+  private static final Pattern TAG_PATTERN = Pattern.compile("/(?<tag>.*?)(?:/.*)?");
+  private static final Function<String, String> TAG_PROVIDER = path -> {
+    Matcher matcher = TAG_PATTERN.matcher(path);
+    return matcher.matches() ? matcher.group("tag") : null;
+  };
+
+
+//  private SoapstoneConfiguration configuration;
+
 
   @Override
   protected Application configure() {
@@ -75,11 +92,11 @@ public class TestSoapstoneService extends JerseyTest {
 
     SoapstoneService service = new SoapstoneServiceBuilder(webServices)
       .withVendor(VENDOR)
-      .withObjectMapper(OBJECT_MAPPER)
       .withExceptionMapper(EXCEPTION_MAPPER)
       .withSupportedGetOperations("get.*")
       .withSupportedPutOperations("put.*")
       .withSupportedDeleteOperations("delete.*")
+      .withTagProvider(TAG_PROVIDER)
       .build();
 
     return new ResourceConfig().registerInstances(service).register(LoggingFilter.class);
@@ -366,6 +383,7 @@ public class TestSoapstoneService extends JerseyTest {
 
     Response response = target()
       .path("path/getAThing")
+      .queryParam("string", "thing")
       .request()
       .get();
 
@@ -457,7 +475,37 @@ public class TestSoapstoneService extends JerseyTest {
     Response response = target()
       .path("path/doNotDoAThing")
       .request()
-      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
+
+    assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we can successfully invoke a method by a name specified via {@link WebMethod#operationName()}
+   */
+  @Test
+  public void testMethodWithOperationName() {
+
+    Response response = target()
+      .path("path/doAThingWithThisName")
+      .request()
+      .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
+
+    assertEquals(OK.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we if a method has an operation name specified via {@link WebMethod#operationName()}, we cannot invoke
+   * it via the method name
+   */
+  @Test
+  public void testMethodMaskedByOperationName() {
+
+    Response response = target()
+      .path("path/doNotDoAThingWithThisName")
+      .request()
       .post(Entity.entity(Collections.singletonMap("request", new RequestObject()), MediaType.APPLICATION_JSON));
 
     assertEquals(NOT_FOUND.getStatusCode(), response.getStatus());
@@ -533,4 +581,63 @@ public class TestSoapstoneService extends JerseyTest {
     assertEquals(INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
   }
 
+
+  /**
+   * Test that we can list all tags used for Open API documents.
+   */
+  @Test
+  public void testGetOpenApiTags() {
+
+    List<String> response = target()
+      .path("openapi/tags")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .get(new TypeLiteral<List<String>>(){}.getRawType());
+
+    assertTrue(response.contains("path"));
+  }
+
+
+  /**
+   * Test that we can request the Open API document in JSON format.
+   *
+   * <p>
+   * Test of the document generation is handled in {@link TestSoapstoneOpenApiReader}.
+   * All we will do here is confirm that we get a successful response in the correct
+   * format.
+   * </p>
+   */
+  @Test
+  public void testGetOpenApiJson() {
+
+    Response response = target()
+      .path("openapi.json")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .get();
+
+    assertEquals(OK.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we can request the Open API document in YAML format.
+   *
+   * <p>
+   * Test of the document generation is handled in {@link TestSoapstoneOpenApiReader}.
+   * All we will do here is confirm that we get a successful response in the correct
+   * format.
+   * </p>
+   */
+  @Test
+  public void testGetOpenApiYaml() {
+
+    Response response = target()
+      .path("openapi.yaml")
+      .request()
+      .accept("text/vnd.yaml")
+      .get();
+
+    assertEquals(OK.getStatusCode(), response.getStatus());
+  }
 }
