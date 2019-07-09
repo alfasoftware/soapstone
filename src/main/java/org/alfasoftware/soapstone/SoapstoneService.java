@@ -198,7 +198,7 @@ public class SoapstoneService {
    */
   @GET
   @Path("openapi.yaml")
-  @Produces("application/yaml")
+  @Produces("text/vnd.yaml")
   public String getOpenApiYaml(@Context UriInfo uriInfo, @QueryParam("tag") Set<String> tags) {
     LOG.info("Retrieving Open API YAML");
     return Yaml.pretty(getOpenAPI(uriInfo.getBaseUri().toASCIIString(), tags));
@@ -223,7 +223,7 @@ public class SoapstoneService {
       };
 
       String tagsKey = "_";
-      if (tags != null && ! tags.isEmpty()) {
+      if (tags != null && !tags.isEmpty()) {
         tagsKey = tags.stream().sorted().collect(Collectors.joining("_"));
       }
 

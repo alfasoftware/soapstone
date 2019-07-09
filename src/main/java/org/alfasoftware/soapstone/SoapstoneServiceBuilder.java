@@ -15,6 +15,10 @@
 package org.alfasoftware.soapstone;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import static com.fasterxml.jackson.databind.MapperFeature.USE_WRAPPER_NAME_AS_PROPERTY_NAME;
+import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
+import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
+import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_ENUMS_USING_TO_STRING;
 
 import java.util.Map;
 import java.util.Optional;
@@ -24,8 +28,12 @@ import java.util.regex.Pattern;
 
 import javax.ws.rs.WebApplicationException;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
+import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 import io.swagger.v3.core.converter.ModelConverters;
 
 /**
@@ -206,20 +214,53 @@ public class SoapstoneServiceBuilder {
   }
 
 
+  /**
+   * Provide a function for assigning display names to types when generating schemas in Open API documents.
+   *
+   * <p>
+   * The default behaviour is to use the simple class name, which may result in clashes. Since the names
+   * are used as keys to identify the corresponding schemas, this in turn results in incorrect schemas being
+   * displayed. The names impact display only so it is safe to provide a custom name.
+   * </p>
+   *
+   * @param typeNameProvider type name provider
+   * @return this
+   */
+  public SoapstoneServiceBuilder withTypeNameProvider(Function<Class<?>, String> typeNameProvider) {
+    configuration.setTypeNameProvider(typeNameProvider);
+    return this;
+  }
+
 
   /**
    * Builds the {@link SoapstoneService}.
+   *
    * @return a {@link SoapstoneService} with the appropriate fields set
    */
   public SoapstoneService build() {
-    // This is the easiest place to put this to ensure that it is added once and once only
-    ModelConverters.getInstance().addConverter(new SoapstoneModelResolver(configuration));
 
     // Vendor and object mapper have defaults, so apply them here if required
     configuration.setVendor(vendor == null ? "Soapstone" : vendor);
     configuration.setObjectMapper(Optional.ofNullable(objectMapper).orElseGet(
-      () -> new ObjectMapper().registerModule(new JaxbAnnotationModule()).configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
+      () -> {
+
+        AnnotationIntrospector jaxbIntrospector = new JaxbAnnotationIntrospector(TypeFactory.defaultInstance());
+        AnnotationIntrospector jacksonIntrospector = new JacksonAnnotationIntrospector();
+
+        return new ObjectMapper()
+          .setAnnotationIntrospector(AnnotationIntrospector.pair(jacksonIntrospector, jaxbIntrospector))
+          .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
+          .configure(USE_WRAPPER_NAME_AS_PROPERTY_NAME, true)
+          .configure(FAIL_ON_EMPTY_BEANS, false)
+          .configure(WRITE_DATES_AS_TIMESTAMPS, false)
+          .configure(WRITE_ENUMS_USING_TO_STRING, true)
+          .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
+          .setSerializationInclusion(JsonInclude.Include.NON_NULL);
+      }
     ));
+
+    // This is the easiest place to put this to ensure that it is added once and once only
+    ModelConverters.getInstance().addConverter(new SoapstoneModelResolver(configuration));
 
     return new SoapstoneService(configuration);
   }

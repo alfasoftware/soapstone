@@ -14,8 +14,6 @@
  */
 package org.alfasoftware.soapstone;
 
-import static io.swagger.v3.core.util.RefUtils.constructRef;
-
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -30,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.activation.DataHandler;
 import javax.validation.constraints.DecimalMax;
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Max;
@@ -70,8 +69,8 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedMethod;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.introspect.POJOPropertyBuilder;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.fasterxml.jackson.databind.type.SimpleType;
 import com.fasterxml.jackson.databind.util.Converter;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverterContext;
@@ -81,7 +80,6 @@ import io.swagger.v3.core.util.AnnotationsUtils;
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.PrimitiveType;
 import io.swagger.v3.core.util.ReflectionUtils;
-import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.models.media.ArraySchema;
 import io.swagger.v3.oas.models.media.ComposedSchema;
 import io.swagger.v3.oas.models.media.Discriminator;
@@ -117,7 +115,7 @@ class SoapstoneModelResolver extends AbstractModelConverter implements ModelConv
 
 
   SoapstoneModelResolver(SoapstoneConfiguration configuration) {
-    super(Yaml.mapper().registerModule(new JaxbAnnotationModule()));
+    super(configuration.getObjectMapper());
     this.soapstoneConfiguration = configuration;
   }
 
@@ -155,7 +153,7 @@ class SoapstoneModelResolver extends AbstractModelConverter implements ModelConv
     }
 
     // Determine the name to use for the type
-    String name = annotatedType.getName();
+    String name = nameForType(annotatedType.getType());
     if (StringUtils.isBlank(name)) {
       if (StringUtils.isBlank(name) && !ReflectionUtils.isSystemType(type)) {
         name = _typeName(type, beanDesc);
@@ -281,7 +279,7 @@ class SoapstoneModelResolver extends AbstractModelConverter implements ModelConv
           if ("object".equals(addPropertiesSchema.getType()) && pName != null) {
             // create a reference for the items
             if (context.getDefinedModels().containsKey(pName)) {
-              addPropertiesSchema = new Schema().$ref(constructRef(pName));
+              addPropertiesSchema = new Schema().$ref(constructRef(valueType.getRawClass()));
             }
           } else if (addPropertiesSchema.get$ref() != null) {
             addPropertiesSchema = new Schema().$ref(StringUtils.isNotEmpty(addPropertiesSchema.get$ref()) ? addPropertiesSchema.get$ref() : addPropertiesSchema.getName());
@@ -329,7 +327,7 @@ class SoapstoneModelResolver extends AbstractModelConverter implements ModelConv
         if ("object".equals(items.getType()) && pName != null) {
           // create a reference for the items
           if (context.getDefinedModels().containsKey(pName)) {
-            items = new Schema().$ref(constructRef(pName));
+            items = new Schema().$ref(constructRef(valueType.getRawClass()));
           }
         } else if (items.get$ref() != null) {
           items = new Schema().$ref(StringUtils.isNotEmpty(items.get$ref()) ? items.get$ref() : items.getName());
@@ -462,6 +460,8 @@ class SoapstoneModelResolver extends AbstractModelConverter implements ModelConv
 
         if (memberConverter instanceof Converter) {
           propType = ((Converter) memberConverter).getOutputType(_mapper.getTypeFactory());
+        } else if (member.getRawType().isAssignableFrom(DataHandler.class)) {
+          propType = _mapper.constructType(String.class);
         }
 
         if (propType != null && "void".equals(propType.getRawClass().getName())) {
@@ -556,7 +556,7 @@ class SoapstoneModelResolver extends AbstractModelConverter implements ModelConv
               }
 
               if (context.getDefinedModels().containsKey(pName)) {
-                property = new Schema().$ref(constructRef(pName));
+                property = new Schema().$ref(constructRef(propType.getRawClass()));
               }
             } else if (property.get$ref() != null) {
               property = new Schema().$ref(StringUtils.isNotEmpty(property.get$ref()) ? property.get$ref() : property.getName());
@@ -619,7 +619,7 @@ class SoapstoneModelResolver extends AbstractModelConverter implements ModelConv
 
     if (model != null && annotatedType.isResolveAsRef() && "object".equals(model.getType()) && StringUtils.isNotBlank(model.getName())) {
       if (context.getDefinedModels().containsKey(model.getName())) {
-        model = new Schema().$ref(constructRef(model.getName()));
+        model = new Schema().$ref(constructRef(type.getRawClass()));
       }
     } else if (model != null && model.get$ref() != null) {
       model = new Schema().$ref(StringUtils.isNotEmpty(model.get$ref()) ? model.get$ref() : model.getName());
@@ -1231,6 +1231,22 @@ class SoapstoneModelResolver extends AbstractModelConverter implements ModelConv
     return introspector.findPropertyIgnorals(beanDescription.getClassInfo()).getIgnored();
   }
 
+  private String nameForType(Type type) {
+
+    Class<?> rawType;
+    if (type instanceof Class<?>) {
+      rawType = (Class<?>) type;
+    } else if (type instanceof SimpleType) {
+      rawType = ((SimpleType) type).getRawClass();
+    } else {
+      return null;
+    }
+
+    return soapstoneConfiguration.getTypeNameProvider()
+      .orElse(Class::getSimpleName)
+      .apply(rawType);
+  }
+
   /**
    * Decorate the name based on the JsonView
    */
@@ -1274,6 +1290,10 @@ class SoapstoneModelResolver extends AbstractModelConverter implements ModelConv
       }
     }
     return containsJsonViewAnnotation;
+  }
+
+  private String constructRef(Type type) {
+    return "#/components/schemas/" + nameForType(type);
   }
 
 }

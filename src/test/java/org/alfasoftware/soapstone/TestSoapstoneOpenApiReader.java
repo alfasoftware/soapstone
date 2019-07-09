@@ -35,10 +35,10 @@ import org.alfasoftware.soapstone.testsupport.WebService.Documentation;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import io.swagger.v3.core.converter.ModelConverters;
+import io.swagger.v3.core.util.Json;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -79,14 +79,10 @@ public class TestSoapstoneOpenApiReader {
     final Pattern tagPattern = Pattern.compile("/(?<tag>.*?)(?:/.*)?");
     Function<String, String> tagProvider = path -> {
       Matcher matcher = tagPattern.matcher(path);
-      if (matcher.matches()) {
-        return matcher.group("tag");
-      }
-      return null;
+      return matcher.matches() ? matcher.group("tag") : null;
     };
 
-    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JaxbAnnotationModule())
-      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    ObjectMapper objectMapper = Json.mapper().registerModule(new JaxbAnnotationModule());
 
     Map<String, WebServiceClass<?>> webServices = new HashMap<>();
     webServices.put("/path", WebServiceClass.forClass(WebService.class, WebService::new));

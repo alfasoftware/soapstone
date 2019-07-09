@@ -37,6 +37,7 @@ class SoapstoneConfiguration {
   private Pattern supportedDeleteOperations;
   private DocumentationProvider documentationProvider;
   private Function<String, String> tagProvider;
+  private Function<Class<?>, String> typeNameProvider;
 
 
   ObjectMapper getObjectMapper() {
@@ -109,5 +110,13 @@ class SoapstoneConfiguration {
 
   void setTagProvider(Function<String, String> tagProvider) {
     this.tagProvider = tagProvider;
+  }
+
+  Optional<Function<Class<?>, String>> getTypeNameProvider() {
+    return Optional.ofNullable(typeNameProvider);
+  }
+
+  void setTypeNameProvider(Function<Class<?>, String> typeNameProvider) {
+    this.typeNameProvider = typeNameProvider;
   }
 }
