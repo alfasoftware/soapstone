@@ -19,8 +19,10 @@ import static com.fasterxml.jackson.databind.MapperFeature.USE_WRAPPER_NAME_AS_P
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_ENUMS_USING_TO_STRING;
+import static java.util.stream.Collectors.toMap;
 
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -35,6 +37,7 @@ import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 import io.swagger.v3.core.converter.ModelConverters;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Builder for the {@link SoapstoneService}
@@ -63,7 +66,12 @@ public class SoapstoneServiceBuilder {
    * @param pathToWebServiceClassMap map of paths to web service classes
    */
   public SoapstoneServiceBuilder(Map<String, WebServiceClass<?>> pathToWebServiceClassMap) {
-    configuration.setWebServiceClasses(pathToWebServiceClassMap);
+
+    // Standardise the map keys: remove any leading or trailing '/' characters
+    Map<String, WebServiceClass<?>> standardisedMap = pathToWebServiceClassMap.entrySet().stream()
+      .collect(toMap(entry -> StringUtils.strip(entry.getKey(), "/"), Entry::getValue));
+
+    configuration.setWebServiceClasses(standardisedMap);
   }
 
 

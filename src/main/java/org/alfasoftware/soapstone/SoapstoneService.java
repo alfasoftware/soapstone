@@ -44,6 +44,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -160,7 +161,7 @@ public class SoapstoneService {
   public Set<String> getOpenApiTags() {
     LOG.info("Retrieving list of tags for Open API");
     return configuration.getWebServiceClasses().keySet().stream()
-      .map(path -> path.split("/")[1])
+      .map(path -> path.split("/")[0])
       .collect(Collectors.toCollection(TreeSet::new));
   }
 
@@ -237,7 +238,7 @@ public class SoapstoneService {
    */
   private String process(HttpHeaders headers, UriInfo uriInfo, String entity, String method) {
 
-    String fullPath = uriInfo.getPath();
+    String fullPath = StringUtils.strip(uriInfo.getPath(), "/");
     // Check we have a legal path: path/operation
     if (fullPath.indexOf('/') < 0) {
       LOG.error("Path " + fullPath + "should include an operation");
