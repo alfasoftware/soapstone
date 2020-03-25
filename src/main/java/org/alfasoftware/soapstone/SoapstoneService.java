@@ -20,6 +20,7 @@ import static javax.ws.rs.HttpMethod.POST;
 import static javax.ws.rs.HttpMethod.PUT;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import java.net.URI;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
@@ -30,6 +31,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -44,14 +46,13 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.UriInfo;
 
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -180,9 +181,12 @@ public class SoapstoneService {
   @GET
   @Path("openapi.json")
   @Produces(APPLICATION_JSON)
-  public String getOpenApiJson(@Context UriInfo uriInfo, @QueryParam("tag") Set<String> tags) {
+  public String getOpenApiJson(
+    @Context UriInfo uriInfo, @Context HttpServletRequest request, @QueryParam("tag") Set<String> tags) {
+
     LOG.info("Retrieving Open API JSON");
-    return Json.pretty(getOpenAPI(uriInfo.getBaseUri().toASCIIString(), tags));
+    URI baseUri = uriInfo.getBaseUriBuilder().host(request.getServerName()).build();
+    return Json.pretty(getOpenAPI(baseUri.toASCIIString(), tags));
   }
 
 
@@ -200,9 +204,13 @@ public class SoapstoneService {
   @GET
   @Path("openapi.yaml")
   @Produces("text/vnd.yaml")
-  public String getOpenApiYaml(@Context UriInfo uriInfo, @QueryParam("tag") Set<String> tags) {
+  public String getOpenApiYaml(
+    @Context UriInfo uriInfo, @Context HttpServletRequest request, @QueryParam("tag") Set<String> tags) {
+
     LOG.info("Retrieving Open API YAML");
-    return Yaml.pretty(getOpenAPI(uriInfo.getBaseUri().toASCIIString(), tags));
+
+    URI baseUri = uriInfo.getBaseUriBuilder().host(request.getServerName()).build();
+    return Yaml.pretty(getOpenAPI(baseUri.toASCIIString(), tags));
   }
 
 
