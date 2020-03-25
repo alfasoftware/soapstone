@@ -113,7 +113,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     Map<String, Class<?>> pathByClass = soapstoneConfiguration.getWebServiceClasses().entrySet().stream()
       .collect(Collectors.toMap(
-        Entry::getKey,
+        entry -> entry.getKey().startsWith("/") ? entry.getKey() : "/" + entry.getKey(),
         entry -> entry.getValue().getUnderlyingClass(),
         (p, q) -> q,
         TreeMap::new));

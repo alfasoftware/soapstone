@@ -24,6 +24,7 @@ import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_2;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,26 +36,27 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.jws.WebMethod;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.MyException;
 import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
 import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
 import org.glassfish.hk2.api.TypeLiteral;
+import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.filter.LoggingFilter;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
 import org.joda.time.LocalDate;
 import org.junit.Test;
-
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 
 
 /**
@@ -81,9 +83,6 @@ public class TestSoapstoneService extends JerseyTest {
   };
 
 
-//  private SoapstoneConfiguration configuration;
-
-
   @Override
   protected Application configure() {
 
@@ -99,7 +98,13 @@ public class TestSoapstoneService extends JerseyTest {
       .withTagProvider(TAG_PROVIDER)
       .build();
 
-    return new ResourceConfig().registerInstances(service).register(LoggingFilter.class);
+    return new ResourceConfig().registerInstances(service).register(LoggingFilter.class)
+      .register(new AbstractBinder() {
+        @Override
+        protected void configure() {
+          bind(mock(HttpServletRequest.class)).to(HttpServletRequest.class);
+        }
+      });
   }
 
 
@@ -592,7 +597,8 @@ public class TestSoapstoneService extends JerseyTest {
       .path("openapi/tags")
       .request()
       .accept(MediaType.APPLICATION_JSON)
-      .get(new TypeLiteral<List<String>>(){}.getRawType());
+      .get(new TypeLiteral<List<String>>() {
+      }.getRawType());
 
     assertTrue(response.contains("path"));
   }
