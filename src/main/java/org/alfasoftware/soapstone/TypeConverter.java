@@ -14,16 +14,9 @@
  */
 package org.alfasoftware.soapstone;
 
-import ognl.OgnlOps;
-import ognl.OgnlRuntime;
-import org.apache.commons.lang.LocaleUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DateUtils;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
+import static java.lang.Integer.parseInt;
+import static java.lang.Math.max;
+import static java.util.Arrays.asList;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -44,9 +37,16 @@ import java.util.Locale;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import static java.lang.Integer.parseInt;
-import static java.lang.Math.max;
-import static java.util.Arrays.asList;
+import ognl.OgnlOps;
+import ognl.OgnlRuntime;
+import org.apache.commons.lang.LocaleUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateUtils;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 /**
  * Provides a central mechanism for converting a value to a target type.
@@ -150,7 +150,7 @@ class TypeConverter {
   /**
    * A function that allows {@link LocalDate} instances to be interned where the application provides it. Otherwise it will pass through the instance.
    */
-  private static Function<LocalDate, LocalDate> dateInternFunction = date -> date;
+  private static final Function<LocalDate, LocalDate> DATE_INTERN_FUNCTION = date -> date;
 
 
   /**
@@ -439,7 +439,7 @@ class TypeConverter {
       throw new ParseException("Unsupported date [" + dateResult + "]", 0);
     }
 
-    return dateInternFunction.apply(dateResult);
+    return DATE_INTERN_FUNCTION.apply(dateResult);
   }
 
 
@@ -455,7 +455,7 @@ class TypeConverter {
     if (value == null) {
       return 0.0;
     }
-    Class c = value.getClass();
+    Class<?> c = value.getClass();
     if ( c.getSuperclass() == Number.class ) {
       return ((Number)value).doubleValue();
     }
@@ -675,7 +675,7 @@ class TypeConverter {
   @SuppressWarnings("unchecked")
   private <T> T convertArray(Object value, Class<T> toType) {
     T     result;
-    Class componentType = toType.getComponentType();
+    Class<?> componentType = toType.getComponentType();
 
     // If target is an array, copy as much as possible, otherwise create a new array containing the single value
     if (value.getClass().isArray()) {
@@ -760,7 +760,7 @@ class TypeConverter {
       } else if( value instanceof BigInteger ) {
         ret = new BigDecimal( (BigInteger) value );
       } else if( value instanceof Number ) {
-        ret = new BigDecimal( ((Number)value).doubleValue() );
+        ret = BigDecimal.valueOf(((Number) value).doubleValue());
       } else {
         throw new ClassCastException("Not possible to coerce ["+value+"] from class "+value.getClass()+" into a BigDecimal.");
       }
@@ -769,7 +769,7 @@ class TypeConverter {
   }
 
 
-  private boolean isOutOfRangeValueForType(BigDecimal numberToConvert, Class clazz) {
+  private boolean isOutOfRangeValueForType(BigDecimal numberToConvert, Class<?> clazz) {
 
     if (clazz.equals(Long.class)) {
       BigDecimal longMaxValue = new BigDecimal(Long.MAX_VALUE);
@@ -871,8 +871,7 @@ class TypeConverter {
    * @param args Classes representing highest point in class hierarchy for each parameter of the method.
    * @return method which matches <var>ReturnType</var> <var>name</var>(<var>Args<sub>[0]</sub></var> arg0, <var>Args<sub>[1]</sub></var> arg1, ...)
    */
-  @SuppressWarnings("unchecked")
-  private Method getMethod(Class toTest, Class returnType, Class... args) {
+  private Method getMethod(Class<?> toTest, Class<?> returnType, Class<?>... args) {
     // Normalise primitive class references
     for (int i = 0; i < args.length; i++) {
       args[i] = objectClass(args[i]);
@@ -883,7 +882,7 @@ class TypeConverter {
     Method match = null;
 
     method: for (Method method : toTest.getMethods()) {
-      Class[] params = method.getParameterTypes();
+      Class<?>[] params = method.getParameterTypes();
       if (!method.getName().matches("(valueOf|getInstance|parse)") || !returnType.isAssignableFrom(objectClass(method.getReturnType())) || params.length != args.length)
         continue;
 

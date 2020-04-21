@@ -75,7 +75,7 @@ import io.swagger.v3.oas.models.servers.Server;
  */
 class SoapstoneOpenApiReader implements OpenApiReader {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SoapstoneOpenApiReader.class.getSimpleName());
+  private static final Logger LOG = LoggerFactory.getLogger(SoapstoneOpenApiReader.class);
 
   private final String hostUrl;
   private final SoapstoneConfiguration soapstoneConfiguration;
@@ -285,7 +285,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     Content content = new Content();
 
     MediaType item = new MediaType();
-    Schema schema = typeToSchema(type, components);
+    @SuppressWarnings("rawtypes") Schema schema = typeToSchema(type, components);
 
     item.setSchema(schema);
     content.addMediaType("application/json", item);
@@ -308,7 +308,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       return null;
     }
 
-    Schema schema = typeToSchema(parameter.getParameterizedType(), components);
+    @SuppressWarnings("rawtypes") Schema schema = typeToSchema(parameter.getParameterizedType(), components);
     queryParameter.setSchema(schema);
     LOG.debug("        Done");
 
@@ -320,6 +320,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
+  @SuppressWarnings("rawtypes")
   private HeaderParameter parameterToHeaderParameter(Parameter parameter) {
 
     HeaderParameter headerParameter = new HeaderParameter();
@@ -359,14 +360,14 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       return null;
     }
 
-    Schema schema = new ObjectSchema();
+    @SuppressWarnings("rawtypes") Schema schema = new ObjectSchema();
     for (Parameter parameter : parameters) {
 
       String parameterName = Optional.ofNullable(StringUtils.trimToNull(parameter.getAnnotation(WebParam.class).name()))
         .orElse(parameter.getName());
       LOG.debug("      Mapping parameter: " + parameterName);
 
-      Schema typeToSchema = typeToSchema(parameter.getParameterizedType(), components);
+      @SuppressWarnings("rawtypes") Schema typeToSchema = typeToSchema(parameter.getParameterizedType(), components);
       if (typeToSchema != null) {
         soapstoneConfiguration.getDocumentationProvider()
           .flatMap(provider -> provider.forParameter(parameter))
@@ -391,6 +392,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
+  @SuppressWarnings("rawtypes")
   private Schema typeToSchema(Type type, Components components) {
 
     JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
