@@ -281,7 +281,7 @@ class WebServiceInvoker {
       }
       return configuration.getObjectMapper().convertValue(parameter.get().getNode(), type);
     } catch (Exception e) {
-      LOG.error("Error unmarshalling " + parameter.get().getName(), e);
+      LOG.warn("Error unmarshalling " + parameter.get().getName(), e);
       throw new BadRequestException(parameter.get().getNode() + " could not be unmarshalled to '" + parameterName + "'");
     }
   }
