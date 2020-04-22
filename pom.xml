@@ -21,7 +21,7 @@
 
    <properties>
       <maven-compiler-plugin.version>3.6.1</maven-compiler-plugin.version>
-      <maven-javadoc-plugin.version>2.9.1</maven-javadoc-plugin.version>
+      <maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
       <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
    </properties>
