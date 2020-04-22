@@ -2,7 +2,7 @@ language: java
 jdk:
   - openjdk8
   - openjdk11
-  - openjdk14
+#  - openjdk14
 jobs:
   include:
     - if: repo = alfasoftware/soapstone AND type = pull_request
