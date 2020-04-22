@@ -39,11 +39,11 @@ import java.util.regex.Pattern;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-
-import org.apache.commons.lang.StringUtils;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility class containing methods used for extracting {@link WebParameter}s from requests.
@@ -53,6 +53,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 class WebParameterMapper {
 
 
+  private static final Logger LOG = LoggerFactory.getLogger(WebParameterMapper.class);
   private static final Pattern VALID_HEADER_FORMAT = Pattern.compile("((:?\\w+)=(\\w+)(;|$))+");
 
   private final SoapstoneConfiguration configuration;
@@ -98,18 +99,19 @@ class WebParameterMapper {
     }
 
     Collection<WebParameter> webParameters = new HashSet<>();
-     try {
-        JsonNode jsonNode = configuration.getObjectMapper().readTree(entity);
-        jsonNode.fields().forEachRemaining(entry ->
-            webParameters.add(parameter(entry.getKey(), entry.getValue()))
-        );
-      } catch (IOException e) {
-        throw new BadRequestException(
-            Response.status(Response.Status.BAD_REQUEST)
-                .entity(entity)
-                .build());
-      }
-     return webParameters;
+    try {
+      JsonNode jsonNode = configuration.getObjectMapper().readTree(entity);
+      jsonNode.fields().forEachRemaining(entry ->
+        webParameters.add(parameter(entry.getKey(), entry.getValue()))
+      );
+    } catch (IOException e) {
+
+      String message = "Unable to parse entity:\n" + entity;
+
+      LOG.warn(message, e);
+      throw new BadRequestException(message);
+    }
+    return webParameters;
   }
 
 
@@ -154,10 +156,10 @@ class WebParameterMapper {
     Pattern pattern = Pattern.compile("(X-" + vendor + "-\\w+)(:?-\\w+)?", CASE_INSENSITIVE);
 
     return headers.getRequestHeaders().keySet().stream()
-        .map(pattern::matcher)
-        .filter(Matcher::matches)
-        .map(matcher -> matcher.group(1))
-        .collect(toSet());
+      .map(pattern::matcher)
+      .filter(Matcher::matches)
+      .map(matcher -> matcher.group(1))
+      .collect(toSet());
   }
 
 
@@ -169,10 +171,10 @@ class WebParameterMapper {
     Pattern pattern = Pattern.compile(objectHeaderName + "-\\w+", CASE_INSENSITIVE);
 
     return headers.getRequestHeaders().keySet().stream()
-        .map(pattern::matcher)
-        .filter(Matcher::matches)
-        .map(matcher -> matcher.group(0))
-        .collect(toSet());
+      .map(pattern::matcher)
+      .filter(Matcher::matches)
+      .map(matcher -> matcher.group(0))
+      .collect(toSet());
   }
 
 
@@ -189,7 +191,9 @@ class WebParameterMapper {
       Matcher matcher = VALID_HEADER_FORMAT.matcher(objectHeaderString);
 
       if (!matcher.matches()) { // Throw an exception if the format is invalid
-        throw new BadRequestException(objectHeaderName + " is not in a legal format.");
+        String message = "Header is not in a legal format: '" + objectHeaderName + "'";
+        LOG.warn(message);
+        throw new BadRequestException(message);
       }
 
       object.putAll(Arrays.stream(objectHeaderString.split(";"))
@@ -199,7 +203,7 @@ class WebParameterMapper {
     }
 
     getObjectPropertyHeaders(headers, objectHeaderName)
-    .forEach(property -> setObjectProperty(headers, property, object));
+      .forEach(property -> setObjectProperty(headers, property, object));
 
     return object;
   }

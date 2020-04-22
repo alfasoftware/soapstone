@@ -22,6 +22,7 @@ import static javax.ws.rs.core.Response.Status.OK;
 import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_1;
 import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_2;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -56,7 +57,9 @@ import org.glassfish.jersey.filter.LoggingFilter;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
 import org.joda.time.LocalDate;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 
 /**
@@ -98,7 +101,8 @@ public class TestSoapstoneService extends JerseyTest {
       .withTagProvider(TAG_PROVIDER)
       .build();
 
-    return new ResourceConfig().registerInstances(service).register(LoggingFilter.class)
+    return new ResourceConfig().registerInstances(service)
+      .register(LoggingFilter.class)
       .register(new AbstractBinder() {
         @Override
         protected void configure() {
@@ -107,6 +111,21 @@ public class TestSoapstoneService extends JerseyTest {
       });
   }
 
+
+  /**
+   * Initialise the bridge to divert all logging to the same logger.
+   *
+   * <p>
+   * Logging is configured in /src/main/test/resources/log4j.xml and is probably set to log at 'warn' as the
+   * test container produces quite a lot of noise at 'info' or below. Lower the priority if you need more detail.
+   * </p>
+   */
+  @BeforeClass
+  public static void initLogger() {
+
+    SLF4JBridgeHandler.removeHandlersForRootLogger();
+    SLF4JBridgeHandler.install();
+  }
 
   /**
    * Test that we can POST with all required parameters (other than header) passed in
@@ -156,6 +175,150 @@ public class TestSoapstoneService extends JerseyTest {
     assertTrue(responseObject.isBool());
     assertEquals(new LocalDate("2019-03-29"), responseObject.getDate());
     assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we can POST with only some required parameters passed in via the payload. All other parameter should be
+   * inferred as null or the primitive equivalent.
+   */
+  @Test
+  public void testPostWithInferredParameters() throws Exception {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+    requestObject.setBool(false);
+    requestObject.setString("complexValue");
+    requestObject.setInteger(897);
+    requestObject.setDecimal(88.55D);
+    requestObject.setDate("2001-12-16");
+
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("request", requestObject);
+
+    /*
+     * When
+     */
+    String responseString = target()
+      .path("path/doAThing")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(payload, MediaType.APPLICATION_JSON), String.class);
+
+    ResponseObject responseObject = OBJECT_MAPPER.readValue(responseString, ResponseObject.class);
+
+    /*
+     * Then
+     */
+    assertNull(responseObject.getHeaderString());
+    assertEquals(0, responseObject.getHeaderInteger());
+    assertNull(responseObject.getString());
+    assertEquals(0, responseObject.getInteger());
+    assertEquals(0D, responseObject.getDecimal(), 0D);
+    assertFalse(responseObject.isBool());
+    assertNull(responseObject.getDate());
+    assertEquals(requestObject, responseObject.getNestedObject());
+  }
+
+
+  /**
+   * Test that we get a bad request response if we try to pass a non-header parameter as a header
+   */
+  @Test
+  public void testNonHeaderParametersAsHeaders() {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+    requestObject.setBool(false);
+    requestObject.setString("complexValue");
+    requestObject.setInteger(897);
+    requestObject.setDecimal(88.55D);
+    requestObject.setDate("2001-12-16");
+
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("request", requestObject);
+
+    /*
+     * When
+     */
+    Response response = target()
+      .path("path/doAThing")
+      .request()
+      .header("X-Vendor-Request", "string=value")
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(payload, MediaType.APPLICATION_JSON));
+
+    /*
+     * Then
+     */
+    assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we get a bad request response if we try to pass an unrecognised parameter
+   */
+  @Test
+  public void testUnrecognisedParameters() {
+
+    /*
+     * Given
+     */
+    RequestObject requestObject = new RequestObject();
+    requestObject.setBool(false);
+    requestObject.setString("complexValue");
+    requestObject.setInteger(897);
+    requestObject.setDecimal(88.55D);
+    requestObject.setDate("2001-12-16");
+
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("request", requestObject);
+    payload.put("unrecognised", "string");
+
+    /*
+     * When
+     */
+    Response response = target()
+      .path("path/doAThing")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(payload, MediaType.APPLICATION_JSON));
+
+    /*
+     * Then
+     */
+    assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we get a bad request response if we omit a required parameter
+   */
+  @Test
+  public void testMissingRequiredParameters() {
+
+    /*
+     * Given
+     */
+    Map<String, Object> payload = new HashMap<>();
+
+    /*
+     * When
+     */
+    Response response = target()
+      .path("path/doAThing")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .post(Entity.entity(payload, MediaType.APPLICATION_JSON));
+
+    /*
+     * Then
+     */
+    assertEquals(BAD_REQUEST.getStatusCode(), response.getStatus());
   }
 
 

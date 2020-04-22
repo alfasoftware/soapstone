@@ -26,6 +26,7 @@ import java.util.Objects;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
+import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
@@ -39,6 +40,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  * @author Copyright (c) Alfa Financial Software 2019
  */
+@SuppressWarnings("unused")
 public class WebService {
 
 
@@ -283,7 +285,7 @@ public class WebService {
    * parameters and simply map them to a {@link ResponseObject}
    *
    * @param header  mapped to {@link ResponseObject#getHeaderString()}
-   * @param request mapped to {@link ResponseObject#getNestedObject()}
+   * @param request mapped to {@link ResponseObject#getNestedObject()} this is required
    * @param string  mapped to {@link ResponseObject#getString()}
    * @param integer mapped to {@link ResponseObject#getInteger()}
    * @param decimal mapped to {@link ResponseObject#getDecimal()}
@@ -296,6 +298,7 @@ public class WebService {
   public ResponseObject doAThing(
     @WebParam(name = "header", header = true) HeaderObject header,
     @Documentation("Param: doAThing#request")
+    @XmlElement(required = true)
     @WebParam(name = "request") RequestObject request,
     @Documentation("Param: doAThing#string")
     @WebParam(name = "string") String string,
@@ -365,6 +368,7 @@ public class WebService {
      * reflection types are erased and the list could easily contain strings if
      * the generics are not properly handled
      */
+    //noinspection ConstantConditions
     list.forEach(value -> assertTrue(value instanceof Value));
   }
 

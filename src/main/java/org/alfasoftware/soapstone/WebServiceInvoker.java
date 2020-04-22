@@ -31,14 +31,13 @@ import javax.jws.WebParam;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.Response;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.xml.bind.annotation.XmlElement;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Locates and invokes web service operations in accordance with JAX-WS annotations and conventions.
@@ -47,7 +46,7 @@ import com.google.common.base.Strings;
  */
 class WebServiceInvoker {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SoapstoneService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(WebServiceInvoker.class);
 
   private final SoapstoneConfiguration configuration;
   private final TypeConverter typeConverter;
@@ -72,9 +71,10 @@ class WebServiceInvoker {
    * @param parameters      Parameters
    * @return the return value of the operation mapped to a JSON string
    */
-  String invokeOperation(WebServiceClass webServiceClass, String operationName, Collection<WebParameter> parameters) {
+  String invokeOperation(WebServiceClass<?> webServiceClass, String operationName, Collection<WebParameter> parameters) {
 
-    Method operation = getOperation(webServiceClass, operationName, parameters);
+    Method operation = getOperation(webServiceClass, operationName);
+    validateParameters(operation, parameters);
 
     Object[] operationArgs = Arrays.stream(operation.getParameters())
       .map(operationParameter -> parameterToType(operationParameter, parameters))
@@ -87,20 +87,20 @@ class WebServiceInvoker {
       Object methodReturn = operation.invoke(webServiceClass.getInstance(), operationArgs);
       return configuration.getObjectMapper().writeValueAsString(methodReturn);
     } catch (InvocationTargetException e) {
-      LOG.error("Error produced within invocation of " + operationName, e);
+      LOG.error("Error produced within invocation of '" + operationName + "'", e);
       throw configuration.getExceptionMapper()
         .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), configuration.getObjectMapper()))
         .orElse(new InternalServerErrorException());
 
     } catch (IllegalAccessException e) {
-      LOG.error("Error attempting to access " + operationName, e);
+      LOG.error("Error attempting to access '" + operationName + "'", e);
       /*
        * We've already thoroughly checked that the method was valid and accessible, so this shouldn't happen.
        * If it does, it's something more nefarious than a 404
        */
       throw new InternalServerErrorException();
     } catch (JsonProcessingException e) {
-      LOG.error("Error marshalling response from " + operationName, e);
+      LOG.error("Error marshalling response from '" + operationName + "'", e);
       throw new InternalServerErrorException();
     }
   }
@@ -109,13 +109,12 @@ class WebServiceInvoker {
   /*
    * Get the method for the requested operation
    */
-  private Method getOperation(WebServiceClass webServiceClass, String operationName, Collection<WebParameter> parameters) {
+  private Method getOperation(WebServiceClass<?> webServiceClass, String operationName) {
 
     Method[] declaredMethods = webServiceClass.getUnderlyingClass().getDeclaredMethods();
     List<Method> methods = Arrays.stream(declaredMethods)
-      .filter(method -> matchesOperationName(method, operationName)) // find a method with the same name as the requested operation
-      .filter(method -> matchesParameters(method, parameters)) // Check that the method parameters matched those passed
       .filter(this::methodIsWebMethod) // Check that the method is actually exposed via web services
+      .filter(method -> matchesOperationName(method, operationName)) // find a method with the same name as the requested operation
       .collect(Collectors.toList());
 
     if (methods.isEmpty()) {
@@ -123,7 +122,7 @@ class WebServiceInvoker {
     }
 
     if (methods.size() > 1) {
-      LOG.error("Multiple potential methods found for " + operationName);
+      LOG.error("Multiple potential methods found for '" + operationName + "'");
       /*
        * This seems appropriate: the request has insufficient information for us to determine what method the user
        * is trying to call. This might because there are two methods with the same name and same-named arguments
@@ -170,47 +169,69 @@ class WebServiceInvoker {
 
 
   /*
-   * Check that the given method has all and only the parameters passed in
+   * Check that the given method has all and the parameters passed in
    */
-  private boolean matchesParameters(Method method, Collection<WebParameter> parameters) {
+  private static void validateParameters(Method method, Collection<WebParameter> parameters) {
 
-    Set<String> nonHeaderParameterNames = parameters.stream()
-      .filter(param -> !param.isHeader())
+    Set<String> suppliedParameterNames = parameters.stream()
       .map(WebParameter::getName)
       .collect(Collectors.toSet());
 
-    Set<String> headerParameterNames = parameters.stream()
+    Set<String> suppliedHeaderParameterNames = parameters.stream()
       .filter(WebParameter::isHeader)
       .map(WebParameter::getName)
       .collect(Collectors.toSet());
 
-    // Collect all valid parameters
-    Set<Parameter> allParameters = Arrays.stream(method.getParameters())
+    // Collect all parameters accepted by the method
+    Set<Parameter> allowedParameters = Arrays.stream(method.getParameters())
       .filter(parameter -> parameter.getAnnotation(WebParam.class) != null)
       .collect(Collectors.toSet());
 
-    // Get all headerParameter parameter names
-    Set<String> headerParameters = allParameters.stream()
+    Set<String> allowedParameterNames = allowedParameters.stream()
+      .map(parameter -> parameter.getAnnotation(WebParam.class).name())
+      .collect(Collectors.toSet());
+
+    Set<String> requiredParameterNames = allowedParameters.stream()
+      .filter(parameter -> parameter.getAnnotation(XmlElement.class) != null)
+      .filter(parameter -> parameter.getAnnotation(XmlElement.class).required())
+      .map(parameter -> parameter.getAnnotation(WebParam.class).name())
+      .collect(Collectors.toSet());
+
+    Set<String> allowedHeaderParameterNames = allowedParameters.stream()
       .filter(parameter -> parameter.getAnnotation(WebParam.class).header()) // Filter only the parameters where headerParameter = true
       .map(parameter -> parameter.getAnnotation(WebParam.class).name())
       .collect(Collectors.toSet());
 
-    // Get all non headerParameter parameter names
-    Set<String> nonHeaderParameters = allParameters.stream()
-      .map(parameter -> parameter.getAnnotation(WebParam.class).name())
-      .filter(parameter -> !headerParameters.contains(parameter))
-      .collect(Collectors.toSet());
+    // Assert that no required parameters have been omitted
+    requiredParameterNames.removeAll(suppliedParameterNames);
+    if (!requiredParameterNames.isEmpty()) {
+      String message = "The following parameters are required, " +
+        "but were not supplied: " + requiredParameterNames;
 
-    // We should not have been passed any unsupported headerParameter parameters
-    if (!headerParameters.containsAll(headerParameterNames)) {
-      throw new BadRequestException(
-        Response.status(Response.Status.BAD_REQUEST)
-          .entity(headerParameterNames)
-          .build());
+      LOG.warn(message);
+      throw new BadRequestException(message);
     }
 
-    // Check we have a complete set of non-headerParameter parameters
-    return nonHeaderParameters.containsAll(nonHeaderParameterNames) && nonHeaderParameters.size() == nonHeaderParameterNames.size();
+    // Assert that no unrecognised parameters have been passed
+    suppliedParameterNames.removeAll(allowedParameterNames);
+    if (!suppliedParameterNames.isEmpty()) {
+      String message = "The following unrecognised parameters " +
+        "were supplied: " + suppliedParameterNames;
+
+      LOG.warn(message);
+      throw new BadRequestException(message);
+    }
+
+    // Assert that no non-header parameters have been passed as headers
+    suppliedHeaderParameterNames.removeAll(allowedHeaderParameterNames);
+    if (!suppliedHeaderParameterNames.isEmpty()) {
+
+      String message = "The following parameters were passed as headers, " +
+        "but are not header parameters: " + suppliedHeaderParameterNames;
+
+      LOG.warn(message);
+      throw new BadRequestException(message);
+    }
   }
 
 
@@ -219,14 +240,19 @@ class WebServiceInvoker {
    */
   private Object parameterToType(Parameter operationParameter, Collection<WebParameter> parameters) {
 
+    String parameterName = operationParameter.getAnnotation(WebParam.class).name();
+
     Optional<WebParameter> parameter = parameters.stream()
-      .filter(param -> param.getName().equals(operationParameter.getAnnotation(WebParam.class).name()))
+      .filter(param -> param.getName().equals(parameterName))
       .findFirst();
 
     if (!parameter.map(WebParameter::getNode).isPresent()) {
-      return null;
+      // Since the parameter is not marked as required we can infer 'null' or the primitive equivalent
+      return typeConverter.convertValue(null, operationParameter.getType());
     }
 
+    // If the type is textual it is either a simple string or something that has a simple string representation, like
+    // an enum or a date, try the type converter before we assume it's JSON.
     if (parameter.get().getNode().isTextual()) {
       if (operationParameter.getType().equals(String.class)) {
         return parameter.get().getNode().asText();
@@ -256,7 +282,7 @@ class WebServiceInvoker {
       return configuration.getObjectMapper().convertValue(parameter.get().getNode(), type);
     } catch (Exception e) {
       LOG.error("Error unmarshalling " + parameter.get().getName(), e);
-      throw new BadRequestException();
+      throw new BadRequestException(parameter.get().getNode() + " could not be unmarshalled to '" + parameterName + "'");
     }
   }
 }
