@@ -116,8 +116,8 @@ public class TestSoapstoneService extends JerseyTest {
    * Initialise the bridge to divert all logging to the same logger.
    *
    * <p>
-   * Logging is configured in /src/main/test/resources/log4j.xml and is probably set to log at 'warn' as the
-   * test container produces quite a lot of noise at 'info' or below. Lower the priority if you need more detail.
+   * Logging is configured in /src/main/test/resources/simplelogger.properties and is probably set to log at 'warn' as
+   * the test container produces quite a lot of noise at 'info' or below. Lower the priority if you need more detail.
    * </p>
    */
   @BeforeClass

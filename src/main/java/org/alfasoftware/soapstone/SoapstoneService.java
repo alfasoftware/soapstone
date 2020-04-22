@@ -251,7 +251,7 @@ public class SoapstoneService {
     String fullPath = StringUtils.strip(uriInfo.getPath(), "/");
     // Check we have a legal path: path/operation
     if (fullPath.indexOf('/') < 0) {
-      LOG.error("Path '" + fullPath + "' should include an operation");
+      LOG.warn("Path '" + fullPath + "' should include an operation");
       throw new NotFoundException();
     }
 
@@ -265,7 +265,7 @@ public class SoapstoneService {
     // Locate the web service class
     WebServiceClass<?> webServiceClass = configuration.getWebServiceClasses().get(path);
     if (webServiceClass == null) {
-      LOG.error("No web service class mapped for '" + path + "'");
+      LOG.warn("No web service class mapped for '" + path + "'");
       throw new NotFoundException();
     }
 
@@ -292,7 +292,7 @@ public class SoapstoneService {
     Set<String> supportedTypes = getSupportedMethods(operationName); // Return a set of supported methods
 
     if (!supportedTypes.contains(method)) { // If our method type is not supported...
-      LOG.error(method + " not supported for '" + operationName + "'");
+      LOG.warn(method + " not supported for '" + operationName + "'");
       throw new NotAllowedException(POST, supportedTypes.toArray(new String[0])); // ... throw a 405 Method Not Allowed, specifying which method types ARE allowed
     }
   }
