@@ -39,9 +39,9 @@ import java.util.regex.Pattern;
 
 import ognl.OgnlOps;
 import ognl.OgnlRuntime;
-import org.apache.commons.lang.LocaleUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DateUtils;
+import org.apache.commons.lang3.LocaleUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.joda.time.LocalDate;
 import org.joda.time.LocalTime;
 import org.joda.time.format.DateTimeFormat;
