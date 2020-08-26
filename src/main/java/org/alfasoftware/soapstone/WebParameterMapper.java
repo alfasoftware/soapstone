@@ -54,7 +54,7 @@ class WebParameterMapper {
 
 
   private static final Logger LOG = LoggerFactory.getLogger(WebParameterMapper.class);
-  private static final Pattern VALID_HEADER_FORMAT = Pattern.compile("((:?\\w+)=(\\w+)(;|$))+");
+  private static final Pattern VALID_HEADER_FORMAT = Pattern.compile("((:?\\w+)=([^;]+)(;|$))+");
 
   private final SoapstoneConfiguration configuration;
 
