@@ -349,7 +349,7 @@ public class TestSoapstoneService extends JerseyTest {
       .queryParam("bool", true)
       .queryParam("date", "2019-03-29")
       .request()
-      .header("X-Vendor-Header", "string=headerStringValue;integer=62")
+      .header("X-Vendor-Header", "string=test@email.com;integer=62")
       .accept(MediaType.APPLICATION_JSON)
       .post(Entity.entity(Collections.singletonMap("request", requestObject), MediaType.APPLICATION_JSON), String.class);
 
@@ -358,7 +358,7 @@ public class TestSoapstoneService extends JerseyTest {
     /*
      * Then
      */
-    assertEquals("headerStringValue", responseObject.getHeaderString());
+    assertEquals("test@email.com", responseObject.getHeaderString());
     assertEquals(62, responseObject.getHeaderInteger());
     assertEquals("value", responseObject.getString());
     assertEquals(65, responseObject.getInteger());
