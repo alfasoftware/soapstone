@@ -16,6 +16,8 @@ package org.alfasoftware.soapstone;
 
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.UPPER_CAMEL;
+import static java.util.Optional.ofNullable;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -27,17 +29,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
-
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.google.common.base.Strings;
@@ -65,6 +62,8 @@ import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.servers.Server;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of {@link OpenApiReader} which makes use of the web service classes
@@ -132,28 +131,30 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     server.setUrl(hostUrl);
     openAPI.addServersItem(server);
 
-    // TODO we can allow this to be specified via configuration
     Info info = new Info()
       .title(soapstoneConfiguration.getVendor() + " soapstone")
-      .version("unversioned")
+      .version("(generated)")
       .description("Soapstone Generated API for " + soapstoneConfiguration.getVendor());
 
     openAPI.setInfo(info);
 
     for (String resourcePath : pathByClass.keySet()) {
 
-      Class<?> resourceClass = pathByClass.get(resourcePath); // TODO null check
+      Class<?> resourceClass = pathByClass.get(resourcePath);
+      if (resourceClass == null) {
+        throw new IllegalStateException("No web service class has been mapped to the path '" + resourcePath + "'");
+      }
       LOG.debug("Class: " + resourceClass.getName());
 
       Set<Method> webMethods = Arrays.stream(resourceClass.getDeclaredMethods())
         .filter(method -> Modifier.isPublic(method.getModifiers()))
-        .filter(method -> !(Optional.ofNullable(method.getAnnotation(WebMethod.class)).map(WebMethod::exclude).orElse(false)))
+        .filter(method -> !(ofNullable(method.getAnnotation(WebMethod.class)).map(WebMethod::exclude).orElse(false)))
         .collect(Collectors.toSet());
 
       webMethods.forEach(method -> {
         LOG.debug("  Method: " + method.getName());
 
-        String operationName = Optional.ofNullable(method.getAnnotation(WebMethod.class))
+        String operationName = ofNullable(method.getAnnotation(WebMethod.class))
           .map(WebMethod::operationName)
           .map(Strings::emptyToNull)
           .orElse(method.getName());
@@ -163,9 +164,10 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .map(provider -> provider.apply(resourcePath))
           .orElse(null);
 
-        PathItem pathItem = methodToPathItem(tag, method, operationName, components);
+        PathItem pathItem = methodToPathItem(tag, method, resourcePath, operationName, components);
 
-        openAPI.path(resourcePath + "/" + operationName, pathItem);
+        String name = resourcePath + "/" + operationName;
+        openAPI.path(name, pathItem);
       });
     }
 
@@ -178,7 +180,11 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private PathItem methodToPathItem(String tag, Method method, String operationName, Components components) {
+  private PathItem methodToPathItem(String tag, Method method, String resourcePath, String operationName, Components components) {
+
+    String operationId = Arrays.stream(resourcePath.split("\\W"))
+      .map(path -> LOWER_CAMEL.to(UPPER_CAMEL, path))
+      .collect(Collectors.joining()) + LOWER_CAMEL.to(UPPER_CAMEL, operationName);
 
     List<Parameter> methodParameters = Arrays.stream(method.getParameters())
       .filter(methodParameter -> methodParameter.isAnnotationPresent(WebParam.class))
@@ -186,14 +192,14 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     List<io.swagger.v3.oas.models.parameters.Parameter> headerParameters = methodParameters.stream()
       .filter(methodParameter -> methodParameter.getAnnotation(WebParam.class).header())
-      .map(this::parameterToHeaderParameter)
+      .map(methodParameter -> parameterToHeaderParameter(methodParameter, components))
       .collect(Collectors.toList());
 
     List<Parameter> bodyParameters = methodParameters.stream()
       .filter(methodParameter -> !methodParameter.getAnnotation(WebParam.class).header())
       .collect(Collectors.toList());
 
-    RequestBody requestBody = parametersToRequestBody(bodyParameters, components);
+    RequestBody requestBody = parametersToRequestBody(operationId, bodyParameters, components);
 
     ApiResponses responses = new ApiResponses();
     ApiResponse response = new ApiResponse(); // TODO populate
@@ -209,6 +215,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     responses.addApiResponse("200", response);
 
     Operation operation = new Operation();
+    operation.setOperationId(operationId);
     operation.setParameters(headerParameters);
     operation.setRequestBody(requestBody);
     operation.setResponses(responses);
@@ -230,16 +237,8 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
       // If there were any body parameters that couldn't be converted then we can't use GET and we'll revert to POST
       if (queryParameters.size() == bodyParameters.size()) {
-
         queryParameters.addAll(headerParameters);
-
-        Operation getOperation = new Operation();
-        getOperation.setParameters(queryParameters);
-        getOperation.setResponses(responses);
-        getOperation.addTagsItem(tag);
-        getOperation.setDescription(operation.getDescription());
-
-        pathItem.get(getOperation);
+        pathItem.get(operationToQueryOnlyOperation(operation, queryParameters));
       } else {
         pathItem.post(operation);
       }
@@ -253,16 +252,8 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
       // If there were any body parameters that couldn't be converted then we can't use DELETE and we'll revert to POST
       if (queryParameters.size() == bodyParameters.size()) {
-
         queryParameters.addAll(headerParameters);
-
-        Operation deleteOperation = new Operation();
-        deleteOperation.setParameters(queryParameters);
-        deleteOperation.setResponses(responses);
-        deleteOperation.addTagsItem(tag);
-        deleteOperation.setDescription(operation.getDescription());
-
-        pathItem.delete(deleteOperation);
+        pathItem.delete(operationToQueryOnlyOperation(operation, queryParameters));
       } else {
         pathItem.post(operation);
       }
@@ -276,6 +267,20 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
+  private Operation operationToQueryOnlyOperation(
+    Operation operation, List<io.swagger.v3.oas.models.parameters.Parameter> queryParameters) {
+
+    Operation newOperation = new Operation();
+    newOperation.setParameters(queryParameters);
+    newOperation.setResponses(operation.getResponses());
+    newOperation.setTags(operation.getTags());
+    newOperation.setOperationId(operation.getOperationId());
+    newOperation.setDescription(operation.getDescription());
+
+    return newOperation;
+  }
+
+
   private Content methodToResponseContent(Method method, Components components) {
 
     Type type = method.getGenericReturnType();
@@ -285,7 +290,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     Content content = new Content();
 
     MediaType item = new MediaType();
-    @SuppressWarnings("rawtypes") Schema schema = typeToSchema(type, components);
+    Schema<?> schema = typeToSchema(type, components);
 
     item.setSchema(schema);
     content.addMediaType("application/json", item);
@@ -298,7 +303,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     QueryParameter queryParameter = new QueryParameter();
 
-    String parameterName = Optional.ofNullable(StringUtils.trimToNull(parameter.getAnnotation(WebParam.class).name()))
+    String parameterName = ofNullable(trimToNull(parameter.getAnnotation(WebParam.class).name()))
       .orElse(parameter.getName());
     LOG.debug("      Mapping query parameter: " + parameterName);
 
@@ -308,7 +313,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       return null;
     }
 
-    @SuppressWarnings("rawtypes") Schema schema = typeToSchema(parameter.getParameterizedType(), components);
+    Schema<?> schema = typeToSchema(parameter.getParameterizedType(), components);
     queryParameter.setSchema(schema);
     LOG.debug("        Done");
 
@@ -320,22 +325,47 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  @SuppressWarnings("rawtypes")
-  private HeaderParameter parameterToHeaderParameter(Parameter parameter) {
+  private HeaderParameter parameterToHeaderParameter(Parameter parameter, Components components) {
+
+    String parameterName = ofNullable(trimToNull(parameter.getAnnotation(WebParam.class).name())).orElse(parameter.getName());
+    String headerName = "X-" + soapstoneConfiguration.getVendor() + "-" + LOWER_CAMEL.to(UPPER_CAMEL, parameterName);
+    String headerId = headerName.replaceAll("\\W", "");
 
     HeaderParameter headerParameter = new HeaderParameter();
 
-    String parameterName = Optional.ofNullable(StringUtils.trimToNull(parameter.getAnnotation(WebParam.class).name()))
-      .orElse(parameter.getName());
     LOG.debug("      Mapping header: " + parameterName);
 
-    headerParameter.setName("X-" + soapstoneConfiguration.getVendor() + "-" + LOWER_CAMEL.to(UPPER_CAMEL, parameterName));
+    headerParameter.setName(headerName);
     headerParameter.setAllowEmptyValue(false);
     headerParameter.setStyle(StyleEnum.SIMPLE);
     headerParameter.setExplode(true);
 
+    if (components.getSchemas() == null || !components.getSchemas().containsKey(headerId)) {
+
+      Schema<?> schema = parameterToMapSchema(parameter);
+
+      components.addSchemas(headerId, schema);
+    }
+
+    Schema<?> schemaRef = new Schema<>();
+    schemaRef.set$ref("#/components/schemas/" + headerId);
+    headerParameter.setSchema(schemaRef);
+
+    soapstoneConfiguration.getDocumentationProvider()
+      .flatMap(provider -> provider.forParameter(parameter))
+      .ifPresent(headerParameter::setDescription);
+
+    LOG.debug("        Done");
+
+    return headerParameter;
+  }
+
+
+  @SuppressWarnings("rawtypes")
+  private Schema<?> parameterToMapSchema(Parameter parameter) {
+
     Map<String, Schema> schemaMap = ModelConverters.getInstance().readAll(parameter.getParameterizedType());
-    Schema schema = new MapSchema();
+    Schema<?> schema = new MapSchema();
     for (Entry<String, Schema> entry : schemaMap.entrySet()) {
 
       Map<String, Schema> properties = ((Schema<?>) entry.getValue()).getProperties();
@@ -343,31 +373,28 @@ class SoapstoneOpenApiReader implements OpenApiReader {
         schema.addProperties(subentry.getKey(), subentry.getValue());
       }
     }
-    headerParameter.setSchema(schema);
-    LOG.debug("        Done");
-
-    soapstoneConfiguration.getDocumentationProvider()
-      .flatMap(provider -> provider.forParameter(parameter))
-      .ifPresent(headerParameter::setDescription);
-
-    return headerParameter;
+    return schema;
   }
 
 
-  private RequestBody parametersToRequestBody(Collection<Parameter> parameters, Components components) {
+  private RequestBody parametersToRequestBody(String operationId, Collection<Parameter> parameters, Components components) {
 
     if (parameters.isEmpty()) {
       return null;
     }
 
-    @SuppressWarnings("rawtypes") Schema schema = new ObjectSchema();
+    String requestBodyName = LOWER_CAMEL.to(UPPER_CAMEL, operationId) + "Request";
+
+    Schema<?> schema = new ObjectSchema();
+    schema.setName(requestBodyName);
+
     for (Parameter parameter : parameters) {
 
-      String parameterName = Optional.ofNullable(StringUtils.trimToNull(parameter.getAnnotation(WebParam.class).name()))
+      String parameterName = ofNullable(trimToNull(parameter.getAnnotation(WebParam.class).name()))
         .orElse(parameter.getName());
       LOG.debug("      Mapping parameter: " + parameterName);
 
-      @SuppressWarnings("rawtypes") Schema typeToSchema = typeToSchema(parameter.getParameterizedType(), components);
+      Schema<?> typeToSchema = typeToSchema(parameter.getParameterizedType(), components);
       if (typeToSchema != null) {
         soapstoneConfiguration.getDocumentationProvider()
           .flatMap(provider -> provider.forParameter(parameter))
@@ -376,29 +403,33 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
       schema.addProperties(parameterName, typeToSchema);
       LOG.debug("        Done");
-
     }
+
+    components.addSchemas(schema.getName(), schema);
+
+    Schema<?> schemaRef = new Schema<>();
+    schemaRef.set$ref("#/components/schemas/" + requestBodyName);
+
     RequestBody requestBody = new RequestBody();
     Content content = new Content();
 
-
     MediaType item = new MediaType();
-    item.setSchema(schema);
+    item.setSchema(schemaRef);
 
     content.addMediaType("application/json", item);
 
     requestBody.setContent(content);
+
     return requestBody;
   }
 
 
-  @SuppressWarnings("rawtypes")
-  private Schema typeToSchema(Type type, Components components) {
+  private Schema<?> typeToSchema(Type type, Components components) {
 
     JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
     LOG.debug("          " + javaType.toString());
 
-    Schema propertySchema = PrimitiveType.createProperty(type);
+    Schema<?> propertySchema = PrimitiveType.createProperty(type);
     if (propertySchema != null) {
       return propertySchema;
     } else {
@@ -410,7 +441,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       if (resolvedSchema == null || resolvedSchema.schema == null) {
         return null;
       }
-      Schema schema = resolvedSchema.schema;
+      Schema<?> schema = resolvedSchema.schema;
 
       resolvedSchema.referencedSchemas.forEach(components::addSchemas);
 
