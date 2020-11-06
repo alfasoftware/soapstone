@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -29,7 +31,9 @@ import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverterContext;
 import io.swagger.v3.core.jackson.ModelResolver;
+import io.swagger.v3.core.jackson.TypeNameResolver;
 import io.swagger.v3.oas.models.media.Schema;
+import org.apache.commons.lang3.StringUtils;
 
 
 /**
@@ -39,23 +43,14 @@ import io.swagger.v3.oas.models.media.Schema;
  *
  * @author Copyright (c) Alfa Financial Software 2020
  */
-public class ParentAwareModelResolver extends ModelResolver {
+class ParentAwareModelResolver extends ModelResolver {
 
 
   private final Map<String, JavaType> definedTypes = new HashMap<>();
-  private final SoapstoneConfiguration configuration;
 
 
   ParentAwareModelResolver(SoapstoneConfiguration configuration) {
-//    super(configuration.getObjectMapper(), new TypeNameResolver() {
-//      @Override
-//      protected String nameForClass(Class<?> cls, Set<Options> options) {
-//        return configuration.getTypeNameProvider().map(provider -> provider.apply(cls))
-//          .orElseGet(() -> super.nameForClass(cls, options));
-//      }
-//    });
-    super(configuration.getObjectMapper());
-    this.configuration = configuration;
+    super(configuration.getObjectMapper(), new CustomTypeNameResolver(configuration.getTypeNameProvider().orElse(cls -> null)));
   }
 
 
@@ -114,5 +109,28 @@ public class ParentAwareModelResolver extends ModelResolver {
     }
 
     return Optional.empty();
+  }
+
+
+  /**
+   * Simple extension to TypeNameResolver to support using the suffix provider. Would prefer to just support FQNs
+   * but they don't play nicely with allOf references.
+   */
+  private static class CustomTypeNameResolver extends TypeNameResolver {
+
+
+    private final Function<Class<?>, String> suffixProvider;
+
+
+    private CustomTypeNameResolver(Function<Class<?>, String> suffixProvider) {
+      this.suffixProvider = suffixProvider;
+    }
+
+
+    @Override
+    protected String nameForClass(Class<?> cls, Set<Options> options) {
+      String suffix = suffixProvider.apply(cls);
+      return super.nameForClass(cls, options) + (StringUtils.isNotBlank(suffix) ? "_" + suffix : "");
+    }
   }
 }

@@ -199,8 +199,6 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       .filter(methodParameter -> !methodParameter.getAnnotation(WebParam.class).header())
       .collect(Collectors.toList());
 
-    RequestBody requestBody = parametersToRequestBody(operationId, bodyParameters, components);
-
     ApiResponses responses = new ApiResponses();
     ApiResponse response = new ApiResponse(); // TODO populate
 
@@ -214,70 +212,55 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     responses.addApiResponse("200", response);
 
-    Operation operation = new Operation();
-    operation.setOperationId(operationId);
-    operation.setParameters(headerParameters);
-    operation.setRequestBody(requestBody);
-    operation.setResponses(responses);
-    operation.addTagsItem(tag);
+    PathItem pathItem = new PathItem();
+
+    Operation newOperation = new Operation();
+    newOperation.setOperationId(operationId);
+    newOperation.setResponses(responses);
+    newOperation.addTagsItem(tag);
 
     soapstoneConfiguration.getDocumentationProvider()
       .flatMap(provider -> provider.forMethod(method))
-      .ifPresent(operation::setDescription);
+      .ifPresent(newOperation::setDescription);
 
-    PathItem pathItem = new PathItem();
+    // Convert parameters to query parameters
+    List<io.swagger.v3.oas.models.parameters.Parameter> queryParameters = bodyParameters.stream()
+      .map((Parameter parameter) -> parameterToQueryParameter(parameter, components))
+      .filter(Objects::nonNull)
+      .collect(Collectors.toList());
 
-    if (soapstoneConfiguration.getSupportedGetOperations().matcher(operationName).matches()) {
+    // If all parameters can be expressed as query parameters then we can consider a GET or DELETE operation
+    if (queryParameters.size() == bodyParameters.size()) {
 
-      // Convert parameters to query parameters
-      List<io.swagger.v3.oas.models.parameters.Parameter> queryParameters = bodyParameters.stream()
-        .map((Parameter parameter) -> parameterToQueryParameter(parameter, components))
-        .filter(Objects::nonNull)
-        .collect(Collectors.toList());
+      if (soapstoneConfiguration.getSupportedGetOperations().matcher(operationName).matches()) {
 
-      // If there were any body parameters that couldn't be converted then we can't use GET and we'll revert to POST
-      if (queryParameters.size() == bodyParameters.size()) {
         queryParameters.addAll(headerParameters);
-        pathItem.get(operationToQueryOnlyOperation(operation, queryParameters));
-      } else {
-        pathItem.post(operation);
-      }
-    } else if (soapstoneConfiguration.getSupportedDeleteOperations().matcher(operationName).matches()) {
+        newOperation.setParameters(queryParameters);
+        pathItem.setGet(newOperation);
 
-      // Convert parameters to query parameters
-      List<io.swagger.v3.oas.models.parameters.Parameter> queryParameters = bodyParameters.stream()
-        .map((Parameter parameter) -> parameterToQueryParameter(parameter, components))
-        .filter(Objects::nonNull)
-        .collect(Collectors.toList());
+      } else if (soapstoneConfiguration.getSupportedDeleteOperations().matcher(operationName).matches()) {
 
-      // If there were any body parameters that couldn't be converted then we can't use DELETE and we'll revert to POST
-      if (queryParameters.size() == bodyParameters.size()) {
         queryParameters.addAll(headerParameters);
-        pathItem.delete(operationToQueryOnlyOperation(operation, queryParameters));
-      } else {
-        pathItem.post(operation);
+        newOperation.setParameters(queryParameters);
+        pathItem.setDelete(newOperation);
       }
-    } else if (soapstoneConfiguration.getSupportedPutOperations().matcher(operationName).matches()) {
-      pathItem.put(operation);
-    } else {
-      pathItem.post(operation);
+    }
+
+    // If we couldn't use GET or DELETE then we will need to PUT or POST
+    if (pathItem.getGet() == null && pathItem.getDelete() == null) {
+
+      RequestBody requestBody = parametersToRequestBody(operationId, bodyParameters, components);
+      newOperation.setParameters(headerParameters);
+      newOperation.setRequestBody(requestBody);
+
+      if (soapstoneConfiguration.getSupportedPutOperations().matcher(operationName).matches()) {
+        pathItem.setPut(newOperation);
+      } else {
+        pathItem.setPost(newOperation);
+      }
     }
 
     return pathItem;
-  }
-
-
-  private Operation operationToQueryOnlyOperation(
-    Operation operation, List<io.swagger.v3.oas.models.parameters.Parameter> queryParameters) {
-
-    Operation newOperation = new Operation();
-    newOperation.setParameters(queryParameters);
-    newOperation.setResponses(operation.getResponses());
-    newOperation.setTags(operation.getTags());
-    newOperation.setOperationId(operation.getOperationId());
-    newOperation.setDescription(operation.getDescription());
-
-    return newOperation;
   }
 
 
