@@ -43,6 +43,7 @@ import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 import io.swagger.v3.core.converter.ModelConverters;
+import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -78,11 +79,13 @@ public class TestSoapstoneOpenApiReader {
   public static void setup() {
 
     DocumentationProvider documentationProvider = new DocumentationProviderBuilder()
-      .withClassDocumentationProvider(klass -> Optional.ofNullable(klass.getAnnotation(Documentation.class)).map(Documentation::value))
       .withMethodDocumentationProvider(method -> Optional.ofNullable(method.getAnnotation(Documentation.class)).map(Documentation::value))
       .withMethodReturnDocumentationProvider(method -> Optional.ofNullable(method.getAnnotation(Documentation.class)).map(Documentation::returnValue))
       .withParameterDocumentationProvider(parameter -> Optional.ofNullable(parameter.getAnnotation(Documentation.class)).map(Documentation::value))
-      .withMemberDocumentationProvider(member -> Optional.ofNullable(member.getAnnotation(Documentation.class)).map(Documentation::value))
+      .withModelDocumentationProvider(annotations ->
+        annotations.stream().filter(Documentation.class::isInstance).findFirst()
+          .map(Documentation.class::cast).map(Documentation::value)
+      )
       .build();
 
     final Pattern tagPattern = Pattern.compile("/(?<tag>.*?)(?:/.*)?");
@@ -122,6 +125,8 @@ public class TestSoapstoneOpenApiReader {
     SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(HOST_URL, soapstoneConfiguration);
     reader.setConfiguration(new SwaggerConfiguration());
     openAPI = reader.read(null);
+
+    Yaml.prettyPrint(openAPI);
   }
 
 
@@ -163,7 +168,7 @@ public class TestSoapstoneOpenApiReader {
 
     assertThat(headerSchema.getProperties().get("string"), allOf(
       hasProperty("type", is("string")),
-//      hasProperty("description", is("Method: HeaderObject#setString")),
+      hasProperty("description", is("Method: HeaderObject#setString")),
       hasProperty("writeOnly", is(true))
     ));
 
@@ -177,34 +182,34 @@ public class TestSoapstoneOpenApiReader {
     Schema<?> requestBodySchema = schemaForRefSchema(jsonMedia.getSchema());
 
     assertThat(requestBodySchema.getProperties().get("request"), allOf(
-      hasProperty("$ref", is("#/components/schemas/RequestObject"))
-//      hasProperty("description", is("Param: doAThing#request"))
+      hasProperty("$ref", is("#/components/schemas/RequestObject")),
+      hasProperty("description", is("Param: doAThing#request"))
     ));
 
     assertThat(requestBodySchema.getProperties().get("string"), allOf(
-      hasProperty("type", is("string"))
-//      hasProperty("description", is("Param: doAThing#string"))
+      hasProperty("type", is("string")),
+      hasProperty("description", is("Param: doAThing#string"))
     ));
 
     assertThat(requestBodySchema.getProperties().get("integer"), allOf(
       hasProperty("type", is("integer")),
-      hasProperty("format", is("int32"))
-//      hasProperty("description", is("Param: doAThing#integer"))
+      hasProperty("format", is("int32")),
+      hasProperty("description", is("Param: doAThing#integer"))
     ));
 
     assertThat(requestBodySchema.getProperties().get("decimal"), allOf(
       hasProperty("type", is("number")),
-      hasProperty("format", is("double"))
-//      hasProperty("description", is("Param: doAThing#decimal"))
+      hasProperty("format", is("double")),
+      hasProperty("description", is("Param: doAThing#decimal"))
     ));
 
     assertThat(requestBodySchema.getProperties().get("bool"), allOf(
-      hasProperty("type", is("boolean"))
-//      hasProperty("description", is("Param: doAThing#bool"))
+      hasProperty("type", is("boolean")),
+      hasProperty("description", is("Param: doAThing#bool"))
     ));
 
     ApiResponse response = post.getResponses().get("200");
-//    assertEquals("OperationResponse: doAThing#ResponseObject", response.getDescription());
+    assertEquals("OperationResponse: doAThing#ResponseObject", response.getDescription());
 
     Schema<?> responseSchema = response.getContent().get("application/json").getSchema();
     assertEquals("#/components/schemas/ResponseObject", responseSchema.get$ref());
@@ -258,33 +263,33 @@ public class TestSoapstoneOpenApiReader {
 
     Schema<?> schema = openAPI.getComponents().getSchemas().get("RequestObject");
 
-//    assertEquals("Class: RequestObject", schema.getDescription());
+    assertEquals("Class: RequestObject", schema.getDescription());
 
     assertThat(schema.getProperties().get("string"), allOf(
-      hasProperty("type", is("string"))
-//      hasProperty("description", is("Field: RequestObject#string"))
+      hasProperty("type", is("string")),
+      hasProperty("description", is("Field: RequestObject#string"))
     ));
 
     assertThat(schema.getProperties().get("integer"), allOf(
       hasProperty("type", is("integer")),
-      hasProperty("format", is("int32"))
-//      hasProperty("description", is("Method: RequestObject#getInteger"))
+      hasProperty("format", is("int32")),
+      hasProperty("description", is("Method: RequestObject#getInteger"))
     ));
 
     assertThat(schema.getProperties().get("decimal"), allOf(
       hasProperty("type", is("number")),
-      hasProperty("format", is("double"))
-//      hasProperty("description", is("Method: RequestObject#setDecimal"))
+      hasProperty("format", is("double")),
+      hasProperty("description", is("Method: RequestObject#setDecimal"))
     ));
 
     assertThat(schema.getProperties().get("bool"), allOf(
-      hasProperty("type", is("boolean"))
-//      hasProperty("description", is("Method: RequestObject#isBool"))
+      hasProperty("type", is("boolean")),
+      hasProperty("description", is("Method: RequestObject#isBool"))
     ));
 
     assertThat(schema.getProperties().get("date"), allOf(
-      hasProperty("type", is("string"))
-//      hasProperty("description", is("Field: RequestObject#date"))
+      hasProperty("type", is("string")),
+      hasProperty("description", is("Field: RequestObject#date"))
     ));
   }
 
@@ -294,11 +299,11 @@ public class TestSoapstoneOpenApiReader {
 
     Schema<?> schema = openAPI.getComponents().getSchemas().get("ResponseObject");
 
-//    assertEquals("Class: ResponseObject", schema.getDescription());
+    assertEquals("Class: ResponseObject", schema.getDescription());
 
     assertThat(schema.getProperties().get("headerString"), allOf(
-      hasProperty("type", is("string"))
-//      hasProperty("description", is("Field: ResponseObject#headerString"))
+      hasProperty("type", is("string")),
+      hasProperty("description", is("Field: ResponseObject#headerString"))
     ));
 
     assertThat(schema.getProperties().get("headerInteger"), allOf(
@@ -333,8 +338,8 @@ public class TestSoapstoneOpenApiReader {
     );
 
     assertThat(schema.getProperties().get("adaptable"), allOf(
-      hasProperty("type", is("string"))
-//      hasProperty("description", is("Method: ResponseObject#getAdaptable()"))
+      hasProperty("type", is("string")),
+      hasProperty("description", is("Method: ResponseObject#getAdaptable()"))
     ));
   }
 

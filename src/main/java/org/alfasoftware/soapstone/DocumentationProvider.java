@@ -14,12 +14,12 @@
  */
 package org.alfasoftware.soapstone;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Function;
-
-import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 
 /**
  * Documentation provider for web service classes
@@ -34,30 +34,22 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 public class DocumentationProvider {
 
 
-  private final Function<Class<?>, Optional<String>> forClass;
   private final Function<Parameter, Optional<String>> forParameter;
   private final Function<Method, Optional<String>> forMethod;
   private final Function<Method, Optional<String>> forMethodReturn;
-  private final Function<AnnotatedMember, Optional<String>> forMember;
+  private final Function<Collection<Annotation>, Optional<String>> forModel;
 
 
   DocumentationProvider(
-    Function<Class<?>, Optional<String>> forClass,
     Function<Parameter, Optional<String>> forParameter,
     Function<Method, Optional<String>> forMethod,
     Function<Method, Optional<String>> forMethodReturn,
-    Function<AnnotatedMember, Optional<String>> forMember) {
+    Function<Collection<Annotation>, Optional<String>> forModel) {
 
-    this.forClass = forClass;
     this.forParameter = forParameter;
     this.forMethod = forMethod;
     this.forMethodReturn = forMethodReturn;
-    this.forMember = forMember;
-  }
-
-
-  Optional<String> forClass(Class<?> klass) {
-    return Optional.ofNullable(forClass).flatMap(provider -> provider.apply(klass));
+    this.forModel = forModel;
   }
 
 
@@ -76,7 +68,7 @@ public class DocumentationProvider {
   }
 
 
-  Optional<String> forMember(AnnotatedMember member) {
-    return Optional.ofNullable(forMember).flatMap(provider -> provider.apply(member));
+  Optional<String> forModelProperty(Collection<Annotation> annotations) {
+    return Optional.ofNullable(forModel).flatMap(provider -> provider.apply(annotations));
   }
 }

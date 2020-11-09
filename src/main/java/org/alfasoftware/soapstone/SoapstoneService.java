@@ -22,7 +22,6 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.net.URI;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -230,7 +229,6 @@ public class SoapstoneService {
       Function<String, OpenAPI> f = str -> {
         SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(baseUri, configuration);
         SwaggerConfiguration openApiConfiguration = new SwaggerConfiguration();
-        openApiConfiguration.setModelConverterClassess(Collections.singleton("com.chpconsulting.money.jaxb.MoneyAdapter"));
         reader.setConfiguration(openApiConfiguration);
 
         return reader.read(tags);
@@ -241,9 +239,7 @@ public class SoapstoneService {
         tagsKey = tags.stream().sorted().collect(Collectors.joining("_"));
       }
 
-      // FIXME - disabling caching to aid testing
-//      return openAPIDefinitions.computeIfAbsent(tagsKey, f);
-      return f.apply(tagsKey);
+      return openAPIDefinitions.computeIfAbsent(tagsKey, f);
     }
   }
 

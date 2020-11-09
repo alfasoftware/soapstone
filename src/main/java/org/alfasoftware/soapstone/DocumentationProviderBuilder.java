@@ -14,12 +14,16 @@
  */
 package org.alfasoftware.soapstone;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Function;
 
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Builder for {@link DocumentationProvider}
@@ -28,23 +32,14 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
  */
 public class DocumentationProviderBuilder {
 
-  private Function<Class<?>, Optional<String>> forClass;
+
+  private static final Logger LOG = LoggerFactory.getLogger(DocumentationProviderBuilder.class);
+
+
   private Function<Parameter, Optional<String>> forParameter;
   private Function<Method, Optional<String>> forMethod;
   private Function<Method, Optional<String>> forMethodReturn;
-  private Function<AnnotatedMember, Optional<String>> forMember;
-
-
-  /**
-   * Optional. Provide an optional documentation string given a class.
-   *
-   * @param forClass class level documentation provider
-   * @return this
-   */
-  public DocumentationProviderBuilder withClassDocumentationProvider(Function<Class<?>, Optional<String>> forClass) {
-    this.forClass = forClass;
-    return this;
-  }
+  private Function<Collection<Annotation>, Optional<String>> forModel;
 
 
   /**
@@ -84,13 +79,19 @@ public class DocumentationProviderBuilder {
 
 
   /**
-   * Optional. Provide an optional documentation string given an annotated member.
+   * Optional. Provide an optional documentation string for a model or a property thereof.
    *
-   * @param forMember member level documentation provider
+   * <p>
+   *   The provider will be passed first any annotations for the context in which the model appears (i.e. if it is a
+   *   property of another model). If no description is returned it will then be passed annotations for the model itself
+   *   (i.e. class level annotations).
+   * </p>
+   *
+   * @param forModel model or property level documentation provider
    * @return this
    */
-  public DocumentationProviderBuilder withMemberDocumentationProvider(Function<AnnotatedMember, Optional<String>> forMember) {
-    this.forMember = forMember;
+  public DocumentationProviderBuilder withModelDocumentationProvider(Function<Collection<Annotation>, Optional<String>> forModel) {
+    this.forModel = forModel;
     return this;
   }
 
@@ -102,10 +103,39 @@ public class DocumentationProviderBuilder {
    */
   public DocumentationProvider build() {
     return new DocumentationProvider(
-      forClass,
       forParameter,
       forMethod,
       forMethodReturn,
-      forMember);
+      forModel);
+  }
+
+
+  /*
+   * The following have been deprecated as they can no longer be used since the move to the ParentAwareModelResolver.
+   * The are retained to ensure use of the old builder will still compile
+   */
+
+
+  /**
+   * @deprecated Use {@link #withModelDocumentationProvider(Function)} to provide documentation for models and members
+   */
+  @Deprecated
+  @SuppressWarnings("unused")
+  public DocumentationProviderBuilder withMemberDocumentationProvider(Function<AnnotatedMember, Optional<String>> forMember) {
+    LOG.warn("Soapstone's OpenAPI member documentation provider is no longer supported and will be ignored. " +
+      "#withModelDocumentationProvider(...) should be used instead.");
+    return this;
+  }
+
+
+  /**
+   * @deprecated Use {@link #withModelDocumentationProvider(Function)} to provide documentation for models and members
+   */
+  @Deprecated
+  @SuppressWarnings("unused")
+  public DocumentationProviderBuilder withClassDocumentationProvider(Function<Class<?>, Optional<String>> forClass) {
+    LOG.warn("Soapstone's OpenAPI class documentation provider is no longer supported and will be ignored. " +
+      "#withModelDocumentationProvider(...) should be used instead.");
+    return this;
   }
 }

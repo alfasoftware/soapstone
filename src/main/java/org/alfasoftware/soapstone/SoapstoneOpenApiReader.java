@@ -74,7 +74,9 @@ import org.slf4j.LoggerFactory;
  */
 class SoapstoneOpenApiReader implements OpenApiReader {
 
+
   private static final Logger LOG = LoggerFactory.getLogger(SoapstoneOpenApiReader.class);
+
 
   private final String hostUrl;
   private final SoapstoneConfiguration soapstoneConfiguration;
@@ -200,7 +202,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       .collect(Collectors.toList());
 
     ApiResponses responses = new ApiResponses();
-    ApiResponse response = new ApiResponse(); // TODO populate
+    ApiResponse response = new ApiResponse();
 
     LOG.debug("      Mapping response");
     response.setContent(methodToResponseContent(method, components));
@@ -424,8 +426,8 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       if (resolvedSchema == null || resolvedSchema.schema == null) {
         return null;
       }
-      Schema<?> schema = resolvedSchema.schema;
 
+      Schema<?> schema = resolvedSchema.schema;
       resolvedSchema.referencedSchemas.forEach(components::addSchemas);
 
       return schema;

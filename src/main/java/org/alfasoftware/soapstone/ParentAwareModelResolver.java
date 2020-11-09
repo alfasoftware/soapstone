@@ -14,6 +14,11 @@
  */
 package org.alfasoftware.soapstone;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+
+import java.lang.annotation.Annotation;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -24,6 +29,7 @@ import java.util.function.Function;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.util.Converter;
@@ -47,10 +53,12 @@ class ParentAwareModelResolver extends ModelResolver {
 
 
   private final Map<String, JavaType> definedTypes = new HashMap<>();
+  private final SoapstoneConfiguration configuration;
 
 
   ParentAwareModelResolver(SoapstoneConfiguration configuration) {
     super(configuration.getObjectMapper(), new CustomTypeNameResolver(configuration.getTypeNameProvider().orElse(cls -> null)));
+    this.configuration = configuration;
   }
 
 
@@ -75,7 +83,9 @@ class ParentAwareModelResolver extends ModelResolver {
       Object memberConverter = introspector.findSerializationConverter(memberForType.get());
 
       if (memberConverter instanceof Converter) {
-        AnnotatedType convertedType = new AnnotatedType().type(((Converter<?, ?>) memberConverter).getOutputType(_mapper.getTypeFactory()));
+        AnnotatedType convertedType = new AnnotatedType()
+          .type(((Converter<?, ?>) memberConverter).getOutputType(_mapper.getTypeFactory()))
+          .ctxAnnotations(annotatedType.getCtxAnnotations());
         return resolve(convertedType, context, chain);
       }
     }
@@ -83,6 +93,32 @@ class ParentAwareModelResolver extends ModelResolver {
     definedTypes.putIfAbsent(_typeName(type), type);
 
     return super.resolve(annotatedType, context, chain);
+  }
+
+
+  @Override
+  protected String resolveDescription(Annotated a, Annotation[] annotations, io.swagger.v3.oas.annotations.media.Schema schema) {
+
+    String defaultDescription = super.resolveDescription(a, annotations, schema);
+    if (defaultDescription != null) {
+      return defaultDescription;
+    }
+
+    Collection<Annotation> contextAnnotations = annotations != null ? asList(annotations) : emptyList();
+
+    Optional<String> descriptionFromContext = configuration.getDocumentationProvider()
+      .flatMap(provider -> provider.forModelProperty(contextAnnotations));
+
+    if (!descriptionFromContext.isPresent() && a != null) {
+
+      Collection<Annotation> entityAnnotations = asList(a.getAnnotated().getAnnotations());
+
+      return configuration.getDocumentationProvider()
+        .flatMap(provider -> provider.forModelProperty(entityAnnotations))
+        .orElse(null);
+    }
+
+    return descriptionFromContext.orElse(null);
   }
 
 
