@@ -14,8 +14,14 @@
  */
 package org.alfasoftware.soapstone;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import static com.fasterxml.jackson.databind.MapperFeature.USE_WRAPPER_NAME_AS_PROPERTY_NAME;
+import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
+import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
+import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_ENUMS_USING_TO_STRING;
 import static io.swagger.v3.oas.models.parameters.Parameter.StyleEnum.SIMPLE;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -30,21 +36,25 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.AnnotationIntrospector;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
+import io.swagger.v3.core.converter.ModelConverters;
+import io.swagger.v3.core.util.Yaml;
+import io.swagger.v3.oas.integration.SwaggerConfiguration;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.parameters.Parameter;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.Documentation;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
-import io.swagger.v3.core.converter.ModelConverters;
-import io.swagger.v3.core.util.Json;
-import io.swagger.v3.oas.integration.SwaggerConfiguration;
-import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.parameters.Parameter;
-import io.swagger.v3.oas.models.responses.ApiResponse;
 
 /**
  * Test the {@link SoapstoneOpenApiReader}
@@ -69,11 +79,13 @@ public class TestSoapstoneOpenApiReader {
   public static void setup() {
 
     DocumentationProvider documentationProvider = new DocumentationProviderBuilder()
-      .withClassDocumentationProvider(klass -> Optional.ofNullable(klass.getAnnotation(Documentation.class)).map(Documentation::value))
       .withMethodDocumentationProvider(method -> Optional.ofNullable(method.getAnnotation(Documentation.class)).map(Documentation::value))
       .withMethodReturnDocumentationProvider(method -> Optional.ofNullable(method.getAnnotation(Documentation.class)).map(Documentation::returnValue))
       .withParameterDocumentationProvider(parameter -> Optional.ofNullable(parameter.getAnnotation(Documentation.class)).map(Documentation::value))
-      .withMemberDocumentationProvider(member -> Optional.ofNullable(member.getAnnotation(Documentation.class)).map(Documentation::value))
+      .withModelDocumentationProvider(annotations ->
+        annotations.stream().filter(Documentation.class::isInstance).findFirst()
+          .map(Documentation.class::cast).map(Documentation::value)
+      )
       .build();
 
     final Pattern tagPattern = Pattern.compile("/(?<tag>.*?)(?:/.*)?");
@@ -82,7 +94,18 @@ public class TestSoapstoneOpenApiReader {
       return matcher.matches() ? matcher.group("tag") : null;
     };
 
-    ObjectMapper objectMapper = Json.mapper().registerModule(new JaxbAnnotationModule());
+    AnnotationIntrospector jaxbIntrospector = new JaxbAnnotationIntrospector(TypeFactory.defaultInstance());
+    AnnotationIntrospector jacksonIntrospector = new JacksonAnnotationIntrospector();
+
+    ObjectMapper objectMapper = new ObjectMapper()
+      .setAnnotationIntrospector(AnnotationIntrospector.pair(jacksonIntrospector, jaxbIntrospector))
+      .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
+      .configure(USE_WRAPPER_NAME_AS_PROPERTY_NAME, true)
+      .configure(FAIL_ON_EMPTY_BEANS, false)
+      .configure(WRITE_DATES_AS_TIMESTAMPS, false)
+      .configure(WRITE_ENUMS_USING_TO_STRING, true)
+      .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
+      .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
     Map<String, WebServiceClass<?>> webServices = new HashMap<>();
     webServices.put("/path", WebServiceClass.forClass(WebService.class, WebService::new));
@@ -97,11 +120,13 @@ public class TestSoapstoneOpenApiReader {
     soapstoneConfiguration.setSupportedPutOperations(Pattern.compile("put.*"));
     soapstoneConfiguration.setVendor("Geoffrey");
 
-    ModelConverters.getInstance().addConverter(new SoapstoneModelResolver(soapstoneConfiguration));
+    ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(soapstoneConfiguration));
 
     SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(HOST_URL, soapstoneConfiguration);
     reader.setConfiguration(new SwaggerConfiguration());
     openAPI = reader.read(null);
+
+    Yaml.prettyPrint(openAPI);
   }
 
 
@@ -139,7 +164,7 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("explode", is(true))
     ));
 
-    Schema headerSchema = headerParameter.getSchema();
+    Schema<?> headerSchema = schemaForRefSchema(headerParameter.getSchema());
 
     assertThat(headerSchema.getProperties().get("string"), allOf(
       hasProperty("type", is("string")),
@@ -153,7 +178,8 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("writeOnly", is(true))
     ));
 
-    Schema requestBodySchema = post.getRequestBody().getContent().get("application/json").getSchema();
+    MediaType jsonMedia = post.getRequestBody().getContent().get("application/json");
+    Schema<?> requestBodySchema = schemaForRefSchema(jsonMedia.getSchema());
 
     assertThat(requestBodySchema.getProperties().get("request"), allOf(
       hasProperty("$ref", is("#/components/schemas/RequestObject")),
@@ -185,7 +211,7 @@ public class TestSoapstoneOpenApiReader {
     ApiResponse response = post.getResponses().get("200");
     assertEquals("OperationResponse: doAThing#ResponseObject", response.getDescription());
 
-    Schema responseSchema = response.getContent().get("application/json").getSchema();
+    Schema<?> responseSchema = response.getContent().get("application/json").getSchema();
     assertEquals("#/components/schemas/ResponseObject", responseSchema.get$ref());
   }
 
@@ -206,30 +232,36 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("description", is("Param: getAThing#string"))
     ));
 
-    Schema querySchema = queryParameter.getSchema();
+    Schema<?> querySchema = queryParameter.getSchema();
     assertEquals("string", querySchema.getType());
 
     ApiResponse response = get.getResponses().get("200");
 
-    Schema responseSchema = response.getContent().get("application/json").getSchema();
+    Schema<?> responseSchema = response.getContent().get("application/json").getSchema();
     assertNotNull(responseSchema);
   }
 
 
   @Test
   public void testAllSchemasExist() {
-
-    assertEquals(2, openAPI.getComponents().getSchemas().size());
-
-    assertTrue(openAPI.getComponents().getSchemas().containsKey("RequestObject"));
-    assertTrue(openAPI.getComponents().getSchemas().containsKey("ResponseObject"));
+    assertThat(openAPI.getComponents().getSchemas().keySet(), containsInAnyOrder(
+      "RequestObject",
+      "ResponseObject",
+      "XGeoffreyHeader",
+      "PathDoAThingRequest",
+      "PathDoASimpleThingRequest",
+      "PathDoAListOfThingsRequest",
+      "PathDoAThingWithThisNameRequest",
+      "PathDoAThingBadlyRequest",
+      "PathPutAThingRequest"
+    ));
   }
 
 
   @Test
   public void testRequestObjectSchema() {
 
-    Schema schema = openAPI.getComponents().getSchemas().get("RequestObject");
+    Schema<?> schema = openAPI.getComponents().getSchemas().get("RequestObject");
 
     assertEquals("Class: RequestObject", schema.getDescription());
 
@@ -265,7 +297,7 @@ public class TestSoapstoneOpenApiReader {
   @Test
   public void testResponseObjectSchema() {
 
-    Schema schema = openAPI.getComponents().getSchemas().get("ResponseObject");
+    Schema<?> schema = openAPI.getComponents().getSchemas().get("ResponseObject");
 
     assertEquals("Class: ResponseObject", schema.getDescription());
 
@@ -309,5 +341,17 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("type", is("string")),
       hasProperty("description", is("Method: ResponseObject#getAdaptable()"))
     ));
+  }
+
+
+  private static Schema<?> schemaForRefSchema(Schema<?> refSchema) {
+
+    String ref = refSchema.get$ref();
+    assertNotNull("The passed schema has no $ref: [" + refSchema + "]", ref);
+
+    Schema<?> schema = openAPI.getComponents().getSchemas().get(ref.replaceAll(".*/", ""));
+    assertNotNull("No schema exists for the given ref [" + ref + "]", schema);
+
+    return schema;
   }
 }

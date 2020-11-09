@@ -228,7 +228,8 @@ public class SoapstoneService {
 
       Function<String, OpenAPI> f = str -> {
         SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(baseUri, configuration);
-        reader.setConfiguration(new SwaggerConfiguration());
+        SwaggerConfiguration openApiConfiguration = new SwaggerConfiguration();
+        reader.setConfiguration(openApiConfiguration);
 
         return reader.read(tags);
       };

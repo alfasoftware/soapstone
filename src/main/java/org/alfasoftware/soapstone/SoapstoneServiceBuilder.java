@@ -35,7 +35,7 @@ import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.type.TypeFactory;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
+import com.fasterxml.jackson.dataformat.xml.jaxb.XmlJaxbAnnotationIntrospector;
 import io.swagger.v3.core.converter.ModelConverters;
 import org.apache.commons.lang3.StringUtils;
 
@@ -252,7 +252,7 @@ public class SoapstoneServiceBuilder {
     configuration.setObjectMapper(Optional.ofNullable(objectMapper).orElseGet(
       () -> {
 
-        AnnotationIntrospector jaxbIntrospector = new JaxbAnnotationIntrospector(TypeFactory.defaultInstance());
+        AnnotationIntrospector jaxbIntrospector = new XmlJaxbAnnotationIntrospector(TypeFactory.defaultInstance());
         AnnotationIntrospector jacksonIntrospector = new JacksonAnnotationIntrospector();
 
         return new ObjectMapper()
@@ -268,7 +268,8 @@ public class SoapstoneServiceBuilder {
     ));
 
     // This is the easiest place to put this to ensure that it is added once and once only
-    ModelConverters.getInstance().addConverter(new SoapstoneModelResolver(configuration));
+//    ModelConverters.getInstance().addConverter(new SoapstoneModelResolver(configuration));
+    ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(configuration));
 
     return new SoapstoneService(configuration);
   }
