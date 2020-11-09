@@ -79,7 +79,7 @@ public class TestSoapstoneService extends JerseyTest {
   private static final ExceptionMapper EXCEPTION_MAPPER = (exception, o) ->
     Optional.ofNullable(exception instanceof MyException ? new BadRequestException() : null);
 
-  private static final Pattern TAG_PATTERN = Pattern.compile("/(?<tag>.*?)(?:/.*)?");
+  private static final Pattern TAG_PATTERN = Pattern.compile("/?(?<tag>.*?)(?:/.*)?");
   private static final Function<String, String> TAG_PROVIDER = path -> {
     Matcher matcher = TAG_PATTERN.matcher(path);
     return matcher.matches() ? matcher.group("tag") : null;
@@ -760,8 +760,7 @@ public class TestSoapstoneService extends JerseyTest {
       .path("openapi/tags")
       .request()
       .accept(MediaType.APPLICATION_JSON)
-      .get(new TypeLiteral<List<String>>() {
-      }.getRawType());
+      .get(new TypeLiteral<List<String>>() {}.getRawType());
 
     assertTrue(response.contains("path"));
   }

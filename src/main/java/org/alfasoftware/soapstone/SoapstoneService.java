@@ -24,6 +24,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -162,7 +163,8 @@ public class SoapstoneService {
   public Set<String> getOpenApiTags() {
     LOG.info("Retrieving list of tags for Open API");
     return configuration.getWebServiceClasses().keySet().stream()
-      .map(path -> path.split("/")[0])
+      .map(path -> configuration.getTagProvider().map(provider -> provider.apply(path)).orElse(null))
+      .filter(Objects::nonNull)
       .collect(Collectors.toCollection(TreeSet::new));
   }
 
