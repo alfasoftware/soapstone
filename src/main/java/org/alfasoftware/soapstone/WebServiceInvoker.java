@@ -85,7 +85,8 @@ class WebServiceInvoker {
 
     try {
       Object methodReturn = operation.invoke(webServiceClass.getInstance(), operationArgs);
-      return configuration.getObjectMapper().writeValueAsString(methodReturn);
+      JavaType returnType = configuration.getObjectMapper().constructType(operation.getGenericReturnType());
+      return configuration.getObjectMapper().writerFor(returnType).writeValueAsString(methodReturn);
     } catch (InvocationTargetException e) {
       LOG.error("Error produced within invocation of '" + operationName + "'", e);
       throw configuration.getExceptionMapper()

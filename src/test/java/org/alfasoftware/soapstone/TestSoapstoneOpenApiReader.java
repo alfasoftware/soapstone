@@ -43,7 +43,6 @@ import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 import io.swagger.v3.core.converter.ModelConverters;
-import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -67,6 +66,7 @@ import org.junit.Test;
  * @author Copyright (c) Alfa Financial Software 2019
  */
 public class TestSoapstoneOpenApiReader {
+
 
   private static final String HOST_URL = "http://localhost/ctx/";
   private static OpenAPI openAPI;
@@ -125,15 +125,13 @@ public class TestSoapstoneOpenApiReader {
     SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(HOST_URL, soapstoneConfiguration);
     reader.setConfiguration(new SwaggerConfiguration());
     openAPI = reader.read(null);
-
-    Yaml.prettyPrint(openAPI);
   }
 
 
   @Test
   public void testAllPathsExist() {
 
-    assertEquals(8, openAPI.getPaths().size());
+    assertEquals(9, openAPI.getPaths().size());
 
     assertTrue(openAPI.getPaths().containsKey("/path/doAThing"));
     assertTrue(openAPI.getPaths().containsKey("/path/doASimpleThing"));
@@ -143,6 +141,7 @@ public class TestSoapstoneOpenApiReader {
     assertTrue(openAPI.getPaths().containsKey("/path/getAThing"));
     assertTrue(openAPI.getPaths().containsKey("/path/putAThing"));
     assertTrue(openAPI.getPaths().containsKey("/path/deleteAThing"));
+    assertTrue(openAPI.getPaths().containsKey("/path/getAListOfThings"));
   }
 
 
@@ -253,7 +252,10 @@ public class TestSoapstoneOpenApiReader {
       "PathDoAListOfThingsRequest",
       "PathDoAThingWithThisNameRequest",
       "PathDoAThingBadlyRequest",
-      "PathPutAThingRequest"
+      "PathPutAThingRequest",
+      "SuperClass",
+      "SubClass1",
+      "SubClass2"
     ));
   }
 
@@ -354,4 +356,5 @@ public class TestSoapstoneOpenApiReader {
 
     return schema;
   }
+
 }
