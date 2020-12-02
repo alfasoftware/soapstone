@@ -68,6 +68,7 @@ import org.junit.Test;
  */
 public class TestSoapstoneOpenApiReader {
 
+
   private static final String HOST_URL = "http://localhost/ctx/";
   private static OpenAPI openAPI;
 
@@ -354,4 +355,5 @@ public class TestSoapstoneOpenApiReader {
 
     return schema;
   }
+
 }

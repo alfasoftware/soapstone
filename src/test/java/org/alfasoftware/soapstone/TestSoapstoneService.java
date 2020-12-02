@@ -14,6 +14,7 @@
  */
 package org.alfasoftware.soapstone;
 
+import static java.util.Arrays.asList;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
@@ -21,9 +22,12 @@ import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.OK;
 import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_1;
 import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_2;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -44,7 +48,9 @@ import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import org.alfasoftware.soapstone.testsupport.WebService;
@@ -632,6 +638,27 @@ public class TestSoapstoneService extends JerseyTest {
 
     assertEquals(METHOD_NOT_ALLOWED.getStatusCode(), response.getStatus());
   }
+
+
+  /**
+   * Test that we get type information when returning a list of some supertype
+   */
+   @Test
+   public void testGetAListOfThings() throws JsonProcessingException {
+
+     String response = target()
+       .path("path/getAListOfThings")
+       .request()
+       .get(String.class);
+
+     JavaType returnType = OBJECT_MAPPER.constructType(new TypeLiteral<List<WebService.SuperClass>>() {}.getType());
+     List<WebService.SuperClass> list = OBJECT_MAPPER.readerFor(returnType).readValue(response);
+
+     assertThat(list, containsInAnyOrder(asList(
+       instanceOf(WebService.SuperClass.SubClass1.class),
+       instanceOf(WebService.SuperClass.SubClass2.class)
+     )));
+   }
 
 
   /**

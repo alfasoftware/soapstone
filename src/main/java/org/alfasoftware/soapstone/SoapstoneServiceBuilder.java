@@ -268,7 +268,6 @@ public class SoapstoneServiceBuilder {
     ));
 
     // This is the easiest place to put this to ensure that it is added once and once only
-//    ModelConverters.getInstance().addConverter(new SoapstoneModelResolver(configuration));
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(configuration));
 
     return new SoapstoneService(configuration);

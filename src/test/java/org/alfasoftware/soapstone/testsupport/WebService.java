@@ -15,6 +15,7 @@
 package org.alfasoftware.soapstone.testsupport;
 
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import static java.util.Arrays.asList;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -31,6 +32,8 @@ import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.joda.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -50,6 +53,7 @@ public class WebService {
   @Retention(RUNTIME)
   public @interface Documentation {
     String value();
+
     String returnValue() default "";
   }
 
@@ -279,6 +283,17 @@ public class WebService {
     VALUE_1, VALUE_2
   }
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "className")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(name = "SubClass1", value = SuperClass.SubClass1.class),
+    @JsonSubTypes.Type(name = "SubClass2", value = SuperClass.SubClass2.class)
+  })
+  public static abstract class SuperClass {
+
+    public static class SubClass1 extends SuperClass {}
+    public static class SubClass2 extends SuperClass {}
+  }
+
 
   /**
    * Web service method to take a variety of complex and simple headerString non-headerString
@@ -438,5 +453,14 @@ public class WebService {
    */
   @WebMethod()
   public void deleteAThing() {
+  }
+
+
+  /**
+   * Return a list of things
+   */
+  @WebMethod()
+  public List<SuperClass> getAListOfThings() {
+    return asList(new SuperClass.SubClass1(), new SuperClass.SubClass2());
   }
 }
