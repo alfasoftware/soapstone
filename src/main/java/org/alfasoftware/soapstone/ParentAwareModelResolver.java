@@ -152,12 +152,6 @@ class ParentAwareModelResolver extends ModelResolver {
 
 
   @Override
-  protected void resolveSchemaMembers(Schema schema, Annotated a, Annotation[] annotations, io.swagger.v3.oas.annotations.media.Schema schemaAnnotation) {
-    super.resolveSchemaMembers(schema, a, annotations, schemaAnnotation);
-  }
-
-
-  @Override
   protected Discriminator resolveDiscriminator(JavaType type, ModelConverterContext context) {
     Discriminator discriminator = super.resolveDiscriminator(type, context);
 
