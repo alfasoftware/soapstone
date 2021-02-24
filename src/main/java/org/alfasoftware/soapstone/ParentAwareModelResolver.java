@@ -18,6 +18,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 
 import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
@@ -38,6 +40,7 @@ import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverterContext;
 import io.swagger.v3.core.jackson.ModelResolver;
 import io.swagger.v3.core.jackson.TypeNameResolver;
+import io.swagger.v3.oas.models.media.Discriminator;
 import io.swagger.v3.oas.models.media.Schema;
 import org.apache.commons.lang3.StringUtils;
 
@@ -148,6 +151,29 @@ class ParentAwareModelResolver extends ModelResolver {
   }
 
 
+  @Override
+  protected void resolveSchemaMembers(Schema schema, Annotated a, Annotation[] annotations, io.swagger.v3.oas.annotations.media.Schema schemaAnnotation) {
+    super.resolveSchemaMembers(schema, a, annotations, schemaAnnotation);
+  }
+
+
+  @Override
+  protected Discriminator resolveDiscriminator(JavaType type, ModelConverterContext context) {
+    Discriminator discriminator = super.resolveDiscriminator(type, context);
+
+    JsonSubTypes jsonSubTypes = type.getRawClass().getDeclaredAnnotation(JsonSubTypes.class);
+    if (jsonSubTypes != null) {
+      Arrays.stream(jsonSubTypes.value()).forEach(subType -> {
+        String mappingName = subType.name();
+        Class<?> mappedClass = subType.value();
+        String mappedTypeName = _typeName(_mapper.constructType(mappedClass));
+        discriminator.mapping(mappingName, "#/components/schemas/" + mappedTypeName);
+      });
+    }
+    return discriminator;
+  }
+
+
   /**
    * Simple extension to TypeNameResolver to support using the suffix provider. Would prefer to just support FQNs
    * but they don't play nicely with allOf references.
@@ -159,9 +185,9 @@ class ParentAwareModelResolver extends ModelResolver {
 
 
     private CustomTypeNameResolver(Function<Class<?>, String> suffixProvider) {
+      super();
       this.suffixProvider = suffixProvider;
     }
-
 
     @Override
     protected String nameForClass(Class<?> cls, Set<Options> options) {

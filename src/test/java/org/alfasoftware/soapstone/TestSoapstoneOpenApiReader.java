@@ -22,6 +22,7 @@ import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_ENUMS_US
 import static io.swagger.v3.oas.models.parameters.Parameter.StyleEnum.SIMPLE;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -46,6 +47,7 @@ import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.media.Discriminator;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
@@ -342,6 +344,22 @@ public class TestSoapstoneOpenApiReader {
     assertThat(schema.getProperties().get("adaptable"), allOf(
       hasProperty("type", is("string")),
       hasProperty("description", is("Method: ResponseObject#getAdaptable()"))
+    ));
+  }
+
+
+  @Test
+  public void testDiscriminators() {
+
+    Schema<?> schema = openAPI.getComponents().getSchemas().get("SuperClass");
+
+    Discriminator discriminator = schema.getDiscriminator();
+    assertThat(discriminator, allOf(
+      hasProperty("propertyName", is("className")),
+      hasProperty("mapping", allOf(
+        hasEntry("SubClass1", "#/components/schemas/SubClass1"),
+        hasEntry("SubClass2", "#/components/schemas/SubClass2")
+      ))
     ));
   }
 
