@@ -155,15 +155,15 @@ class ParentAwareModelResolver extends ModelResolver {
   protected Discriminator resolveDiscriminator(JavaType type, ModelConverterContext context) {
     Discriminator discriminator = super.resolveDiscriminator(type, context);
 
+    // If sub type mappings are explicitly declared, add them to the discriminator
     JsonSubTypes jsonSubTypes = type.getRawClass().getDeclaredAnnotation(JsonSubTypes.class);
     if (jsonSubTypes != null) {
       Arrays.stream(jsonSubTypes.value()).forEach(subType -> {
-        String mappingName = subType.name();
-        Class<?> mappedClass = subType.value();
-        String mappedTypeName = _typeName(_mapper.constructType(mappedClass));
-        discriminator.mapping(mappingName, "#/components/schemas/" + mappedTypeName);
+        String mappedTypeName = _typeName(_mapper.constructType(subType.value()));
+        discriminator.mapping(subType.name(), "#/components/schemas/" + mappedTypeName);
       });
     }
+
     return discriminator;
   }
 
