@@ -18,7 +18,6 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -27,13 +26,16 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.BeanDescription;
+import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.introspect.Annotated;
+import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
+import com.fasterxml.jackson.databind.introspect.AnnotatedClassResolver;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
+import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.util.Converter;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
@@ -87,8 +89,8 @@ class ParentAwareModelResolver extends ModelResolver {
 
       if (memberConverter instanceof Converter) {
         AnnotatedType convertedType = new AnnotatedType()
-          .type(((Converter<?, ?>) memberConverter).getOutputType(_mapper.getTypeFactory()))
-          .ctxAnnotations(annotatedType.getCtxAnnotations());
+            .type(((Converter<?, ?>) memberConverter).getOutputType(_mapper.getTypeFactory()))
+            .ctxAnnotations(annotatedType.getCtxAnnotations());
         return resolve(convertedType, context, chain);
       }
     }
@@ -110,15 +112,15 @@ class ParentAwareModelResolver extends ModelResolver {
     Collection<Annotation> contextAnnotations = annotations != null ? asList(annotations) : emptyList();
 
     Optional<String> descriptionFromContext = configuration.getDocumentationProvider()
-      .flatMap(provider -> provider.forModelProperty(contextAnnotations));
+        .flatMap(provider -> provider.forModelProperty(contextAnnotations));
 
     if (!descriptionFromContext.isPresent() && a != null) {
 
       Collection<Annotation> entityAnnotations = asList(a.getAnnotated().getAnnotations());
 
       return configuration.getDocumentationProvider()
-        .flatMap(provider -> provider.forModelProperty(entityAnnotations))
-        .orElse(null);
+          .flatMap(provider -> provider.forModelProperty(entityAnnotations))
+          .orElse(null);
     }
 
     return descriptionFromContext.orElse(null);
@@ -141,9 +143,9 @@ class ParentAwareModelResolver extends ModelResolver {
         BeanDescription parentBeanDescription = _mapper.getSerializationConfig().introspect(parentType);
 
         return parentBeanDescription.findProperties().stream()
-          .filter(property -> property.getName().equals(currentPropertyName))
-          .findFirst()
-          .map(BeanPropertyDefinition::getPrimaryMember);
+            .filter(property -> property.getName().equals(currentPropertyName))
+            .findFirst()
+            .map(BeanPropertyDefinition::getPrimaryMember);
       }
     }
 
@@ -153,16 +155,26 @@ class ParentAwareModelResolver extends ModelResolver {
 
   @Override
   protected Discriminator resolveDiscriminator(JavaType type, ModelConverterContext context) {
-    Discriminator discriminator = super.resolveDiscriminator(type, context);
 
-    // If sub type mappings are explicitly declared, add them to the discriminator
-    JsonSubTypes jsonSubTypes = type.getRawClass().getDeclaredAnnotation(JsonSubTypes.class);
-    if (jsonSubTypes != null) {
-      Arrays.stream(jsonSubTypes.value()).forEach(subType -> {
-        String mappedTypeName = _typeName(_mapper.constructType(subType.value()));
-        discriminator.mapping(subType.name(), "#/components/schemas/" + mappedTypeName);
-      });
+    Discriminator discriminator = super.resolveDiscriminator(type, context);
+    if (discriminator == null) {
+      return null;
     }
+
+    DeserializationConfig mapperConfig = _mapper.getDeserializationConfig();
+    AnnotatedClass annotatedClass = AnnotatedClassResolver.resolveWithoutSuperTypes(mapperConfig, type.getRawClass());
+    Collection<NamedType> namedTypes = _mapper.getSubtypeResolver()
+        .collectAndResolveSubtypesByClass(mapperConfig, annotatedClass);
+
+    namedTypes.stream().filter(namedType -> !namedType.getType().equals(type.getRawClass()))
+        .forEach(namedType -> {
+
+          String mapperTypeName = _typeName(_mapper.constructType(namedType.getType()));
+          String discriminatorValue = Optional.ofNullable(namedType.getName())
+              .orElseGet(namedType.getType()::getSimpleName);
+
+          discriminator.mapping(discriminatorValue, "#/components/schemas/" + mapperTypeName);
+        });
 
     return discriminator;
   }
