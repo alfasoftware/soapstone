@@ -14,13 +14,12 @@
  */
 package org.alfasoftware.soapstone;
 
-import static com.google.common.base.CaseFormat.LOWER_CAMEL;
-import static com.google.common.base.CaseFormat.UPPER_CAMEL;
 import static java.util.regex.Pattern.CASE_INSENSITIVE;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 import static org.alfasoftware.soapstone.WebParameter.headerParameter;
 import static org.alfasoftware.soapstone.WebParameter.parameter;
+import static org.apache.commons.lang3.StringUtils.uncapitalize;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -142,7 +141,7 @@ class WebParameterMapper {
     // ... create the object...
     Map<String, String> object = createObject(headers, objectHeaderName);
     // ... and add it to the map
-    String key = UPPER_CAMEL.to(LOWER_CAMEL, objectHeaderName.substring(objectHeaderName.lastIndexOf("-") + 1));
+    String key = uncapitalize(objectHeaderName.substring(objectHeaderName.lastIndexOf("-") + 1));
     JsonNode value = configuration.getObjectMapper().valueToTree(object);
     headerObjects.add(headerParameter(key, value));
   }
@@ -217,8 +216,7 @@ class WebParameterMapper {
 
     String value = headers.getHeaderString(objectPropertyHeaderName);
 
-    String propertyName = objectPropertyHeaderName.substring(objectPropertyHeaderName.lastIndexOf("-") + 1);
-    String key = UPPER_CAMEL.to(LOWER_CAMEL, propertyName);
+    String key = uncapitalize(objectPropertyHeaderName.substring(objectPropertyHeaderName.lastIndexOf("-") + 1));
 
     object.put(key, value);
   }

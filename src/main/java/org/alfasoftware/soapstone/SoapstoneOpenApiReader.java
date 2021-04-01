@@ -14,9 +14,8 @@
  */
 package org.alfasoftware.soapstone;
 
-import static com.google.common.base.CaseFormat.LOWER_CAMEL;
-import static com.google.common.base.CaseFormat.UPPER_CAMEL;
 import static java.util.Optional.ofNullable;
+import static org.apache.commons.lang3.StringUtils.capitalize;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 import java.lang.reflect.Method;
@@ -37,7 +36,6 @@ import javax.jws.WebMethod;
 import javax.jws.WebParam;
 
 import com.fasterxml.jackson.databind.JavaType;
-import com.google.common.base.Strings;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
@@ -62,6 +60,7 @@ import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.servers.Server;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,7 +157,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
         String operationName = ofNullable(method.getAnnotation(WebMethod.class))
           .map(WebMethod::operationName)
-          .map(Strings::emptyToNull)
+          .map(StringUtils::trimToNull)
           .orElse(method.getName());
         LOG.debug("    Operation: " + operationName);
 
@@ -185,8 +184,8 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   private PathItem methodToPathItem(String tag, Method method, String resourcePath, String operationName, Components components) {
 
     String operationId = Arrays.stream(resourcePath.split("\\W"))
-      .map(path -> LOWER_CAMEL.to(UPPER_CAMEL, path))
-      .collect(Collectors.joining()) + LOWER_CAMEL.to(UPPER_CAMEL, operationName);
+      .map(StringUtils::capitalize)
+      .collect(Collectors.joining()) + capitalize(operationName);
 
     List<Parameter> methodParameters = Arrays.stream(method.getParameters())
       .filter(methodParameter -> methodParameter.isAnnotationPresent(WebParam.class))
@@ -313,7 +312,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   private HeaderParameter parameterToHeaderParameter(Parameter parameter, Components components) {
 
     String parameterName = ofNullable(trimToNull(parameter.getAnnotation(WebParam.class).name())).orElse(parameter.getName());
-    String headerName = "X-" + soapstoneConfiguration.getVendor() + "-" + LOWER_CAMEL.to(UPPER_CAMEL, parameterName);
+    String headerName = "X-" + soapstoneConfiguration.getVendor() + "-" + capitalize(parameterName);
     String headerId = headerName.replaceAll("\\W", "");
 
     HeaderParameter headerParameter = new HeaderParameter();
@@ -368,7 +367,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       return null;
     }
 
-    String requestBodyName = LOWER_CAMEL.to(UPPER_CAMEL, operationId) + "Request";
+    String requestBodyName = capitalize(operationId) + "Request";
 
     Schema<?> schema = new ObjectSchema();
     schema.setName(requestBodyName);
