@@ -35,7 +35,7 @@ import javax.xml.bind.annotation.XmlElement;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
-import com.google.common.base.Strings;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -162,7 +162,7 @@ class WebServiceInvoker {
 
     String methodOperationName = Optional.ofNullable(method.getAnnotation(WebMethod.class))
       .map(WebMethod::operationName)
-      .map(Strings::emptyToNull)
+      .map(StringUtils::trimToNull)
       .orElse(method.getName());
 
     return methodOperationName.equals(operationName);
