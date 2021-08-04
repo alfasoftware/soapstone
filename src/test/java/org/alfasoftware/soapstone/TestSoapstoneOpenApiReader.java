@@ -345,6 +345,11 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("type", is("string")),
       hasProperty("description", is("Method: ResponseObject#getAdaptable()"))
     ));
+
+    assertThat(schema.getProperties().get("dataHandler"), allOf(
+      hasProperty("type", is("string")),
+      hasProperty("format", is("byte"))
+    ));
   }
 
 

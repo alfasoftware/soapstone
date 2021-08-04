@@ -14,19 +14,6 @@
  */
 package org.alfasoftware.soapstone;
 
-import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
-
-import java.lang.annotation.Annotation;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Function;
-
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -43,6 +30,19 @@ import io.swagger.v3.core.jackson.TypeNameResolver;
 import io.swagger.v3.oas.models.media.Discriminator;
 import io.swagger.v3.oas.models.media.Schema;
 import org.apache.commons.lang3.StringUtils;
+
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 
 
 /**
@@ -70,6 +70,13 @@ class ParentAwareModelResolver extends ModelResolver {
 
     if (annotatedType == null) {
       return null;
+    }
+
+    if (annotatedType.getType().getTypeName().contains("javax.activation.DataHandler")) {
+      annotatedType.setType(_mapper.constructType(String.class));
+      Schema<?> dataHandlerSchema = super.resolve(annotatedType, context, chain);
+      dataHandlerSchema.setFormat("byte");
+      return dataHandlerSchema;
     }
 
     JavaType type;

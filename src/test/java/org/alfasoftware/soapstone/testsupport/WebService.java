@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import javax.activation.DataHandler;
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
 import javax.xml.bind.annotation.XmlElement;
@@ -139,6 +140,7 @@ public class WebService {
     private boolean bool;
     private LocalDate date;
     private Adaptable adaptable;
+    private DataHandler dataHandler;
 
     public RequestObject getNestedObject() {
       return nestedObject;
@@ -177,6 +179,10 @@ public class WebService {
     @Documentation("Method: ResponseObject#getAdaptable()")
     public Adaptable getAdaptable() {
       return adaptable;
+    }
+
+    public DataHandler getDataHandler() {
+      return dataHandler;
     }
   }
 
