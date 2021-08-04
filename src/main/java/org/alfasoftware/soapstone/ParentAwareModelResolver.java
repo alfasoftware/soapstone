@@ -72,6 +72,13 @@ class ParentAwareModelResolver extends ModelResolver {
       return null;
     }
 
+    if (annotatedType.getType().getTypeName().contains("javax.activation.DataHandler")) {
+      annotatedType.setType(_mapper.constructType(String.class));
+      Schema<?> dataHandlerSchema = super.resolve(annotatedType, context, chain);
+      dataHandlerSchema.setFormat("byte");
+      return dataHandlerSchema;
+    }
+
     JavaType type;
     if (annotatedType.getType() instanceof JavaType) {
       type = (JavaType) annotatedType.getType();
