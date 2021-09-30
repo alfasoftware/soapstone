@@ -33,11 +33,12 @@ import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.alfasoftware.soapstone.testsupport.mappers.ClassAnnotatedAdaptableAdapter;
 import org.joda.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  * Simple JAX-WS web service class and supporting types
@@ -63,42 +64,6 @@ public class WebService {
    * Some exception which will be handled by an {@link org.alfasoftware.soapstone.ExceptionMapper}
    */
   public static class MyException extends Exception {
-  }
-
-
-  /**
-   * A slightly interesting complex class with an XmlAdapter
-   */
-  @Documentation("Class: Adaptable")
-  @XmlJavaTypeAdapter(AdaptableAdapter.class)
-  public static class Adaptable {
-
-    private final Adaptable innerAdaptable;
-
-    public Adaptable(Adaptable innerAdaptable) {
-      this.innerAdaptable = innerAdaptable;
-    }
-
-    public String getInnerAdaptableState() {
-      return innerAdaptable == null ? "null" : "non-null";
-    }
-  }
-
-
-  /**
-   * XmlAdapter for {@link Adaptable}
-   */
-  public static class AdaptableAdapter extends XmlAdapter<String, Adaptable> {
-
-    @Override
-    public Adaptable unmarshal(String v) {
-      return v.equalsIgnoreCase("non-null") ? new Adaptable(new Adaptable(null)) : new Adaptable(null);
-    }
-
-    @Override
-    public String marshal(Adaptable v) {
-      return v.getInnerAdaptableState();
-    }
   }
 
 
@@ -139,7 +104,8 @@ public class WebService {
     private double decimal;
     private boolean bool;
     private LocalDate date;
-    private Adaptable adaptable;
+    private PackageAnnotatedAdaptable packageAnnotatedAdaptable;
+    private ClassAnnotatedAdaptable classAnnotatedAdaptable;
     private DataHandler dataHandler;
 
     public RequestObject getNestedObject() {
@@ -175,10 +141,15 @@ public class WebService {
       return date;
     }
 
-    @XmlJavaTypeAdapter(AdaptableAdapter.class)
-    @Documentation("Method: ResponseObject#getAdaptable()")
-    public Adaptable getAdaptable() {
-      return adaptable;
+    @Documentation("Method: ResponseObject#getPackageAnnotatedAdaptable()")
+    public PackageAnnotatedAdaptable getPackageAnnotatedAdaptable() {
+      return packageAnnotatedAdaptable;
+    }
+
+//    @XmlJavaTypeAdapter(ClassAnnotatedAdaptableAdapter.class)
+    @Documentation("Method: ResponseObject#getClassAnnotatedAdaptable()")
+    public ClassAnnotatedAdaptable getClassAnnotatedAdaptable() {
+      return classAnnotatedAdaptable;
     }
 
     public DataHandler getDataHandler() {
@@ -468,5 +439,15 @@ public class WebService {
   @WebMethod()
   public List<SuperClass> getAListOfThings() {
     return asList(new SuperClass.SubClass1(), new SuperClass.SubClass2());
+  }
+
+
+  @WebMethod()
+  public void doAPackageAnnotatedAdaptableThing(@WebParam(name = "packageAnnotatedAdaptable") PackageAnnotatedAdaptable packageAnnotatedAdaptable) {
+  }
+
+
+  @WebMethod()
+  public void doAClassAnnotatedAdaptableThing(@WebParam(name = "classAnnotatedAdaptable") ClassAnnotatedAdaptable classAnnotatedAdaptable) {
   }
 }

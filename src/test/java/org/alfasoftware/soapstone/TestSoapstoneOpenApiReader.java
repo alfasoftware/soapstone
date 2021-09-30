@@ -133,7 +133,7 @@ public class TestSoapstoneOpenApiReader {
   @Test
   public void testAllPathsExist() {
 
-    assertEquals(9, openAPI.getPaths().size());
+    assertEquals(11, openAPI.getPaths().size());
 
     assertTrue(openAPI.getPaths().containsKey("/path/doAThing"));
     assertTrue(openAPI.getPaths().containsKey("/path/doASimpleThing"));
@@ -144,6 +144,8 @@ public class TestSoapstoneOpenApiReader {
     assertTrue(openAPI.getPaths().containsKey("/path/putAThing"));
     assertTrue(openAPI.getPaths().containsKey("/path/deleteAThing"));
     assertTrue(openAPI.getPaths().containsKey("/path/getAListOfThings"));
+    assertTrue(openAPI.getPaths().containsKey("/path/doAPackageAnnotatedAdaptableThing"));
+    assertTrue(openAPI.getPaths().containsKey("/path/doAClassAnnotatedAdaptableThing"));
   }
 
 
@@ -255,6 +257,8 @@ public class TestSoapstoneOpenApiReader {
       "PathDoAThingWithThisNameRequest",
       "PathDoAThingBadlyRequest",
       "PathPutAThingRequest",
+      "PathDoAClassAnnotatedAdaptableThingRequest",
+      "PathDoAPackageAnnotatedAdaptableThingRequest",
       "SuperClass",
       "SubClass1",
       "SubClass2"
@@ -341,9 +345,14 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("type", is("string"))
     );
 
-    assertThat(schema.getProperties().get("adaptable"), allOf(
+    assertThat(schema.getProperties().get("classAnnotatedAdaptable"), allOf(
       hasProperty("type", is("string")),
-      hasProperty("description", is("Method: ResponseObject#getAdaptable()"))
+      hasProperty("description", is("Method: ResponseObject#getClassAnnotatedAdaptable()"))
+    ));
+
+    assertThat(schema.getProperties().get("packageAnnotatedAdaptable"), allOf(
+      hasProperty("type", is("string")),
+      hasProperty("description", is("Method: ResponseObject#getPackageAnnotatedAdaptable()"))
     ));
 
     assertThat(schema.getProperties().get("dataHandler"), allOf(
@@ -366,6 +375,28 @@ public class TestSoapstoneOpenApiReader {
         hasEntry("SubClass2", "#/components/schemas/SubClass2")
       ))
     ));
+  }
+
+
+  @Test
+  public void testConverterForWebParamAnnotatedClass() {
+
+    Schema<?> schema = openAPI.getComponents().getSchemas().get("PathDoAClassAnnotatedAdaptableThingRequest");
+
+    Schema<?> annotatedAdaptable = schema.getProperties().get("classAnnotatedAdaptable");
+
+    assertEquals("string", annotatedAdaptable.getType());
+  }
+
+
+  @Test
+  public void testConverterForWebParamAnnotatedPackage() {
+
+    Schema<?> schema = openAPI.getComponents().getSchemas().get("PathDoAPackageAnnotatedAdaptableThingRequest");
+
+    Schema<?> adaptable = schema.getProperties().get("packageAnnotatedAdaptable");
+
+    assertEquals("string", adaptable.getType());
   }
 
 
