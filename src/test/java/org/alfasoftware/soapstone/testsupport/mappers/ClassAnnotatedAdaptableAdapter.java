@@ -2,11 +2,10 @@ package org.alfasoftware.soapstone.testsupport.mappers;
 
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 
-import org.alfasoftware.soapstone.testsupport.PackageAnnotatedAdaptable;
 import org.alfasoftware.soapstone.testsupport.ClassAnnotatedAdaptable;
 
 /**
- * XmlAdapter for {@link PackageAnnotatedAdaptable}
+ * XmlAdapter for {@link ClassAnnotatedAdaptable}
  */
 public class ClassAnnotatedAdaptableAdapter extends XmlAdapter<String, ClassAnnotatedAdaptable> {
 

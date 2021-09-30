@@ -27,6 +27,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -42,7 +44,6 @@ import io.swagger.v3.core.jackson.ModelResolver;
 import io.swagger.v3.core.jackson.TypeNameResolver;
 import io.swagger.v3.oas.models.media.Discriminator;
 import io.swagger.v3.oas.models.media.Schema;
-import org.apache.commons.lang3.StringUtils;
 
 
 /**
@@ -91,6 +92,11 @@ class ParentAwareModelResolver extends ModelResolver {
       AnnotationIntrospector introspector = _mapper.getSerializationConfig().getAnnotationIntrospector();
 
       Object memberConverter = introspector.findSerializationConverter(memberForType.get());
+
+      if (memberConverter == null) {
+        final BeanDescription currentBean = configuration.getObjectMapper().getSerializationConfig().introspect(type);
+        memberConverter = currentBean.findSerializationConverter();
+      }
 
       if (memberConverter instanceof Converter) {
         AnnotatedType convertedType = new AnnotatedType()
