@@ -242,8 +242,7 @@ public class SoapstoneService {
         tagsKey = tags.stream().sorted().collect(Collectors.joining("_"));
       }
 
-//      return openAPIDefinitions.computeIfAbsent(tagsKey, f);
-      return f.apply(tagsKey);
+      return openAPIDefinitions.computeIfAbsent(tagsKey, f);
     }
   }
 
