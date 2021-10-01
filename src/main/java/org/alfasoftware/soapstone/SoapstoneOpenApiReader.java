@@ -22,7 +22,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -45,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.introspect.AnnotatedMethod;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
 import com.fasterxml.jackson.databind.util.Converter;
@@ -159,9 +157,6 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       }
       LOG.debug("Class: " + currentResourceClass.getName());
 
-      final JavaType resourceClassType = soapstoneConfiguration.getObjectMapper().constructType(currentResourceClass);
-      final BeanDescription resourceClassBean = soapstoneConfiguration.getObjectMapper().getSerializationConfig().introspect(resourceClassType);
-
       Set<Method> webMethods = Arrays.stream(currentResourceClass.getDeclaredMethods())
         .filter(method -> Modifier.isPublic(method.getModifiers()))
         .filter(method -> !(ofNullable(method.getAnnotation(WebMethod.class)).map(WebMethod::exclude).orElse(false)))
@@ -180,10 +175,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .map(provider -> provider.apply(resourcePath))
           .orElse(null);
 
-        final AnnotatedMethod annotatedMethod = resourceClassBean.findMethod(method.getName(), method.getParameterTypes());
-        final MethodAnnotatedMethodPair methodAnnotatedMethodPair = new MethodAnnotatedMethodPair(method, annotatedMethod);
-
-        PathItem pathItem = methodToPathItem(tag, methodAnnotatedMethodPair, resourcePath, operationName, components);
+        PathItem pathItem = methodToPathItem(tag, method, resourcePath, operationName, components);
 
         String name = resourcePath + "/" + operationName;
         openAPI.path(name, pathItem);
@@ -199,35 +191,34 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private PathItem methodToPathItem(String tag, MethodAnnotatedMethodPair method, String resourcePath, String operationName, Components components) {
+  private PathItem methodToPathItem(String tag, Method method, String resourcePath, String operationName, Components components) {
 
     String operationId = Arrays.stream(resourcePath.split("\\W"))
       .map(StringUtils::capitalize)
       .collect(Collectors.joining()) + capitalize(operationName);
 
-    List<TypeContext> methodParameters = getParameters(method)
-      .stream()
-      .filter(methodParameter -> methodParameter.getParameter().isAnnotationPresent(WebParam.class))
+    List<Parameter> methodParameters = Arrays.stream(method.getParameters())
+      .filter(methodParameter -> methodParameter.isAnnotationPresent(WebParam.class))
       .collect(Collectors.toList());
 
     List<io.swagger.v3.oas.models.parameters.Parameter> headerParameters = methodParameters.stream()
-      .filter(methodParameter -> methodParameter.getParameter().getAnnotation(WebParam.class).header())
+      .filter(methodParameter -> methodParameter.getAnnotation(WebParam.class).header())
       .map(methodParameter -> parameterToHeaderParameter(methodParameter, components))
       .collect(Collectors.toList());
 
-    List<TypeContext> bodyParameters = methodParameters.stream()
-      .filter(methodParameter -> !methodParameter.getParameter().getAnnotation(WebParam.class).header())
+    List<Parameter> bodyParameters = methodParameters.stream()
+      .filter(methodParameter -> !methodParameter.getAnnotation(WebParam.class).header())
       .collect(Collectors.toList());
 
     ApiResponses responses = new ApiResponses();
     ApiResponse response = new ApiResponse();
 
     LOG.debug("      Mapping response");
-    response.setContent(methodToResponseContent(method.getMethod(), components));
+    response.setContent(methodToResponseContent(method, components));
     LOG.debug("        Done");
 
     soapstoneConfiguration.getDocumentationProvider()
-      .flatMap(provider -> provider.forMethodReturn(method.getMethod()))
+      .flatMap(provider -> provider.forMethodReturn(method))
       .ifPresent(response::setDescription);
 
     responses.addApiResponse("200", response);
@@ -240,12 +231,12 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     newOperation.addTagsItem(tag);
 
     soapstoneConfiguration.getDocumentationProvider()
-      .flatMap(provider -> provider.forMethod(method.getMethod()))
+      .flatMap(provider -> provider.forMethod(method))
       .ifPresent(newOperation::setDescription);
 
     // Convert parameters to query parameters
     List<io.swagger.v3.oas.models.parameters.Parameter> queryParameters = bodyParameters.stream()
-      .map(parameter -> parameterToQueryParameter(parameter, components))
+      .map((Parameter parameter) -> parameterToQueryParameter(parameter, components))
       .filter(Objects::nonNull)
       .collect(Collectors.toList());
 
@@ -269,7 +260,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     // If we couldn't use GET or DELETE then we will need to PUT or POST
     if (pathItem.getGet() == null && pathItem.getDelete() == null) {
 
-      RequestBody requestBody = parametersToRequestBody(operationId, bodyParameters, components, method);
+      RequestBody requestBody = parametersToRequestBody(operationId, bodyParameters, components);
       newOperation.setParameters(headerParameters);
       newOperation.setRequestBody(requestBody);
 
@@ -284,21 +275,6 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private Collection<TypeContext> getParameters(MethodAnnotatedMethodPair method) {
-
-    final Parameter[] parameters = method.getMethod().getParameters();
-
-    Collection<TypeContext> parameterPairs = new ArrayList<>();
-
-    for (int i = 0; i < parameters.length; i++) {
-      final TypeContext parameterPair = new TypeContext(parameters[i], method.getAnnotatedMethod() == null ? null : method.getAnnotatedMethod().getParameter(i));
-      parameterPairs.add(parameterPair);
-    }
-
-    return parameterPairs;
-  }
-
-
   private Content methodToResponseContent(Method method, Components components) {
 
     Type type = method.getGenericReturnType();
@@ -308,7 +284,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     Content content = new Content();
 
     MediaType item = new MediaType();
-    Schema<?> schema = typeToSchema(type, components, null);
+    Schema<?> schema = typeToSchema(type, components);
 
     item.setSchema(schema);
     content.addMediaType("application/json", item);
@@ -317,7 +293,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private QueryParameter parameterToQueryParameter(TypeContext parameter, Components components) {
+  private QueryParameter parameterToQueryParameter(Parameter parameter, Components components) {
 
     QueryParameter queryParameter = new QueryParameter();
 
@@ -331,19 +307,19 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       return null;
     }
 
-    Schema<?> schema = typeToSchema(parameter.getParameterizedType(), components, null);
+    Schema<?> schema = typeToSchema(parameter.getParameterizedType(), components);
     queryParameter.setSchema(schema);
     LOG.debug("        Done");
 
     soapstoneConfiguration.getDocumentationProvider()
-      .flatMap(provider -> provider.forParameter(parameter.getParameter()))
+      .flatMap(provider -> provider.forParameter(parameter))
       .ifPresent(queryParameter::setDescription);
 
     return queryParameter;
   }
 
 
-  private HeaderParameter parameterToHeaderParameter(TypeContext parameter, Components components) {
+  private HeaderParameter parameterToHeaderParameter(Parameter parameter, Components components) {
 
     String parameterName = ofNullable(trimToNull(parameter.getAnnotation(WebParam.class).name())).orElse(parameter.getName());
     String headerName = "X-" + soapstoneConfiguration.getVendor() + "-" + capitalize(parameterName);
@@ -370,7 +346,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     headerParameter.setSchema(schemaRef);
 
     soapstoneConfiguration.getDocumentationProvider()
-      .flatMap(provider -> provider.forParameter(parameter.getParameter()))
+      .flatMap(provider -> provider.forParameter(parameter))
       .ifPresent(headerParameter::setDescription);
 
     LOG.debug("        Done");
@@ -380,9 +356,9 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
 
   @SuppressWarnings("rawtypes")
-  private Schema<?> parameterToMapSchema(TypeContext parameter) {
+  private Schema<?> parameterToMapSchema(Parameter parameter) {
 
-    Map<String, Schema> schemaMap = ModelConverters.getInstance().readAll(parameter.getParameter().getParameterizedType());
+    Map<String, Schema> schemaMap = ModelConverters.getInstance().readAll(parameter.getParameterizedType());
     Schema<?> schema = new MapSchema();
     for (Entry<String, Schema> entry : schemaMap.entrySet()) {
 
@@ -395,7 +371,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private RequestBody parametersToRequestBody(String operationId, Collection<TypeContext> parameters, Components components, MethodAnnotatedMethodPair method) {
+  private RequestBody parametersToRequestBody(String operationId, Collection<Parameter> parameters, Components components) {
 
     if (parameters.isEmpty()) {
       return null;
@@ -406,15 +382,16 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     Schema<?> schema = new ObjectSchema();
     schema.setName(requestBodyName);
 
-    for (TypeContext parameter : parameters) {
+    for (Parameter parameter : parameters) {
+
       String parameterName = ofNullable(trimToNull(parameter.getAnnotation(WebParam.class).name()))
         .orElse(parameter.getName());
       LOG.debug("      Mapping parameter: " + parameterName);
 
-      Schema<?> typeToSchema = typeToSchema(parameter.getParameterizedType(), components, parameter);
+      Schema<?> typeToSchema = typeToSchema(parameter.getParameterizedType(), components);
       if (typeToSchema != null) {
         soapstoneConfiguration.getDocumentationProvider()
-          .flatMap(provider -> provider.forParameter(parameter.getParameter()))
+          .flatMap(provider -> provider.forParameter(parameter))
           .ifPresent(typeToSchema::setDescription);
       }
 
@@ -441,21 +418,19 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private Schema<?> typeToSchema(Type type, Components components, TypeContext parameter) {
+  private Schema<?> typeToSchema(Type type, Components components) {
 
     JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
     LOG.debug("          " + javaType.toString());
 
-    if (parameter != null) {
-      XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
-      if (adapterAnnotation == null || adapterAnnotation.type() != type) {
-        XmlJavaTypeAdapters adaptersAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
+    XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
+    if (adapterAnnotation == null || adapterAnnotation.type() != type) {
+      XmlJavaTypeAdapters adaptersAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
 
-        final Type finalType = type;
-        adapterAnnotation = adaptersAnnotation == null ? null : Arrays.stream(adaptersAnnotation.value())
-            .filter(adAnn -> adAnn.type() == finalType)
-            .findFirst().orElse(null);
-      }
+      final Type finalType = type;
+      adapterAnnotation = adaptersAnnotation == null ? null : Arrays.stream(adaptersAnnotation.value())
+          .filter(adAnn -> adAnn.type() == finalType)
+          .findFirst().orElse(null);
 
       Converter<?, ?> memberConverter = null;
       if (adapterAnnotation != null) {
@@ -469,7 +444,6 @@ class SoapstoneOpenApiReader implements OpenApiReader {
         // whereas JAXB just uses single ordering
 
         memberConverter = new AdapterConverter(adapter, pt[1], pt[0], true);
-
       }
 
       if (memberConverter == null) {
