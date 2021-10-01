@@ -87,23 +87,30 @@ class ParentAwareModelResolver extends ModelResolver {
       type = _mapper.constructType(annotatedType.getType());
     }
 
-    Optional<AnnotatedMember> memberForType = getMemberForType(annotatedType);
-    if (memberForType.isPresent()) {
-      AnnotationIntrospector introspector = _mapper.getSerializationConfig().getAnnotationIntrospector();
+    // See if we have a converter for the type, and if so construct the schema for the output type
+    AnnotationIntrospector introspector = _mapper.getSerializationConfig().getAnnotationIntrospector();
+    Converter<?, ?> converter = _mapper.getSerializationConfig().introspect(type).findSerializationConverter();
+    JavaType convertedType = null;
+    if (converter != null) {
+      convertedType = converter.getOutputType(_mapper.getTypeFactory());
+    } else {
 
-      Object memberConverter = introspector.findSerializationConverter(memberForType.get());
+      // See if we have a converter on the member (e.g. the field declaration or getter for this type)
+      Optional<AnnotatedMember> memberForType = getMemberForType(annotatedType);
+      if (memberForType.isPresent()) {
 
-      if (memberConverter == null) {
-        final BeanDescription currentBean = configuration.getObjectMapper().getSerializationConfig().introspect(type);
-        memberConverter = currentBean.findSerializationConverter();
+        Object memberConverter = introspector.findSerializationConverter(memberForType.get());
+
+        if (memberConverter instanceof Converter) {
+          convertedType = ((Converter<?, ?>) memberConverter).getOutputType(_mapper.getTypeFactory());
+        }
       }
+    }
+    if (convertedType != null) {
 
-      if (memberConverter instanceof Converter) {
-        AnnotatedType convertedType = new AnnotatedType()
-          .type(((Converter<?, ?>) memberConverter).getOutputType(_mapper.getTypeFactory()))
-          .ctxAnnotations(annotatedType.getCtxAnnotations());
-        return resolve(convertedType, context, chain);
-      }
+      return resolve(new AnnotatedType()
+        .type(convertedType)
+        .ctxAnnotations(annotatedType.getCtxAnnotations()), context, chain);
     }
 
     definedTypes.putIfAbsent(_typeName(type), type);

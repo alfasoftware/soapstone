@@ -9,13 +9,13 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedParameter;
 /**
  * A POJO to hold a Parameter and an AnnotatedParameter
  */
-class ParameterAnnotatedParameterPair {
+class TypeContext {
 
   private final Parameter parameter;
   private final AnnotatedParameter annotatedParameter;
 
 
-  public ParameterAnnotatedParameterPair(final Parameter parameter, final AnnotatedParameter annotatedParameter) {
+  public TypeContext(final Parameter parameter, final AnnotatedParameter annotatedParameter) {
     this.parameter = parameter;
     this.annotatedParameter = annotatedParameter;
   }

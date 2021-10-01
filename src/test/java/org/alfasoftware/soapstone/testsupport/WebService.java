@@ -33,7 +33,6 @@ import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.alfasoftware.soapstone.testsupport.mappers.ClassAnnotatedAdaptableAdapter;
 import org.joda.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -443,11 +442,11 @@ public class WebService {
 
 
   @WebMethod()
-  public void doAPackageAnnotatedAdaptableThing(@WebParam(name = "packageAnnotatedAdaptable") PackageAnnotatedAdaptable packageAnnotatedAdaptable) {
+  public void doAPackageAnnotatedAdaptableThing(@WebParam(name = "packageAnnotatedAdaptable") PackageAnnotatedAdaptable packageAnnotatedAdaptable, String another, String andAnother) {
   }
 
 
   @WebMethod()
-  public void doAClassAnnotatedAdaptableThing(@WebParam(name = "classAnnotatedAdaptable") ClassAnnotatedAdaptable classAnnotatedAdaptable) {
+  public void doAClassAnnotatedAdaptableThing(@WebParam(name = "classAnnotatedAdaptable") ClassAnnotatedAdaptable classAnnotatedAdaptable, String another, String andAnother) {
   }
 }

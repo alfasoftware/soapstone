@@ -35,16 +35,21 @@ import java.util.stream.Collectors;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapters;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMethod;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.fasterxml.jackson.databind.util.ClassUtil;
 import com.fasterxml.jackson.databind.util.Converter;
+import com.fasterxml.jackson.module.jaxb.AdapterConverter;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
@@ -87,6 +92,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   private final SoapstoneConfiguration soapstoneConfiguration;
 
   private OpenAPIConfiguration openApiConfiguration;
+  private Class<?> currentResourceClass;
 
 
   SoapstoneOpenApiReader(String hostUrl, SoapstoneConfiguration soapstoneConfiguration) {
@@ -147,16 +153,16 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     for (String resourcePath : pathByClass.keySet()) {
 
-      Class<?> resourceClass = pathByClass.get(resourcePath);
-      if (resourceClass == null) {
+      currentResourceClass = pathByClass.get(resourcePath);
+      if (currentResourceClass == null) {
         throw new IllegalStateException("No web service class has been mapped to the path '" + resourcePath + "'");
       }
-      LOG.debug("Class: " + resourceClass.getName());
+      LOG.debug("Class: " + currentResourceClass.getName());
 
-      final JavaType resourceClassType = soapstoneConfiguration.getObjectMapper().constructType(resourceClass);
+      final JavaType resourceClassType = soapstoneConfiguration.getObjectMapper().constructType(currentResourceClass);
       final BeanDescription resourceClassBean = soapstoneConfiguration.getObjectMapper().getSerializationConfig().introspect(resourceClassType);
 
-      Set<Method> webMethods = Arrays.stream(resourceClass.getDeclaredMethods())
+      Set<Method> webMethods = Arrays.stream(currentResourceClass.getDeclaredMethods())
         .filter(method -> Modifier.isPublic(method.getModifiers()))
         .filter(method -> !(ofNullable(method.getAnnotation(WebMethod.class)).map(WebMethod::exclude).orElse(false)))
         .collect(Collectors.toSet());
@@ -199,7 +205,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       .map(StringUtils::capitalize)
       .collect(Collectors.joining()) + capitalize(operationName);
 
-    List<ParameterAnnotatedParameterPair> methodParameters = getParameters(method)
+    List<TypeContext> methodParameters = getParameters(method)
       .stream()
       .filter(methodParameter -> methodParameter.getParameter().isAnnotationPresent(WebParam.class))
       .collect(Collectors.toList());
@@ -209,7 +215,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       .map(methodParameter -> parameterToHeaderParameter(methodParameter, components))
       .collect(Collectors.toList());
 
-    List<ParameterAnnotatedParameterPair> bodyParameters = methodParameters.stream()
+    List<TypeContext> bodyParameters = methodParameters.stream()
       .filter(methodParameter -> !methodParameter.getParameter().getAnnotation(WebParam.class).header())
       .collect(Collectors.toList());
 
@@ -278,14 +284,14 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private Collection<ParameterAnnotatedParameterPair> getParameters(MethodAnnotatedMethodPair method) {
+  private Collection<TypeContext> getParameters(MethodAnnotatedMethodPair method) {
 
     final Parameter[] parameters = method.getMethod().getParameters();
 
-    Collection<ParameterAnnotatedParameterPair> parameterPairs = new ArrayList<>();
+    Collection<TypeContext> parameterPairs = new ArrayList<>();
 
     for (int i = 0; i < parameters.length; i++) {
-      final ParameterAnnotatedParameterPair parameterPair = new ParameterAnnotatedParameterPair(parameters[i], method.getAnnotatedMethod() == null ? null : method.getAnnotatedMethod().getParameter(i));
+      final TypeContext parameterPair = new TypeContext(parameters[i], method.getAnnotatedMethod() == null ? null : method.getAnnotatedMethod().getParameter(i));
       parameterPairs.add(parameterPair);
     }
 
@@ -311,7 +317,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private QueryParameter parameterToQueryParameter(ParameterAnnotatedParameterPair parameter, Components components) {
+  private QueryParameter parameterToQueryParameter(TypeContext parameter, Components components) {
 
     QueryParameter queryParameter = new QueryParameter();
 
@@ -337,7 +343,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private HeaderParameter parameterToHeaderParameter(ParameterAnnotatedParameterPair parameter, Components components) {
+  private HeaderParameter parameterToHeaderParameter(TypeContext parameter, Components components) {
 
     String parameterName = ofNullable(trimToNull(parameter.getAnnotation(WebParam.class).name())).orElse(parameter.getName());
     String headerName = "X-" + soapstoneConfiguration.getVendor() + "-" + capitalize(parameterName);
@@ -374,7 +380,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
 
   @SuppressWarnings("rawtypes")
-  private Schema<?> parameterToMapSchema(ParameterAnnotatedParameterPair parameter) {
+  private Schema<?> parameterToMapSchema(TypeContext parameter) {
 
     Map<String, Schema> schemaMap = ModelConverters.getInstance().readAll(parameter.getParameter().getParameterizedType());
     Schema<?> schema = new MapSchema();
@@ -389,7 +395,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private RequestBody parametersToRequestBody(String operationId, Collection<ParameterAnnotatedParameterPair> parameters, Components components, MethodAnnotatedMethodPair method) {
+  private RequestBody parametersToRequestBody(String operationId, Collection<TypeContext> parameters, Components components, MethodAnnotatedMethodPair method) {
 
     if (parameters.isEmpty()) {
       return null;
@@ -400,7 +406,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     Schema<?> schema = new ObjectSchema();
     schema.setName(requestBodyName);
 
-    for (ParameterAnnotatedParameterPair parameter : parameters) {
+    for (TypeContext parameter : parameters) {
       String parameterName = ofNullable(trimToNull(parameter.getAnnotation(WebParam.class).name()))
         .orElse(parameter.getName());
       LOG.debug("      Mapping parameter: " + parameterName);
@@ -435,15 +441,40 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private Schema<?> typeToSchema(Type type, Components components, ParameterAnnotatedParameterPair parameter) {
+  private Schema<?> typeToSchema(Type type, Components components, TypeContext parameter) {
 
     JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
     LOG.debug("          " + javaType.toString());
 
-    if (parameter != null && parameter.getAnnotatedParameter() != null){
-      AnnotationIntrospector introspector = soapstoneConfiguration.getObjectMapper().getSerializationConfig().getAnnotationIntrospector();
+    if (parameter != null) {
 
-      Object memberConverter = introspector.findSerializationConverter(parameter.getAnnotatedParameter());
+//      AnnotationIntrospector introspector = soapstoneConfiguration.getObjectMapper().getSerializationConfig().getAnnotationIntrospector();
+//
+//      Object memberConverter = introspector.findSerializationConverter(parameter.getAnnotatedParameter());
+
+      XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
+      if (adapterAnnotation == null || adapterAnnotation.type() != type) {
+        XmlJavaTypeAdapters adaptersAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
+        final Type finalType = type;
+        adapterAnnotation = Arrays.stream(adaptersAnnotation.value())
+          .filter(adAnn -> adAnn.type() == finalType)
+          .findFirst().orElse(null);
+      }
+
+      Converter<?, ?> memberConverter = null;
+      if (adapterAnnotation != null) {
+        Class<? extends XmlAdapter> adapterCls = adapterAnnotation.value();
+        XmlAdapter<?, ?> adapter = ClassUtil.createInstance(adapterCls, true);
+
+        TypeFactory tf = soapstoneConfiguration.getObjectMapper().getTypeFactory();
+        JavaType adapterType = tf.constructType(adapter.getClass());
+        JavaType[] pt = tf.findTypeParameters(adapterType, XmlAdapter.class);
+        // Order of type parameters for Converter is reverse between serializer, deserializer,
+        // whereas JAXB just uses single ordering
+
+        memberConverter = new AdapterConverter(adapter, pt[1], pt[0], true);
+
+      }
 
       if (memberConverter == null) {
         final BeanDescription currentBean = soapstoneConfiguration.getObjectMapper().getSerializationConfig().introspect(javaType);
