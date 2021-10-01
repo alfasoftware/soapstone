@@ -42,7 +42,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
@@ -423,36 +422,21 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
     LOG.debug("          " + javaType.toString());
 
+    /*
+    See if there is a XmlJavaTypeAdapter annotation in the package the class is in.
+    This needs to be done here as this context will not be available in ParentAwareModelResolver
+     */
     XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
+
     if (adapterAnnotation == null || adapterAnnotation.type() != type) {
+      // If there is no XmlJavaTypeAdapter or not one for this type, see if there are XmlJavaTypeAdapters
       XmlJavaTypeAdapters adaptersAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
 
-      final Type finalType = type;
-      adapterAnnotation = adaptersAnnotation == null ? null : Arrays.stream(adaptersAnnotation.value())
-          .filter(adAnn -> adAnn.type() == finalType)
-          .findFirst().orElse(null);
+      // If there are XmlJavaTypeAdapters, see if there is a Converter for the parameter type
+      Converter<?, ?> parameterTypeConvertor = adaptersAnnotation == null ? null : getParameterConverter(adaptersAnnotation, type);
 
-      Converter<?, ?> memberConverter = null;
-      if (adapterAnnotation != null) {
-        Class<? extends XmlAdapter> adapterCls = adapterAnnotation.value();
-        XmlAdapter<?, ?> adapter = ClassUtil.createInstance(adapterCls, true);
-
-        TypeFactory tf = soapstoneConfiguration.getObjectMapper().getTypeFactory();
-        JavaType adapterType = tf.constructType(adapter.getClass());
-        JavaType[] pt = tf.findTypeParameters(adapterType, XmlAdapter.class);
-        // Order of type parameters for Converter is reverse between serializer, deserializer,
-        // whereas JAXB just uses single ordering
-
-        memberConverter = new AdapterConverter(adapter, pt[1], pt[0], true);
-      }
-
-      if (memberConverter == null) {
-        final BeanDescription currentBean = soapstoneConfiguration.getObjectMapper().getSerializationConfig().introspect(javaType);
-        memberConverter = currentBean.findSerializationConverter();
-      }
-
-      if (memberConverter instanceof Converter) {
-        javaType = ((Converter<?, ?>) memberConverter).getOutputType(soapstoneConfiguration.getObjectMapper().getTypeFactory());
+      if (parameterTypeConvertor != null) {
+        javaType = ((Converter<?, ?>) parameterTypeConvertor).getOutputType(soapstoneConfiguration.getObjectMapper().getTypeFactory());
         type = javaType.getRawClass();
       }
     }
@@ -475,5 +459,28 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
       return schema;
     }
+  }
+
+
+  private Converter<?, ?> getParameterConverter(final XmlJavaTypeAdapters adaptersAnnotation, final Type type) {
+
+    XmlJavaTypeAdapter adapterAnnotation = Arrays.stream(adaptersAnnotation.value())
+            .filter(adAnn -> adAnn.type() == type)
+            .findFirst().orElse(null);
+
+    Converter<?, ?> parameterConvertor = null;
+    if (adapterAnnotation != null) {
+      Class<? extends XmlAdapter> adapterCls = adapterAnnotation.value();
+      XmlAdapter<?, ?> adapter = ClassUtil.createInstance(adapterCls, true);
+
+      TypeFactory tf = soapstoneConfiguration.getObjectMapper().getTypeFactory();
+      JavaType adapterType = tf.constructType(adapter.getClass());
+      JavaType[] pt = tf.findTypeParameters(adapterType, XmlAdapter.class);
+      // Order of type parameters for Converter is reverse between serializer, deserializer,
+      // whereas JAXB just uses single ordering
+
+      parameterConvertor = new AdapterConverter(adapter, pt[1], pt[0], true);
+    }
+    return parameterConvertor;
   }
 }
