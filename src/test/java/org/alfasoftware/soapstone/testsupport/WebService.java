@@ -145,7 +145,6 @@ public class WebService {
       return packageAnnotatedAdaptable;
     }
 
-//    @XmlJavaTypeAdapter(ClassAnnotatedAdaptableAdapter.class)
     @Documentation("Method: ResponseObject#getClassAnnotatedAdaptable()")
     public ClassAnnotatedAdaptable getClassAnnotatedAdaptable() {
       return classAnnotatedAdaptable;
