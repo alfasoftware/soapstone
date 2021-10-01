@@ -447,18 +447,14 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     LOG.debug("          " + javaType.toString());
 
     if (parameter != null) {
-
-//      AnnotationIntrospector introspector = soapstoneConfiguration.getObjectMapper().getSerializationConfig().getAnnotationIntrospector();
-//
-//      Object memberConverter = introspector.findSerializationConverter(parameter.getAnnotatedParameter());
-
       XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
       if (adapterAnnotation == null || adapterAnnotation.type() != type) {
         XmlJavaTypeAdapters adaptersAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
+
         final Type finalType = type;
-        adapterAnnotation = Arrays.stream(adaptersAnnotation.value())
-          .filter(adAnn -> adAnn.type() == finalType)
-          .findFirst().orElse(null);
+        adapterAnnotation = adaptersAnnotation == null ? null : Arrays.stream(adaptersAnnotation.value())
+            .filter(adAnn -> adAnn.type() == finalType)
+            .findFirst().orElse(null);
       }
 
       Converter<?, ?> memberConverter = null;
