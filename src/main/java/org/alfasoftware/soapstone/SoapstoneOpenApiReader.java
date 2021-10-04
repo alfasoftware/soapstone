@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -422,23 +423,11 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
     LOG.debug("          " + javaType.toString());
 
-    /*
-    See if there is a XmlJavaTypeAdapter annotation in the package the class is in.
-    This needs to be done here as this context will not be available in ParentAwareModelResolver
-     */
-    XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
+    Optional<Converter<?,?>> parameterConvertor = getParameterConverterForPackage(type, currentResourceClass);
 
-    if (adapterAnnotation == null || adapterAnnotation.type() != type) {
-      // If there is no XmlJavaTypeAdapter or not one for this type, see if there are XmlJavaTypeAdapters
-      XmlJavaTypeAdapters adaptersAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
-
-      // If there are XmlJavaTypeAdapters, see if there is a Converter for the parameter type
-      Converter<?, ?> parameterTypeConvertor = adaptersAnnotation == null ? null : getParameterConverter(adaptersAnnotation, type);
-
-      if (parameterTypeConvertor != null) {
-        javaType = ((Converter<?, ?>) parameterTypeConvertor).getOutputType(soapstoneConfiguration.getObjectMapper().getTypeFactory());
-        type = javaType.getRawClass();
-      }
+    if (parameterConvertor.isPresent()) {
+      javaType = ((Converter<?, ?>) parameterConvertor.get()).getOutputType(soapstoneConfiguration.getObjectMapper().getTypeFactory());
+      type = javaType.getRawClass();
     }
 
     Schema<?> propertySchema = PrimitiveType.createProperty(type);
@@ -462,25 +451,37 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private Converter<?, ?> getParameterConverter(final XmlJavaTypeAdapters adaptersAnnotation, final Type type) {
+  /**
+   * Check and return any parameter converter in the package of this class.
+   * This must be done here as this context will not be available in {@link ParentAwareModelResolver}
+   */
+  private Optional<Converter<?,?>> getParameterConverterForPackage(final Type type, final Class<?> currentResourceClass) {
 
-    XmlJavaTypeAdapter adapterAnnotation = Arrays.stream(adaptersAnnotation.value())
-            .filter(adAnn -> adAnn.type() == type)
-            .findFirst().orElse(null);
+    Optional<Converter<?,?>> parameterConvertor = Optional.empty();
 
-    Converter<?, ?> parameterConvertor = null;
-    if (adapterAnnotation != null) {
-      Class<? extends XmlAdapter> adapterCls = adapterAnnotation.value();
-      XmlAdapter<?, ?> adapter = ClassUtil.createInstance(adapterCls, true);
+    // See if we have a XmlJavaTypeAdapter annotation in the package this class is in
+    XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
+    if (adapterAnnotation == null || adapterAnnotation.type() != type) {
+      // If there is no XmlJavaTypeAdapter or not one for this type, see if there are XmlJavaTypeAdapters
+      XmlJavaTypeAdapters adaptersAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
 
-      TypeFactory tf = soapstoneConfiguration.getObjectMapper().getTypeFactory();
-      JavaType adapterType = tf.constructType(adapter.getClass());
-      JavaType[] pt = tf.findTypeParameters(adapterType, XmlAdapter.class);
-      // Order of type parameters for Converter is reverse between serializer, deserializer,
-      // whereas JAXB just uses single ordering
+      adapterAnnotation = adaptersAnnotation == null ? null : Arrays.stream(adaptersAnnotation.value())
+          .filter(adAnn -> adAnn.type() == type)
+          .findFirst().orElse(null);
 
-      parameterConvertor = new AdapterConverter(adapter, pt[1], pt[0], true);
+      if (adapterAnnotation != null) {
+        Class<? extends XmlAdapter> adapterCls = adapterAnnotation.value();
+        XmlAdapter<?, ?> adapter = ClassUtil.createInstance(adapterCls, true);
+
+        TypeFactory tf = soapstoneConfiguration.getObjectMapper().getTypeFactory();
+        JavaType adapterType = tf.constructType(adapter.getClass());
+        JavaType[] pt = tf.findTypeParameters(adapterType, XmlAdapter.class);
+        // Order of type parameters for Converter is reverse between serializer, deserializer,
+        // whereas JAXB just uses single ordering
+
+        parameterConvertor = Optional.of(new AdapterConverter(adapter, pt[1], pt[0], true));
+      }
     }
-    return parameterConvertor;
+      return parameterConvertor;
   }
 }
