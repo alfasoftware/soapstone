@@ -28,14 +28,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapters;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.fasterxml.jackson.databind.util.ClassUtil;
+import com.fasterxml.jackson.databind.util.Converter;
+import com.fasterxml.jackson.module.jaxb.AdapterConverter;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
@@ -60,9 +72,6 @@ import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.servers.Server;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of {@link OpenApiReader} which makes use of the web service classes
@@ -81,6 +90,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   private final SoapstoneConfiguration soapstoneConfiguration;
 
   private OpenAPIConfiguration openApiConfiguration;
+  private Class<?> currentResourceClass;
 
 
   SoapstoneOpenApiReader(String hostUrl, SoapstoneConfiguration soapstoneConfiguration) {
@@ -103,7 +113,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
   /**
    * We completely ignore any passed entities since we will always handle all and only
-   * what is provided to the {@link org.alfasoftware.soapstone.SoapstoneServiceBuilder}
+   * what is provided to the {@link SoapstoneServiceBuilder}
    * and accessible via {@link SoapstoneConfiguration#getWebServiceClasses()}.
    *
    * @param tags Set of tags to include in the model. If empty, all tags will be included
@@ -141,13 +151,13 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     for (String resourcePath : pathByClass.keySet()) {
 
-      Class<?> resourceClass = pathByClass.get(resourcePath);
-      if (resourceClass == null) {
+      currentResourceClass = pathByClass.get(resourcePath);
+      if (currentResourceClass == null) {
         throw new IllegalStateException("No web service class has been mapped to the path '" + resourcePath + "'");
       }
-      LOG.debug("Class: " + resourceClass.getName());
+      LOG.debug("Class: " + currentResourceClass.getName());
 
-      Set<Method> webMethods = Arrays.stream(resourceClass.getDeclaredMethods())
+      Set<Method> webMethods = Arrays.stream(currentResourceClass.getDeclaredMethods())
         .filter(method -> Modifier.isPublic(method.getModifiers()))
         .filter(method -> !(ofNullable(method.getAnnotation(WebMethod.class)).map(WebMethod::exclude).orElse(false)))
         .collect(Collectors.toSet());
@@ -413,6 +423,13 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
     LOG.debug("          " + javaType.toString());
 
+    Optional<Converter<?,?>> parameterConvertor = getParameterConverterForPackage(type, currentResourceClass);
+
+    if (parameterConvertor.isPresent()) {
+      javaType = ((Converter<?, ?>) parameterConvertor.get()).getOutputType(soapstoneConfiguration.getObjectMapper().getTypeFactory());
+      type = javaType.getRawClass();
+    }
+
     Schema<?> propertySchema = PrimitiveType.createProperty(type);
     if (propertySchema != null) {
       return propertySchema;
@@ -431,5 +448,40 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
       return schema;
     }
+  }
+
+
+  /**
+   * Check and return any parameter converter in the package of this class.
+   * This must be done here as this context will not be available in {@link ParentAwareModelResolver}
+   */
+  private Optional<Converter<?,?>> getParameterConverterForPackage(final Type type, final Class<?> currentResourceClass) {
+
+    Optional<Converter<?,?>> parameterConvertor = Optional.empty();
+
+    // See if we have a XmlJavaTypeAdapter annotation in the package this class is in
+    XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
+    if (adapterAnnotation == null || adapterAnnotation.type() != type) {
+      // If there is no XmlJavaTypeAdapter or not one for this type, see if there are XmlJavaTypeAdapters
+      XmlJavaTypeAdapters adaptersAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
+
+      adapterAnnotation = adaptersAnnotation == null ? null : Arrays.stream(adaptersAnnotation.value())
+          .filter(adAnn -> adAnn.type() == type)
+          .findFirst().orElse(null);
+
+      if (adapterAnnotation != null) {
+        Class<? extends XmlAdapter> adapterCls = adapterAnnotation.value();
+        XmlAdapter<?, ?> adapter = ClassUtil.createInstance(adapterCls, true);
+
+        TypeFactory tf = soapstoneConfiguration.getObjectMapper().getTypeFactory();
+        JavaType adapterType = tf.constructType(adapter.getClass());
+        JavaType[] pt = tf.findTypeParameters(adapterType, XmlAdapter.class);
+        // Order of type parameters for Converter is reverse between serializer, deserializer,
+        // whereas JAXB just uses single ordering
+
+        parameterConvertor = Optional.of(new AdapterConverter(adapter, pt[1], pt[0], true));
+      }
+    }
+      return parameterConvertor;
   }
 }
