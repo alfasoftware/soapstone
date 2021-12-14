@@ -43,6 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
@@ -423,7 +424,9 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
     LOG.debug("          " + javaType.toString());
 
-    Optional<Converter<?,?>> parameterConvertor = getParameterConverterForPackage(type, currentResourceClass);
+    resolveSuperTypes(javaType, components);
+
+    Optional<Converter<?, ?>> parameterConvertor = getParameterConverterForPackage(type, currentResourceClass);
 
     if (parameterConvertor.isPresent()) {
       javaType = ((Converter<?, ?>) parameterConvertor.get()).getOutputType(soapstoneConfiguration.getObjectMapper().getTypeFactory());
@@ -435,18 +438,48 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       return propertySchema;
     } else {
       ResolvedSchema resolvedSchema = ModelConverters.getInstance().resolveAsResolvedSchema(
-        new AnnotatedType()
-          .type(javaType)
-          .resolveAsRef(true)
+          new AnnotatedType()
+              .type(javaType)
+              .resolveAsRef(true)
       );
       if (resolvedSchema == null || resolvedSchema.schema == null) {
         return null;
       }
 
       Schema<?> schema = resolvedSchema.schema;
-      resolvedSchema.referencedSchemas.forEach(components::addSchemas);
+      resolvedSchema.referencedSchemas.forEach(
+          (reference, refSchema) -> {
+            if (components.getSchemas() == null || !components.getSchemas().containsKey(reference)) {
+              components.addSchemas(reference, refSchema);
+            }
+          }
+      );
 
       return schema;
+    }
+  }
+
+
+  /**
+   * We ensure super types are resolved first, this makes sure that inheritance ends up being properly documented
+   */
+  private void resolveSuperTypes(JavaType javaType, Components components) {
+
+    // Find the 'furthest' supertype which contributes to the exposed API
+    Class<?> superType = null;
+    JavaType javaSuperType = javaType.getSuperClass();
+
+    while (javaSuperType != null && javaSuperType.getRawClass().getDeclaredAnnotation(JsonTypeInfo.class) != null) {
+      superType = javaSuperType.getRawClass();
+      javaSuperType = javaSuperType.getSuperClass();
+    }
+
+    /*
+     * Resolve the schema.
+     * We don't care about the return type here as it's only the referenced schemas that we care about.
+     */
+    if (superType != null) {
+      typeToSchema(superType, components);
     }
   }
 
@@ -455,9 +488,9 @@ class SoapstoneOpenApiReader implements OpenApiReader {
    * Check and return any parameter converter in the package of this class.
    * This must be done here as this context will not be available in {@link ParentAwareModelResolver}
    */
-  private Optional<Converter<?,?>> getParameterConverterForPackage(final Type type, final Class<?> currentResourceClass) {
+  private Optional<Converter<?, ?>> getParameterConverterForPackage(final Type type, final Class<?> currentResourceClass) {
 
-    Optional<Converter<?,?>> parameterConvertor = Optional.empty();
+    Optional<Converter<?, ?>> parameterConvertor = Optional.empty();
 
     // See if we have a XmlJavaTypeAdapter annotation in the package this class is in
     XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
@@ -470,8 +503,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .findFirst().orElse(null);
 
       if (adapterAnnotation != null) {
-        Class<? extends XmlAdapter> adapterCls = adapterAnnotation.value();
-        XmlAdapter<?, ?> adapter = ClassUtil.createInstance(adapterCls, true);
+        XmlAdapter<?, ?> adapter = ClassUtil.createInstance(adapterAnnotation.value(), true);
 
         TypeFactory tf = soapstoneConfiguration.getObjectMapper().getTypeFactory();
         JavaType adapterType = tf.constructType(adapter.getClass());
@@ -482,6 +514,6 @@ class SoapstoneOpenApiReader implements OpenApiReader {
         parameterConvertor = Optional.of(new AdapterConverter(adapter, pt[1], pt[0], true));
       }
     }
-      return parameterConvertor;
+    return parameterConvertor;
   }
 }
