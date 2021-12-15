@@ -109,8 +109,8 @@ class ParentAwareModelResolver extends ModelResolver {
     if (convertedType != null) {
 
       return resolve(new AnnotatedType()
-        .type(convertedType)
-        .ctxAnnotations(annotatedType.getCtxAnnotations()), context, chain);
+          .type(convertedType)
+          .ctxAnnotations(annotatedType.getCtxAnnotations()), context, chain);
     }
 
     definedTypes.putIfAbsent(_typeName(type), type);
@@ -127,21 +127,27 @@ class ParentAwareModelResolver extends ModelResolver {
       return defaultDescription;
     }
 
-    Collection<Annotation> contextAnnotations = annotations != null ? asList(annotations) : emptyList();
-
-    Optional<String> descriptionFromContext = configuration.getDocumentationProvider()
-      .flatMap(provider -> provider.forModelProperty(contextAnnotations));
-
-    if (!descriptionFromContext.isPresent() && a != null) {
-
-      Collection<Annotation> entityAnnotations = asList(a.getAnnotated().getAnnotations());
-
-      return configuration.getDocumentationProvider()
-        .flatMap(provider -> provider.forModelProperty(entityAnnotations))
-        .orElse(null);
+    if (a == null) {
+      return null;
     }
 
-    return descriptionFromContext.orElse(null);
+    if (a.getType() == null || a.getType().isPrimitive()) {
+      Collection<Annotation> contextAnnotations = annotations != null ? asList(annotations) : emptyList();
+
+      Optional<String> descriptionFromContext = configuration.getDocumentationProvider()
+          .flatMap(provider -> provider.forModelProperty(contextAnnotations));
+
+      if (descriptionFromContext.isPresent()) {
+        return descriptionFromContext.get();
+      }
+    }
+
+    Collection<Annotation> entityAnnotations = asList(a.getAnnotated().getAnnotations());
+
+    return configuration.getDocumentationProvider()
+        .flatMap(provider -> provider.forModelProperty(entityAnnotations))
+        .orElse(null);
+
   }
 
 
@@ -161,9 +167,9 @@ class ParentAwareModelResolver extends ModelResolver {
         BeanDescription parentBeanDescription = _mapper.getSerializationConfig().introspect(parentType);
 
         return parentBeanDescription.findProperties().stream()
-          .filter(property -> property.getName().equals(currentPropertyName))
-          .findFirst()
-          .map(BeanPropertyDefinition::getPrimaryMember);
+            .filter(property -> property.getName().equals(currentPropertyName))
+            .findFirst()
+            .map(BeanPropertyDefinition::getPrimaryMember);
       }
     }
 

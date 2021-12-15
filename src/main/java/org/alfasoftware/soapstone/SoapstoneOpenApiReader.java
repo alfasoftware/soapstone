@@ -429,7 +429,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     Optional<Converter<?, ?>> parameterConvertor = getParameterConverterForPackage(type, currentResourceClass);
 
     if (parameterConvertor.isPresent()) {
-      javaType = ((Converter<?, ?>) parameterConvertor.get()).getOutputType(soapstoneConfiguration.getObjectMapper().getTypeFactory());
+      javaType = parameterConvertor.get().getOutputType(soapstoneConfiguration.getObjectMapper().getTypeFactory());
       type = javaType.getRawClass();
     }
 
