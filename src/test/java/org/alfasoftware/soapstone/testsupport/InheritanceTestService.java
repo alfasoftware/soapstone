@@ -16,7 +16,9 @@ package org.alfasoftware.soapstone.testsupport;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
+import javax.xml.bind.annotation.XmlTransient;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -30,6 +32,7 @@ public class InheritanceTestService {
   /**
    * Type hidden from the API - should not be documented
    */
+  @XmlTransient
   public static class HiddenSuperType {}
 
 

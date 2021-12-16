@@ -91,9 +91,6 @@ public class TestSoapstoneOpenApiReaderWithInheritance {
     SoapstoneConfiguration soapstoneConfiguration = new SoapstoneConfiguration();
     soapstoneConfiguration.setWebServiceClasses(webServices);
     soapstoneConfiguration.setObjectMapper(objectMapper);
-    soapstoneConfiguration.setSupportedGetOperations(Pattern.compile("get.*"));
-    soapstoneConfiguration.setSupportedDeleteOperations(Pattern.compile("delete.*"));
-    soapstoneConfiguration.setSupportedPutOperations(Pattern.compile("put.*"));
 
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(soapstoneConfiguration));
 
