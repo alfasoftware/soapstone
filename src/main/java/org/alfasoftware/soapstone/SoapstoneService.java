@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -310,18 +309,15 @@ public class SoapstoneService {
     // Find supported operations
     Set<String> supportedMethods = new HashSet<>();
 
-    Pattern supportedGetOperations = configuration.getSupportedGetOperations();
-    if (supportedGetOperations != null && supportedGetOperations.matcher(operationName).matches()) {
+    if (configuration.getSupportedGetOperations().map(p -> p.matcher(operationName).matches()).orElse(false)) {
       supportedMethods.add(GET);
     }
 
-    Pattern supportedDeleteOperations = configuration.getSupportedDeleteOperations();
-    if (supportedDeleteOperations != null && supportedDeleteOperations.matcher(operationName).matches()) {
+    if (configuration.getSupportedDeleteOperations().map(p -> p.matcher(operationName).matches()).orElse(false)) {
       supportedMethods.add(DELETE);
     }
 
-    Pattern supportedPutOperations = configuration.getSupportedPutOperations();
-    if (supportedPutOperations != null && supportedPutOperations.matcher(operationName).matches()) {
+    if (configuration.getSupportedPutOperations().map(p -> p.matcher(operationName).matches()).orElse(false)) {
       supportedMethods.add(PUT);
     }
 
