@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 class SoapstoneConfiguration {
 
+
   private ObjectMapper objectMapper;
   private ExceptionMapper exceptionMapper;
   private Map<String, WebServiceClass<?>> webServiceClasses;
@@ -72,24 +73,24 @@ class SoapstoneConfiguration {
     this.vendor = vendor;
   }
 
-  Pattern getSupportedGetOperations() {
-    return supportedGetOperations;
+  Optional<Pattern> getSupportedGetOperations() {
+    return Optional.ofNullable(supportedGetOperations);
   }
 
   void setSupportedGetOperations(Pattern supportedGetOperations) {
     this.supportedGetOperations = supportedGetOperations;
   }
 
-  Pattern getSupportedPutOperations() {
-    return supportedPutOperations;
+  Optional<Pattern> getSupportedPutOperations() {
+    return Optional.ofNullable(supportedPutOperations);
   }
 
   void setSupportedPutOperations(Pattern supportedPutOperations) {
     this.supportedPutOperations = supportedPutOperations;
   }
 
-  Pattern getSupportedDeleteOperations() {
-    return supportedDeleteOperations;
+  Optional<Pattern> getSupportedDeleteOperations() {
+    return Optional.ofNullable(supportedDeleteOperations);
   }
 
   void setSupportedDeleteOperations(Pattern supportedDeleteOperations) {

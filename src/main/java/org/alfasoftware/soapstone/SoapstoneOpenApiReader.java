@@ -43,6 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
@@ -87,15 +88,15 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
 
   private final String hostUrl;
-  private final SoapstoneConfiguration soapstoneConfiguration;
+  private final SoapstoneConfiguration configuration;
 
   private OpenAPIConfiguration openApiConfiguration;
   private Class<?> currentResourceClass;
 
 
-  SoapstoneOpenApiReader(String hostUrl, SoapstoneConfiguration soapstoneConfiguration) {
+  SoapstoneOpenApiReader(String hostUrl, SoapstoneConfiguration configuration) {
     this.hostUrl = hostUrl;
-    this.soapstoneConfiguration = soapstoneConfiguration;
+    this.configuration = configuration;
   }
 
 
@@ -121,7 +122,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
    */
   OpenAPI read(Set<String> tags) {
 
-    Map<String, Class<?>> pathByClass = soapstoneConfiguration.getWebServiceClasses().entrySet().stream()
+    Map<String, Class<?>> pathByClass = configuration.getWebServiceClasses().entrySet().stream()
       .collect(Collectors.toMap(
         entry -> entry.getKey().startsWith("/") ? entry.getKey() : "/" + entry.getKey(),
         entry -> entry.getValue().getUnderlyingClass(),
@@ -129,9 +130,9 @@ class SoapstoneOpenApiReader implements OpenApiReader {
         TreeMap::new));
 
     // If tags have been provided, filter out any entries which don't match the tags
-    if (tags != null && !tags.isEmpty() && soapstoneConfiguration.getTagProvider().isPresent()) {
+    if (tags != null && !tags.isEmpty() && configuration.getTagProvider().isPresent()) {
       pathByClass = pathByClass.entrySet().stream()
-        .filter(entry -> tags.contains(soapstoneConfiguration.getTagProvider().get().apply(entry.getKey())))
+        .filter(entry -> tags.contains(configuration.getTagProvider().get().apply(entry.getKey())))
         .collect(Collectors.toMap(Entry::getKey, Entry::getValue, (p, q) -> p, TreeMap::new));
     }
 
@@ -143,9 +144,9 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     openAPI.addServersItem(server);
 
     Info info = new Info()
-      .title(soapstoneConfiguration.getVendor() + " soapstone")
+      .title(configuration.getVendor() + " soapstone")
       .version("(generated)")
-      .description("Soapstone Generated API for " + soapstoneConfiguration.getVendor());
+      .description("Soapstone Generated API for " + configuration.getVendor());
 
     openAPI.setInfo(info);
 
@@ -171,7 +172,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .orElse(method.getName());
         LOG.debug("    Operation: " + operationName);
 
-        String tag = soapstoneConfiguration.getTagProvider()
+        String tag = configuration.getTagProvider()
           .map(provider -> provider.apply(resourcePath))
           .orElse(null);
 
@@ -217,7 +218,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     response.setContent(methodToResponseContent(method, components));
     LOG.debug("        Done");
 
-    soapstoneConfiguration.getDocumentationProvider()
+    configuration.getDocumentationProvider()
       .flatMap(provider -> provider.forMethodReturn(method))
       .ifPresent(response::setDescription);
 
@@ -230,7 +231,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     newOperation.setResponses(responses);
     newOperation.addTagsItem(tag);
 
-    soapstoneConfiguration.getDocumentationProvider()
+    configuration.getDocumentationProvider()
       .flatMap(provider -> provider.forMethod(method))
       .ifPresent(newOperation::setDescription);
 
@@ -243,13 +244,13 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     // If all parameters can be expressed as query parameters then we can consider a GET or DELETE operation
     if (queryParameters.size() == bodyParameters.size()) {
 
-      if (soapstoneConfiguration.getSupportedGetOperations().matcher(operationName).matches()) {
+      if (configuration.getSupportedGetOperations().map(p -> p.matcher(operationName).matches()).orElse(false)) {
 
         queryParameters.addAll(headerParameters);
         newOperation.setParameters(queryParameters);
         pathItem.setGet(newOperation);
 
-      } else if (soapstoneConfiguration.getSupportedDeleteOperations().matcher(operationName).matches()) {
+      } else if (configuration.getSupportedDeleteOperations().map(p -> p.matcher(operationName).matches()).orElse(false)) {
 
         queryParameters.addAll(headerParameters);
         newOperation.setParameters(queryParameters);
@@ -264,7 +265,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       newOperation.setParameters(headerParameters);
       newOperation.setRequestBody(requestBody);
 
-      if (soapstoneConfiguration.getSupportedPutOperations().matcher(operationName).matches()) {
+      if (configuration.getSupportedPutOperations().map(p -> p.matcher(operationName).matches()).orElse(false)) {
         pathItem.setPut(newOperation);
       } else {
         pathItem.setPost(newOperation);
@@ -311,7 +312,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     queryParameter.setSchema(schema);
     LOG.debug("        Done");
 
-    soapstoneConfiguration.getDocumentationProvider()
+    configuration.getDocumentationProvider()
       .flatMap(provider -> provider.forParameter(parameter))
       .ifPresent(queryParameter::setDescription);
 
@@ -322,7 +323,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   private HeaderParameter parameterToHeaderParameter(Parameter parameter, Components components) {
 
     String parameterName = ofNullable(trimToNull(parameter.getAnnotation(WebParam.class).name())).orElse(parameter.getName());
-    String headerName = "X-" + soapstoneConfiguration.getVendor() + "-" + capitalize(parameterName);
+    String headerName = "X-" + configuration.getVendor() + "-" + capitalize(parameterName);
     String headerId = headerName.replaceAll("\\W", "");
 
     HeaderParameter headerParameter = new HeaderParameter();
@@ -345,7 +346,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     schemaRef.set$ref("#/components/schemas/" + headerId);
     headerParameter.setSchema(schemaRef);
 
-    soapstoneConfiguration.getDocumentationProvider()
+    configuration.getDocumentationProvider()
       .flatMap(provider -> provider.forParameter(parameter))
       .ifPresent(headerParameter::setDescription);
 
@@ -390,7 +391,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
       Schema<?> typeToSchema = typeToSchema(parameter.getParameterizedType(), components);
       if (typeToSchema != null) {
-        soapstoneConfiguration.getDocumentationProvider()
+        configuration.getDocumentationProvider()
           .flatMap(provider -> provider.forParameter(parameter))
           .ifPresent(typeToSchema::setDescription);
       }
@@ -420,13 +421,15 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
   private Schema<?> typeToSchema(Type type, Components components) {
 
-    JavaType javaType = soapstoneConfiguration.getObjectMapper().constructType(type);
+    JavaType javaType = configuration.getObjectMapper().constructType(type);
     LOG.debug("          " + javaType.toString());
 
-    Optional<Converter<?,?>> parameterConvertor = getParameterConverterForPackage(type, currentResourceClass);
+    resolveSuperTypes(javaType, components);
+
+    Optional<Converter<?, ?>> parameterConvertor = getConverterFromPackage(type, currentResourceClass);
 
     if (parameterConvertor.isPresent()) {
-      javaType = ((Converter<?, ?>) parameterConvertor.get()).getOutputType(soapstoneConfiguration.getObjectMapper().getTypeFactory());
+      javaType = parameterConvertor.get().getOutputType(configuration.getObjectMapper().getTypeFactory());
       type = javaType.getRawClass();
     }
 
@@ -435,16 +438,22 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       return propertySchema;
     } else {
       ResolvedSchema resolvedSchema = ModelConverters.getInstance().resolveAsResolvedSchema(
-        new AnnotatedType()
-          .type(javaType)
-          .resolveAsRef(true)
+          new AnnotatedType()
+              .type(javaType)
+              .resolveAsRef(true)
       );
       if (resolvedSchema == null || resolvedSchema.schema == null) {
         return null;
       }
 
       Schema<?> schema = resolvedSchema.schema;
-      resolvedSchema.referencedSchemas.forEach(components::addSchemas);
+      resolvedSchema.referencedSchemas.forEach(
+          (reference, refSchema) -> {
+            if (components.getSchemas() == null || !components.getSchemas().containsKey(reference)) {
+              components.addSchemas(reference, refSchema);
+            }
+          }
+      );
 
       return schema;
     }
@@ -452,36 +461,66 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
 
   /**
-   * Check and return any parameter converter in the package of this class.
+   * We ensure super types are resolved first, this makes sure that inheritance ends up being properly documented
+   */
+  private void resolveSuperTypes(JavaType javaType, Components components) {
+
+    // Find the 'furthest' supertype which contributes to the exposed API
+    Class<?> superType = null;
+    JavaType javaSuperType = javaType.getSuperClass();
+
+    while (javaSuperType != null && javaSuperType.getRawClass().getDeclaredAnnotation(JsonTypeInfo.class) != null) {
+      superType = javaSuperType.getRawClass();
+      javaSuperType = javaSuperType.getSuperClass();
+    }
+
+    /*
+     * Resolve the schema.
+     * We don't care about the return type here as it's only the referenced schemas that we care about.
+     */
+    if (superType != null) {
+      typeToSchema(superType, components);
+    }
+  }
+
+
+  /**
+   * Check and return any type converter declared on the package of this class.
    * This must be done here as this context will not be available in {@link ParentAwareModelResolver}
    */
-  private Optional<Converter<?,?>> getParameterConverterForPackage(final Type type, final Class<?> currentResourceClass) {
+  private Optional<Converter<?, ?>> getConverterFromPackage(final Type type, final Class<?> currentResourceClass) {
 
-    Optional<Converter<?,?>> parameterConvertor = Optional.empty();
+    XmlJavaTypeAdapter typeAdapter = null;
 
     // See if we have a XmlJavaTypeAdapter annotation in the package this class is in
-    XmlJavaTypeAdapter adapterAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
-    if (adapterAnnotation == null || adapterAnnotation.type() != type) {
-      // If there is no XmlJavaTypeAdapter or not one for this type, see if there are XmlJavaTypeAdapters
-      XmlJavaTypeAdapters adaptersAnnotation = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
+    XmlJavaTypeAdapter declaredSingleAdapter = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapter.class);
+    if (declaredSingleAdapter != null && declaredSingleAdapter.type() == type) {
+      typeAdapter = declaredSingleAdapter;
+    }
 
-      adapterAnnotation = adaptersAnnotation == null ? null : Arrays.stream(adaptersAnnotation.value())
-          .filter(adAnn -> adAnn.type() == type)
-          .findFirst().orElse(null);
+    // If there is no XmlJavaTypeAdapter or not one for this type, see if there are any declared in XmlJavaTypeAdapters
+    if (typeAdapter == null) {
 
-      if (adapterAnnotation != null) {
-        Class<? extends XmlAdapter> adapterCls = adapterAnnotation.value();
-        XmlAdapter<?, ?> adapter = ClassUtil.createInstance(adapterCls, true);
-
-        TypeFactory tf = soapstoneConfiguration.getObjectMapper().getTypeFactory();
-        JavaType adapterType = tf.constructType(adapter.getClass());
-        JavaType[] pt = tf.findTypeParameters(adapterType, XmlAdapter.class);
-        // Order of type parameters for Converter is reverse between serializer, deserializer,
-        // whereas JAXB just uses single ordering
-
-        parameterConvertor = Optional.of(new AdapterConverter(adapter, pt[1], pt[0], true));
+      XmlJavaTypeAdapters declaredMultipleAdapters = currentResourceClass.getPackage().getAnnotation(XmlJavaTypeAdapters.class);
+      if (declaredMultipleAdapters != null) {
+        typeAdapter = Arrays.stream(declaredMultipleAdapters.value())
+            .filter(adAnn -> adAnn.type() == type)
+            .findFirst().orElse(null);
       }
     }
-      return parameterConvertor;
+
+    // If we found an adapter then create and return an equivalent converter
+    if (typeAdapter != null) {
+      XmlAdapter<?, ?> adapter = ClassUtil.createInstance(typeAdapter.value(), true);
+
+      TypeFactory typeFactory = configuration.getObjectMapper().getTypeFactory();
+      JavaType adapterType = typeFactory.constructType(adapter.getClass());
+      JavaType[] typeParameters = typeFactory.findTypeParameters(adapterType, XmlAdapter.class);
+
+      // XmlAdapter and converter order the input and output types differently, so we reverse the order here
+      return Optional.of(new AdapterConverter(adapter, typeParameters[1], typeParameters[0], true));
+    }
+
+    return Optional.empty();
   }
 }
