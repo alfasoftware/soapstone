@@ -359,6 +359,11 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("type", is("string")),
       hasProperty("format", is("byte"))
     ));
+
+    assertThat(schema.getProperties().get("packageAnnotatedAdaptableList"), allOf(
+        hasProperty("type", is("array")),
+            hasProperty("items", hasProperty("type", is("string")))
+    ));
   }
 
 
