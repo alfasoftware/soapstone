@@ -106,6 +106,7 @@ public class WebService {
     private PackageAnnotatedAdaptable packageAnnotatedAdaptable;
     private ClassAnnotatedAdaptable classAnnotatedAdaptable;
     private DataHandler dataHandler;
+    private List<PackageAnnotatedAdaptable> packageAnnotatedAdaptableList;
 
     public RequestObject getNestedObject() {
       return nestedObject;
@@ -138,6 +139,12 @@ public class WebService {
     @XmlJavaTypeAdapter(LocalDateAdapter.class)
     public LocalDate getDate() {
       return date;
+    }
+
+
+    @XmlElement(name = "packageAnnotatedAdaptableList")
+    public List<PackageAnnotatedAdaptable> getPackageAnnotatedAdaptableList() {
+      return packageAnnotatedAdaptableList;
     }
 
     @Documentation("Method: ResponseObject#getPackageAnnotatedAdaptable()")

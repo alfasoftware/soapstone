@@ -100,6 +100,9 @@ class ParentAwareModelResolver extends ModelResolver {
       if (memberForType.isPresent()) {
 
         Object memberConverter = introspector.findSerializationConverter(memberForType.get());
+        if(memberConverter == null && !type.isContainerType()) {
+          memberConverter = introspector.findSerializationContentConverter(memberForType.get());
+        }
 
         if (memberConverter instanceof Converter) {
           convertedType = ((Converter<?, ?>) memberConverter).getOutputType(_mapper.getTypeFactory());
