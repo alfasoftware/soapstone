@@ -43,8 +43,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.ClassUtil;
 import com.fasterxml.jackson.databind.util.Converter;
@@ -465,21 +466,18 @@ class SoapstoneOpenApiReader implements OpenApiReader {
    */
   private void resolveSuperTypes(JavaType javaType, Components components) {
 
-    // Find the 'furthest' supertype which contributes to the exposed API
-    Class<?> superType = null;
+    // Get the supertype
     JavaType javaSuperType = javaType.getSuperClass();
 
-    while (javaSuperType != null && javaSuperType.getRawClass().getDeclaredAnnotation(JsonTypeInfo.class) != null) {
-      superType = javaSuperType.getRawClass();
-      javaSuperType = javaSuperType.getSuperClass();
-    }
+    SerializationConfig serializationConfig = configuration.getObjectMapper().getSerializationConfig();
+    AnnotationIntrospector introspector = serializationConfig.getAnnotationIntrospector();
 
     /*
-     * Resolve the schema.
+     * Resolve the schema of the supertype if we have one and it's relevant to the API.
      * We don't care about the return type here as it's only the referenced schemas that we care about.
      */
-    if (superType != null) {
-      typeToSchema(superType, components);
+    if (javaSuperType != null && introspector.findSubtypes(serializationConfig.introspect(javaSuperType).getClassInfo()) != null) {
+      typeToSchema(javaSuperType.getRawClass(), components);
     }
   }
 

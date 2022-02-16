@@ -18,6 +18,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
@@ -80,6 +82,8 @@ class ParentAwareModelResolver extends ModelResolver {
       return dataHandlerSchema;
     }
 
+    resolveSuperTypes(annotatedType, context);
+
     JavaType type;
     if (annotatedType.getType() instanceof JavaType) {
       type = (JavaType) annotatedType.getType();
@@ -100,7 +104,7 @@ class ParentAwareModelResolver extends ModelResolver {
       if (memberForType.isPresent()) {
 
         Object memberConverter = introspector.findSerializationConverter(memberForType.get());
-        if(memberConverter == null && !type.isContainerType()) {
+        if (memberConverter == null && !type.isContainerType()) {
           memberConverter = introspector.findSerializationContentConverter(memberForType.get());
         }
 
@@ -118,7 +122,31 @@ class ParentAwareModelResolver extends ModelResolver {
 
     definedTypes.putIfAbsent(_typeName(type), type);
 
-    return super.resolve(annotatedType, context, chain);
+    return context.getDefinedModels().containsKey(_typeName(type)) ?
+        context.getDefinedModels().get(_typeName(type)) :
+        super.resolve(annotatedType, context, chain);
+  }
+
+
+  /**
+   * We ensure super types are resolved first, this makes sure that inheritance ends up being properly documented
+   */
+  private void resolveSuperTypes(AnnotatedType annotatedType, ModelConverterContext context) {
+
+    Type type = annotatedType.getType();
+    JavaType javaType = objectMapper().getTypeFactory().constructType(type);
+
+    // Find the 'furthest' supertype which contributes to the exposed API
+    JavaType javaSuperType = javaType.getSuperClass();
+
+    SerializationConfig serializationConfig = _mapper.getSerializationConfig();
+    AnnotationIntrospector introspector = serializationConfig.getAnnotationIntrospector();
+
+    if (javaSuperType != null && !javaSuperType.hasGenericTypes()
+        && introspector.findSubtypes(serializationConfig.introspect(javaSuperType).getClassInfo()) != null
+        && !definedTypes.containsValue(javaSuperType)) {
+      context.resolve(new AnnotatedType().type(javaSuperType).ctxAnnotations(javaSuperType.getRawClass().getAnnotations()));
+    }
   }
 
 
@@ -150,7 +178,6 @@ class ParentAwareModelResolver extends ModelResolver {
     return configuration.getDocumentationProvider()
         .flatMap(provider -> provider.forModelProperty(entityAnnotations))
         .orElse(null);
-
   }
 
 
