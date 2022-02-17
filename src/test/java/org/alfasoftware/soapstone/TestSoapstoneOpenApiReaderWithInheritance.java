@@ -33,7 +33,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import org.alfasoftware.soapstone.testsupport.InheritanceTestService;
 import org.hamcrest.Matchers;
