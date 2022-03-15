@@ -7,7 +7,7 @@
 
    <groupId>org.alfasoftware</groupId>
    <artifactId>soapstone</artifactId>
-   <version>3.0.12-SNAPSHOT</version>
+   <version>3.1.1-SNAPSHOT</version>
 
    <name>soapstone</name>
    <description>soapstone is a library for exposing API catalogues of JAX-WS SOAP web services as JSON/HTTP.
@@ -136,7 +136,7 @@
       <dependency>
          <groupId>junit</groupId>
          <artifactId>junit</artifactId>
-         <version>4.13</version>
+         <version>4.13.1</version>
          <scope>test</scope>
       </dependency>
       <dependency>
