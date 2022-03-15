@@ -272,7 +272,7 @@ class ParentAwareModelResolver extends ModelResolver {
     @Override
     protected String nameForClass(Class<?> cls, Set<Options> options) {
 
-      io.swagger.v3.oas.annotations.media.Schema annotation = cls.getAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+      io.swagger.v3.oas.annotations.media.Schema annotation = cls.getDeclaredAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
       if (annotation != null && StringUtils.isNotBlank(annotation.name())) {
         return StringUtils.trim(annotation.name());
       }
