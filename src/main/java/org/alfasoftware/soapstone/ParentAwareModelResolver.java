@@ -120,11 +120,41 @@ class ParentAwareModelResolver extends ModelResolver {
           .ctxAnnotations(annotatedType.getCtxAnnotations()), context, chain);
     }
 
-    definedTypes.putIfAbsent(_typeName(type), type);
+    String typeName = _typeName(type);
+    checkNamingCollisions(typeName, type, definedTypes.get(typeName));
+    definedTypes.putIfAbsent(typeName, type);
 
-    return context.getDefinedModels().containsKey(_typeName(type)) ?
-        context.getDefinedModels().get(_typeName(type)) :
+    return context.getDefinedModels().containsKey(typeName) ?
+        context.getDefinedModels().get(typeName) :
         super.resolve(annotatedType, context, chain);
+  }
+
+
+  /**
+   * Check to see if we have two different types which share the same name.
+   *
+   * <p>
+   * This could be problematic as one type will "win" and hide the other,
+   * which may result in broken documentation. There are a number of "safe"
+   * collisions, so we check for those first.
+   * </p>
+   */
+  private void checkNamingCollisions(String typeName, JavaType type, JavaType knownType) {
+
+    // If there is no existing type, or if both types are the same then there is no collision
+    if (knownType == null || knownType.getRawClass().equals(type.getRawClass())) return;
+
+    // Ignore date-time, since multiple classes legitimately map to this
+    if ("date-time".equals(typeName)) return;
+
+    // Ignore if either type is primitive, since the collision is probably with the boxed type
+    if (type.isPrimitive() || knownType.isPrimitive()) return;
+
+    // Ignore if the types are both containers, since they will map to the same thing
+    if (type.isContainerType() && knownType.isContainerType()) return;
+
+    // To get here there must be two different types colliding on the name
+    throw new IllegalStateException("Name collision for name [" + typeName + "]. Classes [" + knownType.getRawClass() + ", " + type.getRawClass() + "].");
   }
 
 

@@ -18,12 +18,11 @@ import javax.jws.WebMethod;
 import javax.jws.WebParam;
 import javax.xml.bind.annotation.XmlTransient;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
- * Web service test for testing that inherited API models are documented
+ * Web service for testing that inherited API models are documented
  */
 @SuppressWarnings("unused")
 public class InheritanceTestService {
