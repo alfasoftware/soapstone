@@ -39,10 +39,11 @@ import javax.ws.rs.BadRequestException;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedMap;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Utility class containing methods used for extracting {@link WebParameter}s from requests.
@@ -105,9 +106,10 @@ class WebParameterMapper {
       );
     } catch (IOException e) {
 
-      String message = "Unable to parse entity:\n" + entity;
+      String message = "Unable to parse entity";
 
       LOG.warn(message, e);
+      LOG.debug(entity);
       throw new BadRequestException(message);
     }
     return webParameters;

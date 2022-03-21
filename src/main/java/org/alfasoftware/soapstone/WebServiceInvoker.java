@@ -33,11 +33,12 @@ import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
 import javax.xml.bind.annotation.XmlElement;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JavaType;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
 
 /**
  * Locates and invokes web service operations in accordance with JAX-WS annotations and conventions.
@@ -88,20 +89,23 @@ class WebServiceInvoker {
       JavaType returnType = configuration.getObjectMapper().constructType(operation.getGenericReturnType());
       return configuration.getObjectMapper().writerFor(returnType).writeValueAsString(methodReturn);
     } catch (InvocationTargetException e) {
-      LOG.error("Error produced within invocation of '" + operationName + "'", e);
+      LOG.error("Error produced within invocation of '" + operationName + "'");
+      LOG.debug("Original error", e);
       throw configuration.getExceptionMapper()
         .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), configuration.getObjectMapper()))
         .orElse(new InternalServerErrorException());
 
     } catch (IllegalAccessException e) {
-      LOG.error("Error attempting to access '" + operationName + "'", e);
+      LOG.error("Error attempting to access '" + operationName + "'");
+      LOG.debug("Original error", e);
       /*
        * We've already thoroughly checked that the method was valid and accessible, so this shouldn't happen.
        * If it does, it's something more nefarious than a 404
        */
       throw new InternalServerErrorException();
     } catch (JsonProcessingException e) {
-      LOG.error("Error marshalling response from '" + operationName + "'", e);
+      LOG.error("Error marshalling response from '" + operationName + "'");
+      LOG.debug("Original error", e);
       throw new InternalServerErrorException();
     }
   }
@@ -282,7 +286,8 @@ class WebServiceInvoker {
       }
       return configuration.getObjectMapper().convertValue(parameter.get().getNode(), type);
     } catch (Exception e) {
-      LOG.warn("Error unmarshalling " + parameter.get().getName(), e);
+      LOG.warn("Error unmarshalling " + parameter.get().getName());
+      LOG.debug("Original error", e);
       throw new BadRequestException(parameter.get().getNode() + " could not be unmarshalled to '" + parameterName + "'");
     }
   }
