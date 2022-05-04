@@ -150,6 +150,9 @@ class ParentAwareModelResolver extends ModelResolver {
     // Ignore if either type is primitive, since the collision is probably with the boxed type
     if (type.isPrimitive() || knownType.isPrimitive()) return;
 
+    // Ignore if either type is an enum, since it doesn't need to be represented as a model
+    if (type.isEnumType() || knownType.isEnumType()) return;
+
     // Ignore if the types are both containers, since they will map to the same thing
     if (type.isContainerType() && knownType.isContainerType()) return;
 
