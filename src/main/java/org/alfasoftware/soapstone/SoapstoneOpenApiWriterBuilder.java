@@ -1,4 +1,4 @@
-/* Copyright 2019 Alfa Financial Software
+/* Copyright 2022 Alfa Financial Software
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,27 +23,25 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import javax.ws.rs.WebApplicationException;
-
 import org.apache.commons.lang3.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.core.converter.ModelConverters;
 
 /**
- * Builder for the {@link SoapstoneService}
+ * Builder for the {@link SoapstoneOpenApiWriter}
  *
  * <p>
- * This requires a map of URL paths to {@link WebServiceClass}. Optionally it can also be provided with an
- * {@link ExceptionMapper} to map exceptions to {@link WebApplicationException} and a vendor name, for use
- * in custom headers.
+ * This requires a map of URL paths to {@link WebServiceClass}. Optionally it can also be provided with a vendor name,
+ * for use in custom headers, and a host url to be added to the servers in the generated document
  *
- * @author Copyright (c) Alfa Financial Software 2019
+ * @author Copyright (c) Alfa Financial Software 2022
  */
-public class SoapstoneServiceBuilder {
+public class SoapstoneOpenApiWriterBuilder {
 
   private final SoapstoneConfiguration configuration = new SoapstoneConfiguration();
   private String vendor;
+  private String hostUrl;
   private ObjectMapper objectMapper;
 
 
@@ -56,7 +54,7 @@ public class SoapstoneServiceBuilder {
    *
    * @param pathToWebServiceClassMap map of paths to web service classes
    */
-  public SoapstoneServiceBuilder(Map<String, WebServiceClass<?>> pathToWebServiceClassMap) {
+  public SoapstoneOpenApiWriterBuilder(Map<String, WebServiceClass<?>> pathToWebServiceClassMap) {
 
     // Standardise the map keys: remove any leading or trailing '/' characters
     Map<String, WebServiceClass<?>> standardisedMap = pathToWebServiceClassMap.entrySet().stream()
@@ -79,26 +77,8 @@ public class SoapstoneServiceBuilder {
    * @param objectMapper provided mapper
    * @return this
    */
-  public SoapstoneServiceBuilder withObjectMapper(ObjectMapper objectMapper) {
+  public SoapstoneOpenApiWriterBuilder withObjectMapper(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
-    return this;
-  }
-
-
-  /**
-   * Provide an {@link ExceptionMapper} to map exceptions caught during operation invocation to
-   * {@link WebApplicationException}
-   *
-   * <p>
-   * This is optional. If not specified then all invocation errors will be mapped to
-   * internal server errors (HTTP code 500).
-   * </p>
-   *
-   * @param exceptionMapper provided mapper
-   * @return this
-   */
-  public SoapstoneServiceBuilder withExceptionMapper(ExceptionMapper exceptionMapper) {
-    configuration.setExceptionMapper(exceptionMapper);
     return this;
   }
 
@@ -117,8 +97,24 @@ public class SoapstoneServiceBuilder {
    * @param vendor vendor name
    * @return this
    */
-  public SoapstoneServiceBuilder withVendor(String vendor) {
+  public SoapstoneOpenApiWriterBuilder withVendor(String vendor) {
     this.vendor = vendor;
+    return this;
+  }
+
+
+  /**
+   * Provide a host URL
+   *
+   * <p>
+   * This is optional
+   * </p>
+   *
+   * @param hostUrl host URL
+   * @return this
+   */
+  public SoapstoneOpenApiWriterBuilder withHostUrl(String hostUrl) {
+    this.hostUrl = hostUrl;
     return this;
   }
 
@@ -133,7 +129,7 @@ public class SoapstoneServiceBuilder {
    * @param regex regular expressions for matching operation names
    * @return this
    */
-  public SoapstoneServiceBuilder withSupportedGetOperations(String... regex) {
+  public SoapstoneOpenApiWriterBuilder withSupportedGetOperations(String... regex) {
     configuration.setSupportedGetOperations(createSupportedRegexPattern(regex));
     return this;
   }
@@ -149,7 +145,7 @@ public class SoapstoneServiceBuilder {
    * @param regex regular expressions for matching operation names
    * @return this
    */
-  public SoapstoneServiceBuilder withSupportedDeleteOperations(String... regex) {
+  public SoapstoneOpenApiWriterBuilder withSupportedDeleteOperations(String... regex) {
     configuration.setSupportedDeleteOperations(createSupportedRegexPattern(regex));
     return this;
   }
@@ -165,7 +161,7 @@ public class SoapstoneServiceBuilder {
    * @param regex regular expressions for matching operation names
    * @return this
    */
-  public SoapstoneServiceBuilder withSupportedPutOperations(String... regex) {
+  public SoapstoneOpenApiWriterBuilder withSupportedPutOperations(String... regex) {
     configuration.setSupportedPutOperations(createSupportedRegexPattern(regex));
     return this;
   }
@@ -185,7 +181,7 @@ public class SoapstoneServiceBuilder {
    * @param documentationProvider documentation provider
    * @return this
    */
-  public SoapstoneServiceBuilder withDocumentationProvider(DocumentationProvider documentationProvider) {
+  public SoapstoneOpenApiWriterBuilder withDocumentationProvider(DocumentationProvider documentationProvider) {
     configuration.setDocumentationProvider(documentationProvider);
     return this;
   }
@@ -196,7 +192,7 @@ public class SoapstoneServiceBuilder {
    * Tags are used to group operations when represented in Open API documents
    *
    * <p>
-   * The function should accept the path to a web service class (as provided in {@link #SoapstoneServiceBuilder(Map)})
+   * The function should accept the path to a web service class (as provided in {@link #SoapstoneOpenApiWriterBuilder(Map)})
    * and return a tag as a string.
    * </p>
    *
@@ -207,7 +203,7 @@ public class SoapstoneServiceBuilder {
    * @param tagProvider tag provider
    * @return this
    */
-  public SoapstoneServiceBuilder withTagProvider(Function<String, String> tagProvider) {
+  public SoapstoneOpenApiWriterBuilder withTagProvider(Function<String, String> tagProvider) {
     configuration.setTagProvider(tagProvider);
     return this;
   }
@@ -225,7 +221,7 @@ public class SoapstoneServiceBuilder {
    * @param typeNameProvider type name provider
    * @return this
    */
-  public SoapstoneServiceBuilder withTypeNameProvider(Function<Class<?>, String> typeNameProvider) {
+  public SoapstoneOpenApiWriterBuilder withTypeNameProvider(Function<Class<?>, String> typeNameProvider) {
     configuration.setTypeNameProvider(typeNameProvider);
     return this;
   }
@@ -236,7 +232,7 @@ public class SoapstoneServiceBuilder {
    *
    * @return a {@link SoapstoneService} with the appropriate fields set
    */
-  public SoapstoneService build() {
+  public SoapstoneOpenApiWriter build() {
 
     // Vendor and object mapper have defaults, so apply them here if required
     configuration.setVendor(vendor == null ? "Soapstone" : vendor);
@@ -245,7 +241,7 @@ public class SoapstoneServiceBuilder {
     // This is the easiest place to put this to ensure that it is added once and once only
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(configuration));
 
-    return new SoapstoneService(configuration);
+    return new SoapstoneOpenApiWriter(configuration, hostUrl);
   }
 
 
