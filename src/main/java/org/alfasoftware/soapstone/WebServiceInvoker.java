@@ -39,6 +39,8 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Locates and invokes web service operations in accordance with JAX-WS annotations and conventions.
@@ -82,12 +84,33 @@ class WebServiceInvoker {
       .toArray();
 
     LOG.info("Invoking " + operationName);
-    LOG.debug("Parameters: " + parameters);
+    if (LOG.isDebugEnabled()) {
+      List<JsonNode> nodes = parameters.stream().map(WebParameter::getNode).collect(Collectors.toList());
+      LOG.debug("Parameters: " + nodes);
+    }
+    if (LOG.isTraceEnabled()) {
+      List<String> prettyNodes = parameters.stream().map(parameter -> {
+        try {
+          return new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(parameter.getNode());
+        } catch (JsonProcessingException e) {
+          throw new RuntimeException("JsonProcessingException while trying to pretty-print the request", e);
+        }
+      }).collect(Collectors.toList());
+      LOG.trace("Parameters: " + prettyNodes);
+    }
 
     try {
       Object methodReturn = operation.invoke(webServiceClass.getInstance(), operationArgs);
       JavaType returnType = configuration.getObjectMapper().constructType(operation.getGenericReturnType());
-      return configuration.getObjectMapper().writerFor(returnType).writeValueAsString(methodReturn);
+      String ret = configuration.getObjectMapper().writerFor(returnType).writeValueAsString(methodReturn);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Return value: [" + ret + "]");
+      }
+      if (LOG.isTraceEnabled()) {
+        String prettyPrint = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(methodReturn);
+        LOG.trace("Return value: [" + prettyPrint + "]");
+      }
+      return ret;
     } catch (InvocationTargetException e) {
       LOG.error("Error produced within invocation of '" + operationName + "'");
       LOG.debug("Original error", e);
