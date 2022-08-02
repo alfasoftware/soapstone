@@ -7,7 +7,7 @@
 
    <groupId>org.alfasoftware</groupId>
    <artifactId>soapstone</artifactId>
-   <version>3.1.4</version>
+   <version>3.1.5-SNAPSHOT</version>
 
    <name>soapstone</name>
    <description>soapstone is a library for exposing API catalogues of JAX-WS SOAP web services as JSON/HTTP.
@@ -180,6 +180,11 @@
          <artifactId>mockito-core</artifactId>
          <version>2.28.2</version>
          <scope>test</scope>
+      </dependency>
+      <dependency>
+         <groupId>com.fasterxml.jackson.datatype</groupId>
+         <artifactId>jackson-datatype-joda</artifactId>
+         <version>2.1.5</version>
       </dependency>
    </dependencies>
 
