@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Locates and invokes web service operations in accordance with JAX-WS annotations and conventions.
@@ -85,18 +84,27 @@ class WebServiceInvoker {
 
     LOG.info("Invoking " + operationName);
     if (LOG.isDebugEnabled()) {
-      List<JsonNode> nodes = parameters.stream().map(WebParameter::getNode).collect(Collectors.toList());
-      LOG.debug("Parameters: " + nodes);
+      try {
+        List<JsonNode> nodes = parameters.stream().map(WebParameter::getNode).collect(Collectors.toList());
+        LOG.debug("Parameters: " + nodes);
+      } catch (Exception e) {
+        LOG.warn(String.format("Got a %s when try to trying the request", e.getClass().getSimpleName()));
+      }
     }
     if (LOG.isTraceEnabled()) {
-      List<String> prettyNodes = parameters.stream().map(parameter -> {
-        try {
-          return new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(parameter.getNode());
-        } catch (JsonProcessingException e) {
-          throw new RuntimeException("JsonProcessingException while trying to pretty-print the request", e);
-        }
-      }).collect(Collectors.toList());
-      LOG.trace("Parameters: " + prettyNodes);
+      try {
+        List<String> prettyNodes = parameters.stream().map(parameter -> {
+          try {
+            return configuration.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(parameter.getNode());
+          } catch (JsonProcessingException e) {
+            throw new RuntimeException("JsonProcessingException while trying to pretty-print the request", e);
+          }
+
+        }).collect(Collectors.toList());
+        LOG.trace("Parameters: " + prettyNodes);
+      } catch (Exception e) {
+        LOG.warn(String.format("Got a %s when try to trying the request", e.getClass().getSimpleName()));
+      }
     }
 
     try {
@@ -104,11 +112,19 @@ class WebServiceInvoker {
       JavaType returnType = configuration.getObjectMapper().constructType(operation.getGenericReturnType());
       String ret = configuration.getObjectMapper().writerFor(returnType).writeValueAsString(methodReturn);
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Return value: [" + ret + "]");
+        try {
+          LOG.debug("Return value: [" + ret + "]");
+        } catch (Exception e) {
+          LOG.warn(String.format("Got a %s when try to print the return value", e.getClass().getSimpleName()));
+        }
       }
       if (LOG.isTraceEnabled()) {
-        String prettyPrint = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(methodReturn);
-        LOG.trace("Return value: [" + prettyPrint + "]");
+        try {
+          String prettyPrint = configuration.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(methodReturn);
+          LOG.trace("Return value: [" + prettyPrint + "]");
+        } catch (Exception e) {
+          LOG.warn(String.format("Got a %s when try to print the return value", e.getClass().getSimpleName()));
+        }
       }
       return ret;
     } catch (InvocationTargetException e) {
