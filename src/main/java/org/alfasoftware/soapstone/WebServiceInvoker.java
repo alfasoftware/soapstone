@@ -40,8 +40,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.joda.JodaModule;
 
 /**
  * Locates and invokes web service operations in accordance with JAX-WS annotations and conventions.
@@ -97,7 +95,7 @@ class WebServiceInvoker {
       try {
         List<String> prettyNodes = parameters.stream().map(parameter -> {
           try {
-            return new ObjectMapper().registerModule(new JodaModule()).writerWithDefaultPrettyPrinter().writeValueAsString(parameter.getNode());
+            return configuration.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(parameter.getNode());
           } catch (JsonProcessingException e) {
             throw new RuntimeException("JsonProcessingException while trying to pretty-print the request", e);
           }
@@ -122,7 +120,7 @@ class WebServiceInvoker {
       }
       if (LOG.isTraceEnabled()) {
         try {
-          String prettyPrint = new ObjectMapper().registerModule(new JodaModule()).writerWithDefaultPrettyPrinter().writeValueAsString(methodReturn);
+          String prettyPrint = configuration.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(methodReturn);
           LOG.trace("Return value: [" + prettyPrint + "]");
         } catch (Exception e) {
           LOG.warn(String.format("Got a %s when try to print the return value", e.getClass().getSimpleName()));
