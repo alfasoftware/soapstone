@@ -14,12 +14,8 @@
  */
 package org.alfasoftware.soapstone;
 
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
-import static com.fasterxml.jackson.databind.MapperFeature.USE_WRAPPER_NAME_AS_PROPERTY_NAME;
-import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
-import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
-import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_ENUMS_USING_TO_STRING;
 import static io.swagger.v3.oas.models.parameters.Parameter.StyleEnum.SIMPLE;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasEntry;
@@ -27,7 +23,6 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
@@ -37,12 +32,12 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.AnnotationIntrospector;
+import org.alfasoftware.soapstone.testsupport.WebService;
+import org.alfasoftware.soapstone.testsupport.WebService.Documentation;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
-import com.fasterxml.jackson.databind.type.TypeFactory;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -52,10 +47,6 @@ import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
-import org.alfasoftware.soapstone.testsupport.WebService;
-import org.alfasoftware.soapstone.testsupport.WebService.Documentation;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 /**
  * Test the {@link SoapstoneOpenApiReader}
@@ -96,18 +87,7 @@ public class TestSoapstoneOpenApiReader {
       return matcher.matches() ? matcher.group("tag") : null;
     };
 
-    AnnotationIntrospector jaxbIntrospector = new JaxbAnnotationIntrospector(TypeFactory.defaultInstance());
-    AnnotationIntrospector jacksonIntrospector = new JacksonAnnotationIntrospector();
-
-    ObjectMapper objectMapper = new ObjectMapper()
-      .setAnnotationIntrospector(AnnotationIntrospector.pair(jacksonIntrospector, jaxbIntrospector))
-      .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
-      .configure(USE_WRAPPER_NAME_AS_PROPERTY_NAME, true)
-      .configure(FAIL_ON_EMPTY_BEANS, false)
-      .configure(WRITE_DATES_AS_TIMESTAMPS, false)
-      .configure(WRITE_ENUMS_USING_TO_STRING, true)
-      .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
-      .setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    ObjectMapper objectMapper = SoapstoneObjectMapper.instance();
 
     Map<String, WebServiceClass<?>> webServices = new HashMap<>();
     webServices.put("/path", WebServiceClass.forClass(WebService.class, WebService::new));

@@ -14,11 +14,7 @@
  */
 package org.alfasoftware.soapstone;
 
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
-import static com.fasterxml.jackson.databind.MapperFeature.USE_WRAPPER_NAME_AS_PROPERTY_NAME;
-import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
-import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
-import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_ENUMS_USING_TO_STRING;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasEntry;
@@ -28,7 +24,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
@@ -39,12 +34,7 @@ import org.hamcrest.Matchers;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
-import com.fasterxml.jackson.databind.type.TypeFactory;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -71,18 +61,7 @@ public class TestSoapstoneOpenApiReaderWithInheritance {
   @BeforeClass
   public static void setup() {
 
-    AnnotationIntrospector jaxbIntrospector = new JaxbAnnotationIntrospector(TypeFactory.defaultInstance());
-    AnnotationIntrospector jacksonIntrospector = new JacksonAnnotationIntrospector();
-
-    ObjectMapper objectMapper = new ObjectMapper()
-        .setAnnotationIntrospector(AnnotationIntrospector.pair(jacksonIntrospector, jaxbIntrospector))
-        .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
-        .configure(USE_WRAPPER_NAME_AS_PROPERTY_NAME, true)
-        .configure(FAIL_ON_EMPTY_BEANS, false)
-        .configure(WRITE_DATES_AS_TIMESTAMPS, false)
-        .configure(WRITE_ENUMS_USING_TO_STRING, true)
-        .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
-        .setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    ObjectMapper objectMapper = SoapstoneObjectMapper.instance();
 
     Map<String, WebServiceClass<?>> webServices = new HashMap<>();
     webServices.put("/path", WebServiceClass.forClass(InheritanceTestService.class, InheritanceTestService::new));

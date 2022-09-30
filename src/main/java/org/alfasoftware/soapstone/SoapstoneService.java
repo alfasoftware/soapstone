@@ -64,6 +64,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 @Path("")
 public class SoapstoneService {
 
+
   private static final Logger LOG = LoggerFactory.getLogger(SoapstoneService.class);
 
   private final Map<String, OpenAPI> openAPIDefinitions = new ConcurrentHashMap<>();
@@ -72,9 +73,6 @@ public class SoapstoneService {
   private final WebServiceInvoker invoker;
 
 
-  /**
-   *
-   */
   SoapstoneService(SoapstoneConfiguration configuration) {
     this.configuration = configuration;
     this.webParameterMapper = new WebParameterMapper(configuration);
