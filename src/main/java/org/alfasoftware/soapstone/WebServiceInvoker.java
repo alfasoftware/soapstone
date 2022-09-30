@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Locates and invokes web service operations in accordance with JAX-WS annotations and conventions.
@@ -82,12 +83,50 @@ class WebServiceInvoker {
       .toArray();
 
     LOG.info("Invoking " + operationName);
-    LOG.debug("Parameters: " + parameters);
+    if (LOG.isDebugEnabled()) {
+      try {
+        List<JsonNode> nodes = parameters.stream().map(WebParameter::getNode).collect(Collectors.toList());
+        LOG.debug("Parameters: " + nodes);
+      } catch (Exception e) {
+        LOG.warn(String.format("Got a %s when try to trying the request", e.getClass().getSimpleName()));
+      }
+    }
+    if (LOG.isTraceEnabled()) {
+      try {
+        List<String> prettyNodes = parameters.stream().map(parameter -> {
+          try {
+            return configuration.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(parameter.getNode());
+          } catch (JsonProcessingException e) {
+            throw new RuntimeException("JsonProcessingException while trying to pretty-print the request", e);
+          }
+
+        }).collect(Collectors.toList());
+        LOG.trace("Parameters: " + prettyNodes);
+      } catch (Exception e) {
+        LOG.warn(String.format("Got a %s when try to trying the request", e.getClass().getSimpleName()));
+      }
+    }
 
     try {
       Object methodReturn = operation.invoke(webServiceClass.getInstance(), operationArgs);
       JavaType returnType = configuration.getObjectMapper().constructType(operation.getGenericReturnType());
-      return configuration.getObjectMapper().writerFor(returnType).writeValueAsString(methodReturn);
+      String ret = configuration.getObjectMapper().writerFor(returnType).writeValueAsString(methodReturn);
+      if (LOG.isDebugEnabled()) {
+        try {
+          LOG.debug("Return value: [" + ret + "]");
+        } catch (Exception e) {
+          LOG.warn(String.format("Got a %s when try to print the return value", e.getClass().getSimpleName()));
+        }
+      }
+      if (LOG.isTraceEnabled()) {
+        try {
+          String prettyPrint = configuration.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(methodReturn);
+          LOG.trace("Return value: [" + prettyPrint + "]");
+        } catch (Exception e) {
+          LOG.warn(String.format("Got a %s when try to print the return value", e.getClass().getSimpleName()));
+        }
+      }
+      return ret;
     } catch (InvocationTargetException e) {
       LOG.error("Error produced within invocation of '" + operationName + "'");
       LOG.debug("Original error", e);
