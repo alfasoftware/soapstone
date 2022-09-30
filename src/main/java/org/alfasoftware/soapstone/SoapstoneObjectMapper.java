@@ -29,7 +29,7 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 
 /**
- * TODO
+ * Default object mapper for use in Soapstone if no other is provided when creating the service.
  *
  * @author Copyright (c) Alfa Financial Software 2022
  */

@@ -23,12 +23,7 @@ import io.swagger.v3.core.util.Json;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 
 /**
- * Builder for the {@link SoapstoneService}
- *
- * <p>
- * This requires a map of URL paths to {@link WebServiceClass}. Optionally it can also be provided with an
- * {@link ExceptionMapper} to map exceptions to {@link WebApplicationException} and a vendor name, for use
- * in custom headers.
+ * Writer for generating OpenAPI documentation for the Soapstone provided services.
  *
  * @author Copyright (c) Alfa Financial Software 2022
  */
