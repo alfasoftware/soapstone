@@ -17,10 +17,10 @@ package org.alfasoftware.soapstone;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import javax.ws.rs.WebApplicationException;
-
-import io.swagger.v3.core.util.Json;
+import io.swagger.v3.oas.integration.GenericOpenApiContextBuilder;
+import io.swagger.v3.oas.integration.OpenApiConfigurationException;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
+import io.swagger.v3.oas.integration.api.OpenApiContext;
 
 /**
  * Writer for generating OpenAPI documentation for the Soapstone provided services.
@@ -40,11 +40,16 @@ public class SoapstoneOpenApiWriter {
   }
 
 
-  public void writeJson(OutputStream outputStream) throws IOException {
+  public void writeJson(OutputStream outputStream) throws IOException, OpenApiConfigurationException {
+
+    OpenApiContext openApiContext = new GenericOpenApiContextBuilder<>()
+        .openApiConfiguration(new SwaggerConfiguration().sortOutput(true))
+        .buildContext(true);
 
     SoapstoneOpenApiReader reader = new SoapstoneOpenApiReader(hostUrl, configuration);
-    reader.setConfiguration(new SwaggerConfiguration());
-    Json.pretty().writeValue(outputStream, reader.read(null));
+    reader.setConfiguration(openApiContext.getOpenApiConfiguration());
+
+    openApiContext.getOutputJsonMapper().writerWithDefaultPrettyPrinter().writeValue(outputStream, reader.read(null));
   }
 }
 
