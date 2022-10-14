@@ -31,8 +31,10 @@ import javax.jws.WebParam;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
+import javax.ws.rs.core.Response;
 import javax.xml.bind.annotation.XmlElement;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -324,6 +326,13 @@ class WebServiceInvoker {
         return configuration.getObjectMapper().readValue(parameter.get().getNode().asText(), type);
       }
       return configuration.getObjectMapper().convertValue(parameter.get().getNode(), type);
+    } catch (IllegalArgumentException | JsonProcessingException e) {
+      String errorMessage = "Error unmarshalling '" + parameter.get().getName() + "' to '" + parameterName + "' with the error message: " + e.getMessage();
+      LOG.warn(errorMessage);
+      LOG.debug("Original error", e);
+      throw new BadRequestException(
+              parameter.get().getNode() + " could not be unmarshalled to '" + parameterName + "'",
+              Response.status(Response.Status.BAD_REQUEST).entity(errorMessage).build());
     } catch (Exception e) {
       LOG.warn("Error unmarshalling " + parameter.get().getName());
       LOG.debug("Original error", e);
