@@ -34,7 +34,6 @@ import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.Response;
 import javax.xml.bind.annotation.XmlElement;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,7 +129,7 @@ class WebServiceInvoker {
       }
       return ret;
     } catch (InvocationTargetException e) {
-      LOG.error("Error produced within invocation of '" + operationName + "'");
+      LOG.debug("Error produced within invocation of '" + operationName + "'");
       LOG.debug("Original error", e);
       throw configuration.getExceptionMapper()
         .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), configuration.getObjectMapper()))
