@@ -31,6 +31,7 @@ import javax.jws.WebParam;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import javax.xml.bind.annotation.XmlElement;
 
@@ -129,11 +130,18 @@ class WebServiceInvoker {
       }
       return ret;
     } catch (InvocationTargetException e) {
-      LOG.debug("Error produced within invocation of '" + operationName + "'");
+      WebApplicationException webApplicationException = configuration.getExceptionMapper()
+          .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), configuration.getObjectMapper()))
+          .orElse(new InternalServerErrorException());
+
+      if (webApplicationException instanceof InternalServerErrorException){
+        LOG.error("Error produced within invocation of '" + operationName + "'");
+      } else {
+        LOG.debug("Error produced within invocation of '" + operationName + "'");
+      }
+
       LOG.debug("Original error", e);
-      throw configuration.getExceptionMapper()
-        .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), configuration.getObjectMapper()))
-        .orElse(new InternalServerErrorException());
+      throw webApplicationException;
 
     } catch (IllegalAccessException e) {
       LOG.error("Error attempting to access '" + operationName + "'");
