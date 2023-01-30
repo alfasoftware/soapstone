@@ -130,18 +130,17 @@ class WebServiceInvoker {
       }
       return ret;
     } catch (InvocationTargetException e) {
-      WebApplicationException webApplicationException = configuration.getExceptionMapper()
-          .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), configuration.getObjectMapper()))
-          .orElse(new InternalServerErrorException());
+      Optional<WebApplicationException> webApplicationException = configuration.getExceptionMapper()
+          .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), configuration.getObjectMapper()));
 
-      if (webApplicationException instanceof InternalServerErrorException){
+      if (!webApplicationException.isPresent()){
         LOG.error("Error produced within invocation of '" + operationName + "'");
-      } else {
+      } else if (LOG.isDebugEnabled()) {
         LOG.debug("Error produced within invocation of '" + operationName + "'");
       }
 
       LOG.debug("Original error", e);
-      throw webApplicationException;
+      throw webApplicationException.orElse(new InternalServerErrorException());
 
     } catch (IllegalAccessException e) {
       LOG.error("Error attempting to access '" + operationName + "'");
