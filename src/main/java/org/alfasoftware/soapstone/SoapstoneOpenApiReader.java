@@ -216,7 +216,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     ApiResponse response = new ApiResponse();
 
     LOG.debug("      Mapping response");
-    response.setContent(methodToResponseContent(method, components));
+    response.setContent(typeToResponseContent(method.getGenericReturnType(), components));
     LOG.debug("        Done");
 
     configuration.getDocumentationProvider()
@@ -224,6 +224,15 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       .ifPresent(response::setDescription);
 
     responses.addApiResponse("200", response);
+
+    // add other API responses
+    configuration.getExceptionResponseDocumentationProvider()
+            .ifPresent(provider -> provider.getErrorResponseTypesForMethod(method).forEach((code, type) -> {
+                      ApiResponse errorResponse = new ApiResponse();
+                      errorResponse.setContent(typeToResponseContent(type, components));
+                      errorResponse.setDescription("");
+                      responses.addApiResponse(code, errorResponse);
+                    }));
 
     PathItem pathItem = new PathItem();
 
@@ -277,9 +286,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private Content methodToResponseContent(Method method, Components components) {
-
-    Type type = method.getGenericReturnType();
+  private Content typeToResponseContent(Type type, Components components) {
 
     if (ReflectionUtils.isVoid(type)) return null;
 
