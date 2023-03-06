@@ -7,7 +7,7 @@
 
    <groupId>org.alfasoftware</groupId>
    <artifactId>soapstone</artifactId>
-   <version>3.3.0</version>
+   <version>3.3.1-SNAPSHOT</version>
 
    <name>soapstone</name>
    <description>soapstone is a library for exposing API catalogues of JAX-WS SOAP web services as JSON/HTTP.
