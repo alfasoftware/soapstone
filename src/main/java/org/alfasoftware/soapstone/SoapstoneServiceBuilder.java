@@ -230,6 +230,16 @@ public class SoapstoneServiceBuilder {
     return this;
   }
 
+  /**
+   * Provide a {@link ErrorResponseDocumentationProvider} for use in Open API documents
+   *
+   * @param errorResponseDocumentationProvider error response documentation provider
+   * @return this
+   */
+  public SoapstoneServiceBuilder withErrorResponseDocumentationProvider(ErrorResponseDocumentationProvider errorResponseDocumentationProvider) {
+    configuration.setErrorResponseDocumentationProvider(errorResponseDocumentationProvider);
+    return this;
+  }
 
   /**
    * Builds the {@link SoapstoneService}.

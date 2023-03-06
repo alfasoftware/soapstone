@@ -39,6 +39,7 @@ class SoapstoneConfiguration {
   private DocumentationProvider documentationProvider;
   private Function<String, String> tagProvider;
   private Function<Class<?>, String> typeNameProvider;
+  private ErrorResponseDocumentationProvider errorResponseDocumentationProvider;
 
 
   ObjectMapper getObjectMapper() {
@@ -119,5 +120,13 @@ class SoapstoneConfiguration {
 
   void setTypeNameProvider(Function<Class<?>, String> typeNameProvider) {
     this.typeNameProvider = typeNameProvider;
+  }
+
+  public Optional<ErrorResponseDocumentationProvider> getExceptionResponseDocumentationProvider() {
+    return Optional.ofNullable(errorResponseDocumentationProvider);
+  }
+
+  public void setErrorResponseDocumentationProvider(ErrorResponseDocumentationProvider errorResponseDocumentationProvider) {
+    this.errorResponseDocumentationProvider = errorResponseDocumentationProvider;
   }
 }

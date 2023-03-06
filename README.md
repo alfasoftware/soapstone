@@ -33,6 +33,8 @@ operations matching "get*" via GET, operations matching "update*" via PUT.
 An ExceptionMapper interface is provided to allow customisation of the mapping of exceptions coming from web service method invocations to 
 web application exceptions.
 
+An ErrorResponseDocumentationProvider interface is provided to allow customisation of the Api response for each web service method.
+
 ## Examples
 
 ### Building the SoapstoneService in a JAX-RS Application
@@ -67,6 +69,7 @@ web application exceptions.
        .withSupportedDeleteOperations("delete.*", "remove.*")
        .withVendor("ExampleCompany")
        .withExceptionMapper(new ExampleExceptionMapper())
+       .withErrorResponseDocumentationProvider(new ExampleErrorResponseDocumentationProvider())
        .build();
  
      return Collections.singleton(soapstoneService);
