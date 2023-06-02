@@ -101,6 +101,7 @@ public class TestSoapstoneService extends JerseyTest {
 
     SoapstoneService service = new SoapstoneServiceBuilder(webServices)
       .withVendor(VENDOR)
+      .withVersionNumber("main")
       .withExceptionMapper(EXCEPTION_MAPPER)
       .withSupportedGetOperations("get.*")
       .withSupportedPutOperations("put.*")
