@@ -44,6 +44,7 @@ public class SoapstoneServiceBuilder {
 
   private final SoapstoneConfiguration configuration = new SoapstoneConfiguration();
   private String vendor;
+  private String versionNumber;
   private ObjectMapper objectMapper;
 
 
@@ -242,15 +243,27 @@ public class SoapstoneServiceBuilder {
   }
 
   /**
+   * Provide a version number
+   *
+   * @param versionNumber version number
+   * @return this
+   */
+  public SoapstoneServiceBuilder withVersionNumber(String versionNumber) {
+    this.versionNumber=versionNumber;
+    return this;
+  }
+
+  /**
    * Builds the {@link SoapstoneService}.
    *
    * @return a {@link SoapstoneService} with the appropriate fields set
    */
   public SoapstoneService build() {
 
-    // Vendor and object mapper have defaults, so apply them here if required
+    // Vendor, version number and object mapper have defaults, so apply them here if required
     configuration.setVendor(vendor == null ? "Soapstone" : vendor);
     configuration.setObjectMapper(Optional.ofNullable(objectMapper).orElseGet(SoapstoneObjectMapper::instance));
+    configuration.setVersionNumber(versionNumber == null ? "(generated)" : versionNumber);
 
     // This is the easiest place to put this to ensure that it is added once and once only
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(configuration));

@@ -146,7 +146,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     Info info = new Info()
       .title(configuration.getVendor() + " soapstone")
-      .version("(generated)")
+      .version(configuration.getVersionNumber())
       .description("Soapstone Generated API for " + configuration.getVendor());
 
     openAPI.setInfo(info);

@@ -40,6 +40,7 @@ class SoapstoneConfiguration {
   private Function<String, String> tagProvider;
   private Function<Class<?>, String> typeNameProvider;
   private ErrorResponseDocumentationProvider errorResponseDocumentationProvider;
+  private String versionNumber;
 
 
   ObjectMapper getObjectMapper() {
@@ -72,6 +73,14 @@ class SoapstoneConfiguration {
 
   void setVendor(String vendor) {
     this.vendor = vendor;
+  }
+
+  String getVersionNumber() {
+    return versionNumber;
+  }
+
+  void setVersionNumber(String versionNumber) {
+    this.versionNumber = versionNumber;
   }
 
   Optional<Pattern> getSupportedGetOperations() {

@@ -40,6 +40,7 @@ public class TestExternalCreation {
 
     new SoapstoneServiceBuilder(pathToWebServiceClassMap)
       .withVendor("vendor")
+      .withVersionNumber("main")
       .withObjectMapper(new ObjectMapper())
       .withExceptionMapper((t, objectMapper) -> Optional.empty())
       .withSupportedGetOperations("get.*")

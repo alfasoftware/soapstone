@@ -101,6 +101,7 @@ public class TestSoapstoneOpenApiReader {
     soapstoneConfiguration.setSupportedDeleteOperations(Pattern.compile("delete.*"));
     soapstoneConfiguration.setSupportedPutOperations(Pattern.compile("put.*"));
     soapstoneConfiguration.setVendor("Geoffrey");
+    soapstoneConfiguration.setVersionNumber("v5");
 
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(soapstoneConfiguration));
 
@@ -382,6 +383,15 @@ public class TestSoapstoneOpenApiReader {
     Schema<?> adaptable = schema.getProperties().get("packageAnnotatedAdaptable");
 
     assertEquals("string", adaptable.getType());
+  }
+
+
+  @Test
+  public void testGetInfoFromOpenApi() {
+
+    assertEquals("v5",openAPI.getInfo().getVersion());
+    assertEquals("Geoffrey soapstone",openAPI.getInfo().getTitle());
+    assertEquals("Soapstone Generated API for Geoffrey",openAPI.getInfo().getDescription());
   }
 
 
