@@ -21,9 +21,10 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Function;
 
-import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 
 /**
  * Builder for {@link DocumentationProvider}
@@ -117,6 +118,8 @@ public class DocumentationProviderBuilder {
 
 
   /**
+   * @param forMember ignored - this method does nothing
+   * @return this
    * @deprecated Use {@link #withModelDocumentationProvider(Function)} to provide documentation for models and members
    */
   @Deprecated
@@ -129,6 +132,8 @@ public class DocumentationProviderBuilder {
 
 
   /**
+   * @param forClass ignored - this method does nothing
+   * @return this
    * @deprecated Use {@link #withModelDocumentationProvider(Function)} to provide documentation for models and members
    */
   @Deprecated
