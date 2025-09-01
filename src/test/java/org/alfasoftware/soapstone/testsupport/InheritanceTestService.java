@@ -14,12 +14,12 @@
  */
 package org.alfasoftware.soapstone.testsupport;
 
-import javax.jws.WebMethod;
-import javax.jws.WebParam;
-import javax.xml.bind.annotation.XmlTransient;
-
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
+import jakarta.jws.WebMethod;
+import jakarta.jws.WebParam;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 /**
  * Web service for testing that inherited API models are documented

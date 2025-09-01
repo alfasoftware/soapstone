@@ -14,10 +14,9 @@
  */
 package org.alfasoftware.soapstone.testsupport;
 
-import javax.jws.WebMethod;
-import javax.jws.WebParam;
-
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.jws.WebMethod;
+import jakarta.jws.WebParam;
 
 /**
  * Web service for testing that name collisions in models are detected
