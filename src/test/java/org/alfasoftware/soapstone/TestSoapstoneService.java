@@ -19,8 +19,12 @@ import static jakarta.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static jakarta.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
 import static jakarta.ws.rs.core.Response.Status.NOT_FOUND;
 import static jakarta.ws.rs.core.Response.Status.OK;
+import static java.util.Arrays.asList;
 import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_1;
 import static org.alfasoftware.soapstone.testsupport.WebService.Value.VALUE_2;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -33,6 +37,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,16 +50,22 @@ import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.MyException;
 import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
 import org.alfasoftware.soapstone.testsupport.WebService.ResponseObject;
+import org.glassfish.hk2.api.TypeLiteral;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
+import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
+import org.glassfish.jersey.test.TestProperties;
 import org.joda.time.LocalDate;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 
 import jakarta.jws.WebMethod;
@@ -74,6 +90,7 @@ public class TestSoapstoneService extends JerseyTest {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
     .registerModule(new JaxbAnnotationModule())
+    .registerModule(new JodaModule())
     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   private static final ExceptionMapper EXCEPTION_MAPPER = (exception, o) ->
@@ -92,6 +109,9 @@ public class TestSoapstoneService extends JerseyTest {
     Map<String, WebServiceClass<?>> webServices = new HashMap<>();
     webServices.put("/path", WebServiceClass.forClass(WebService.class, WebService::new));
 
+    enable(TestProperties.LOG_TRAFFIC);
+    enable(TestProperties.DUMP_ENTITY);
+
     SoapstoneService service = new SoapstoneServiceBuilder(webServices)
       .withVendor(VENDOR)
       .withVersionNumber("main")
@@ -102,15 +122,37 @@ public class TestSoapstoneService extends JerseyTest {
       .withTagProvider(TAG_PROVIDER)
       .build();
 
-    return new ResourceConfig().registerInstances(service)
-      //TODO: od we need a replacement ??
-//      .register(LoggingFilter.class)
-      .register(new AbstractBinder() {
-        @Override
-        protected void configure() {
-          bind(mock(HttpServletRequest.class)).to(HttpServletRequest.class);
-        }
-      });
+
+    Logger logger = Logger.getLogger("test");
+    logger.setLevel(Level.FINE);
+    logger.setUseParentHandlers(false);
+    Handler[] handlers = logger.getHandlers();
+    for(Handler h : handlers) logger.removeHandler(h);
+    logger.addHandler(streamHandler());
+
+    return new ResourceConfig()
+      .registerInstances(service)
+
+      .register(
+         new LoggingFeature(logger, Level.INFO, LoggingFeature.Verbosity.PAYLOAD_ANY, 8192))
+          .register(new AbstractBinder() {
+            @Override
+            protected void configure() {
+              bind(mock(HttpServletRequest.class)).to(HttpServletRequest.class);
+            }
+         });
+    }
+
+  static StreamHandler streamHandler() {
+    final StreamHandler sh = new StreamHandler(System.out, new SimpleFormatter()) {
+      @Override
+      public synchronized void publish(final LogRecord record) {
+        super.publish(record);
+        flush();
+      }
+    };
+    sh.setLevel(Level.FINE);
+    return sh;
   }
 
 
@@ -307,7 +349,6 @@ public class TestSoapstoneService extends JerseyTest {
      * Given
      */
     Map<String, Object> payload = new HashMap<>();
-
     /*
      * When
      */
@@ -639,24 +680,23 @@ public class TestSoapstoneService extends JerseyTest {
   /**
    * Test that we get type information when returning a list of some supertype
    */
-  //TODO
-//   @Test
-//   public void testGetAListOfThings() throws JsonProcessingException {
-//
-//     String response = target()
-//       .path("path/getAListOfThings")
-//       .request()
-//       .get(String.class);
-//
-//
-//     JavaType returnType = OBJECT_MAPPER.constructType(new TypeLiteral<List<WebService.SuperClass>>() {}.getType());
-//     List<WebService.SuperClass> list = OBJECT_MAPPER.readerFor(returnType).readValue(response);
-//
-//     assertThat(list, containsInAnyOrder(asList(
-//       instanceOf(WebService.SuperClass.SubClass1.class),
-//       instanceOf(WebService.SuperClass.SubClass2.class)
-//     )));
-//   }
+   @Test
+   public void testGetAListOfThings() throws JsonProcessingException {
+
+     String response = target()
+       .path("path/getAListOfThings")
+       .request()
+       .get(String.class);
+
+
+     JavaType returnType = OBJECT_MAPPER.constructType(new TypeLiteral<List<WebService.SuperClass>>() {}.getType());
+     List<WebService.SuperClass> list = OBJECT_MAPPER.readerFor(returnType).readValue(response);
+
+     assertThat(list, containsInAnyOrder(asList(
+       instanceOf(WebService.SuperClass.SubClass1.class),
+       instanceOf(WebService.SuperClass.SubClass2.class)
+     )));
+   }
 
 
   /**

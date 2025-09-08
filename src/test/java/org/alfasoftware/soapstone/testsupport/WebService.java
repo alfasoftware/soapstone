@@ -25,14 +25,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.activation.DataHandler;
-
 import org.joda.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import jakarta.activation.DataHandler;
 import jakarta.jws.WebMethod;
 import jakarta.jws.WebParam;
 import jakarta.xml.bind.annotation.XmlElement;
