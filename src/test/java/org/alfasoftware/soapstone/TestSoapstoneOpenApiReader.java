@@ -35,7 +35,6 @@ import java.util.regex.Pattern;
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.Documentation;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -229,7 +228,6 @@ public class TestSoapstoneOpenApiReader {
 
 
   @Test
-  @Ignore
   public void testAllSchemasExist() {
     assertThat(openAPI.getComponents().getSchemas().keySet(), containsInAnyOrder(
       "RequestObject",
@@ -287,7 +285,6 @@ public class TestSoapstoneOpenApiReader {
 
 
   @Test
-  @Ignore
   public void testResponseObjectSchema() {
 
     Schema<?> schema = openAPI.getComponents().getSchemas().get("ResponseObject");

@@ -33,6 +33,12 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import jakarta.jws.WebMethod;
+import jakarta.jws.WebParam;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapters;
+
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,11 +74,6 @@ import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.servers.Server;
-import jakarta.jws.WebMethod;
-import jakarta.jws.WebParam;
-import jakarta.xml.bind.annotation.adapters.XmlAdapter;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapters;
 
 /**
  * Implementation of {@link OpenApiReader} which makes use of the web service classes
@@ -372,7 +373,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
       Map<String, Schema> properties = ((Schema<?>) entry.getValue()).getProperties();
       for (Entry<String, Schema> subentry : properties.entrySet()) {
-        schema.addProperties(subentry.getKey(), subentry.getValue());
+        schema.addProperty(subentry.getKey(), subentry.getValue());
       }
     }
     return schema;
@@ -403,7 +404,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .ifPresent(typeToSchema::setDescription);
       }
 
-      schema.addProperties(parameterName, typeToSchema);
+      schema.addProperty(parameterName, typeToSchema);
       LOG.debug("        Done");
     }
 
@@ -522,7 +523,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       JavaType[] typeParameters = typeFactory.findTypeParameters(adapterType, XmlAdapter.class);
 
       // XmlAdapter and converter order the input and output types differently, so we reverse the order here
-      return Optional.of(new CustomConverter(adapter, typeParameters[1], typeParameters[0], true));
+      return Optional.of(new CustomConverter<>(adapter, typeParameters[1], typeParameters[0]));
     }
 
     return Optional.empty();

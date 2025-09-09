@@ -1,38 +1,36 @@
 package org.alfasoftware.soapstone;
 
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.Converter;
 
-import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+/**
+ * Custom implementation of {@link Converter}, uses provided {@link XmlAdapter} for conversion.
+ *
+ * @param <IN>
+ * @param <OUT>
+ */
+class CustomConverter<IN,OUT> implements Converter<IN,OUT> {
 
-public class CustomConverter<IN,OUT>  implements Converter<IN,OUT> {
+  private final JavaType inputType;
 
-  protected final JavaType _inputType, _targetType;
+  private final JavaType targetType;
 
-  protected final XmlAdapter<Object,Object> _adapter;
-
-  protected final boolean _forSerialization;
+  private final XmlAdapter<OUT,IN> adapter;
 
 
-  @SuppressWarnings("unchecked")
-  public CustomConverter(XmlAdapter<?,?> adapter,
-                          JavaType inType, JavaType outType, boolean ser)
-  {
-    _adapter = (XmlAdapter<Object,Object>) adapter;
-    _inputType = inType;
-    _targetType = outType;
-    _forSerialization = ser;
+  CustomConverter(XmlAdapter<OUT,IN> adapter, JavaType inType, JavaType outType) {
+    this.adapter = adapter;
+    this.inputType = inType;
+    this.targetType = outType;
   }
 
   @Override
-  public Object convert(Object value)
-  {
+  public OUT convert(IN value) {
     try {
-      if (_forSerialization) {
-        return _adapter.marshal(value);
-      }
-      return _adapter.unmarshal(value);
+        return this.adapter.marshal(value);
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -40,23 +38,15 @@ public class CustomConverter<IN,OUT>  implements Converter<IN,OUT> {
     }
   }
 
+
   @Override
   public JavaType getInputType(TypeFactory typeFactory) {
-    return _inputType;
+    return this.inputType;
   }
+
 
   @Override
   public JavaType getOutputType(TypeFactory typeFactory) {
-    return _targetType;
-  }
-
-
-  protected JavaType _findConverterType(TypeFactory tf) {
-    JavaType thisType = tf.constructType(getClass());
-    JavaType convType = thisType.findSuperType(Converter.class);
-    if (convType == null || convType.containedTypeCount() < 2) {
-      throw new IllegalStateException("Can not find OUT type parameter for Converter of type "+getClass().getName());
-    }
-    return convType;
+    return this.targetType;
   }
 }

@@ -167,7 +167,6 @@
          <version>3.0.0</version>
          <scope>test</scope>
       </dependency>
-
       <dependency>
          <groupId>org.glassfish.jersey.inject</groupId>
          <artifactId>jersey-hk2</artifactId>
@@ -184,17 +183,6 @@
          <groupId>org.glassfish.jersey.media</groupId>
          <artifactId>jersey-media-json-jackson</artifactId>
          <version>3.0.2</version>
-         <exclusions>
-            <!-- Exclude old javax JAXB -->
-            <exclusion>
-               <groupId>javax.xml.bind</groupId>
-               <artifactId>jaxb-api</artifactId>
-            </exclusion>
-            <exclusion>
-               <groupId>javax.activation</groupId>
-               <artifactId>javax.activation-api</artifactId>
-            </exclusion>
-         </exclusions>
          <scope>test</scope>
       </dependency>
       <dependency>

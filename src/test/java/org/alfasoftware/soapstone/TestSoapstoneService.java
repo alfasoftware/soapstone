@@ -46,6 +46,15 @@ import java.util.logging.StreamHandler;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jakarta.jws.WebMethod;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Application;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.MyException;
 import org.alfasoftware.soapstone.testsupport.WebService.RequestObject;
@@ -55,7 +64,6 @@ import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
-import org.glassfish.jersey.test.TestProperties;
 import org.joda.time.LocalDate;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -67,15 +75,6 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
-
-import jakarta.jws.WebMethod;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.client.Entity;
-import jakarta.ws.rs.core.Application;
-import jakarta.ws.rs.core.GenericType;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
 
 
 /**
@@ -109,9 +108,6 @@ public class TestSoapstoneService extends JerseyTest {
     Map<String, WebServiceClass<?>> webServices = new HashMap<>();
     webServices.put("/path", WebServiceClass.forClass(WebService.class, WebService::new));
 
-    enable(TestProperties.LOG_TRAFFIC);
-    enable(TestProperties.DUMP_ENTITY);
-
     SoapstoneService service = new SoapstoneServiceBuilder(webServices)
       .withVendor(VENDOR)
       .withVersionNumber("main")
@@ -132,7 +128,6 @@ public class TestSoapstoneService extends JerseyTest {
 
     return new ResourceConfig()
       .registerInstances(service)
-
       .register(
          new LoggingFeature(logger, Level.INFO, LoggingFeature.Verbosity.PAYLOAD_ANY, 8192))
           .register(new AbstractBinder() {

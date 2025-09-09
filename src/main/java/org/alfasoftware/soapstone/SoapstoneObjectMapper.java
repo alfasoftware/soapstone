@@ -44,11 +44,6 @@ public class SoapstoneObjectMapper {
 
     private final ObjectMapper objectMapper = JsonMapper.builder()
       .findAndAddModules()
-//      .addModule(new JodaModule())
-//        .annotationIntrospector(AnnotationIntrospector.pair(
-//            new JaxbAnnotationIntrospector(TypeFactory.defaultInstance()),
-//            new JacksonAnnotationIntrospector()
-//        ))
         .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
         .configure(USE_WRAPPER_NAME_AS_PROPERTY_NAME, true)
         .configure(FAIL_ON_EMPTY_BEANS, false)
