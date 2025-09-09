@@ -16,10 +16,10 @@ package org.alfasoftware.soapstone;
 
 import java.util.Optional;
 
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.WebApplicationException;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.WebApplicationException;
 
 /**
  * Mapper for converting throwables caught during the invocation of web service operation methods

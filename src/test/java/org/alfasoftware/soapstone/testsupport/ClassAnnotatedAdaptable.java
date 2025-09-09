@@ -1,8 +1,8 @@
 package org.alfasoftware.soapstone.testsupport;
 
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
 import org.alfasoftware.soapstone.testsupport.mappers.ClassAnnotatedAdaptableAdapter;
+
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * A slightly interesting complex class with an XmlAdapter

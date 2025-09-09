@@ -23,12 +23,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import javax.ws.rs.WebApplicationException;
-
 import org.apache.commons.lang3.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.swagger.v3.core.converter.ModelConverters;
+import jakarta.ws.rs.WebApplicationException;
 
 /**
  * Builder for the {@link SoapstoneService}

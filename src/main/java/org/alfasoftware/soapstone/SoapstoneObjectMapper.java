@@ -21,12 +21,9 @@ import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_ENUMS_USING_TO_STRING;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.type.TypeFactory;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
+//import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 
 /**
  * Default object mapper for use in Soapstone if no other is provided when creating the service.
@@ -44,17 +41,21 @@ public class SoapstoneObjectMapper {
 
     INSTANCE;
 
+
     private final ObjectMapper objectMapper = JsonMapper.builder()
-        .annotationIntrospector(AnnotationIntrospector.pair(
-            new JaxbAnnotationIntrospector(TypeFactory.defaultInstance()),
-            new JacksonAnnotationIntrospector()
-        ))
+      .findAndAddModules()
+//      .addModule(new JodaModule())
+//        .annotationIntrospector(AnnotationIntrospector.pair(
+//            new JaxbAnnotationIntrospector(TypeFactory.defaultInstance()),
+//            new JacksonAnnotationIntrospector()
+//        ))
         .configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
         .configure(USE_WRAPPER_NAME_AS_PROPERTY_NAME, true)
         .configure(FAIL_ON_EMPTY_BEANS, false)
         .configure(WRITE_DATES_AS_TIMESTAMPS, false)
         .configure(WRITE_ENUMS_USING_TO_STRING, true)
         .serializationInclusion(JsonInclude.Include.NON_NULL)
+
         .build();
   }
 
