@@ -1,7 +1,7 @@
 # .travis.yml
 language: java
 dist: noble
-jdk: openjdk21
+jdk: openjdk11
 jobs:
   include:
     - if: repo = alfasoftware/soapstone AND type = pull_request
