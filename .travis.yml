@@ -1,9 +1,7 @@
 # .travis.yml
 language: java
-jdk:
-  - openjdk8
-  - openjdk11
-#  - openjdk14
+dist: noble
+jdk: openjdk21
 jobs:
   include:
     - if: repo = alfasoftware/soapstone AND type = pull_request
@@ -12,7 +10,7 @@ jobs:
     - if: repo = alfasoftware/soapstone AND (branch = master OR tag IS present) AND NOT type = pull_request
       name: "Test and Deploy"
       script:
-        - echo $GPG_SECRET_KEYS | base64 --decode | $GPG_EXECUTABLE --import
-        - echo $GPG_OWNERTRUST | base64 --decode | $GPG_EXECUTABLE --import-ownertrust
+        - echo $GPG_SECRET_KEYS | base64 --decode | $GPG_EXECUTABLE --batch --import
+        - echo $GPG_OWNERTRUST | base64 --decode | $GPG_EXECUTABLE --batch --import-ownertrust
         - mvn clean deploy --settings .maven-settings.xml -B -U -Prelease
 
