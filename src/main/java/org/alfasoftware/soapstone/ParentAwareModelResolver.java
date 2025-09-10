@@ -39,6 +39,7 @@ import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.util.Converter;
+
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverterContext;
@@ -75,7 +76,7 @@ class ParentAwareModelResolver extends ModelResolver {
       return null;
     }
 
-    if (annotatedType.getType().getTypeName().contains("javax.activation.DataHandler")) {
+    if (annotatedType.getType().getTypeName().contains("jakarta.activation.DataHandler")) {
       annotatedType.setType(_mapper.constructType(String.class));
       Schema<?> dataHandlerSchema = super.resolve(annotatedType, context, chain);
       dataHandlerSchema.setFormat("byte");

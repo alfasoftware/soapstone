@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -30,9 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.alfasoftware.soapstone.testsupport.InheritanceTestService;
-import org.hamcrest.Matchers;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -90,7 +89,6 @@ public class TestSoapstoneOpenApiReaderWithInheritance {
 
 
   @Test
-  @Ignore
   public void testSuperTypesInSchema() {
 
     Operation post = openAPI.getPaths().get("/path/doAThingWithInheritance").getPost();
@@ -134,11 +132,10 @@ public class TestSoapstoneOpenApiReaderWithInheritance {
                     hasProperty("mapping", hasEntry("SubTypeOfModel", "#/components/schemas/SubTypeOfModel")),
                     hasProperty("propertyName", is("modelClass"))
                 )),
-            Matchers.not(hasProperty("allOf"))
+            hasProperty("allOf", nullValue())
         )
     );
   }
-
 
   private static Schema<?> schemaForRefSchema(Schema<?> refSchema) {
 
@@ -150,5 +147,4 @@ public class TestSoapstoneOpenApiReaderWithInheritance {
 
     return schema;
   }
-
 }
