@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.swagger.v3.core.converter.ModelConverters;
 
 /**
@@ -70,7 +71,7 @@ public class SoapstoneOpenApiWriterBuilder {
    *
    * <p>
    * This is optional. If not specified then a default mapper will be used which registers
-   * the {@link com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule} and sets
+   * the {@link com.fasterxml.jackson.module.jakarta.xmlbind.JakartaXmlBindAnnotationModule} and sets
    * {@link com.fasterxml.jackson.databind.DeserializationFeature#FAIL_ON_IGNORED_PROPERTIES}
    * to false.
    * </p>

@@ -74,7 +74,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
+import com.fasterxml.jackson.module.jakarta.xmlbind.JakartaXmlBindAnnotationModule;
 
 
 /**
@@ -88,7 +88,7 @@ public class TestSoapstoneService extends JerseyTest {
   private static final String VENDOR = "Vendor";
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
-    .registerModule(new JaxbAnnotationModule())
+    .registerModule(new JakartaXmlBindAnnotationModule())
     .registerModule(new JodaModule())
     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 

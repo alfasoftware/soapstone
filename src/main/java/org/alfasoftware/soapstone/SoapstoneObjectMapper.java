@@ -23,7 +23,6 @@ import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_ENUMS_US
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-//import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 
 /**
  * Default object mapper for use in Soapstone if no other is provided when creating the service.
@@ -50,7 +49,6 @@ public class SoapstoneObjectMapper {
         .configure(WRITE_DATES_AS_TIMESTAMPS, false)
         .configure(WRITE_ENUMS_USING_TO_STRING, true)
         .serializationInclusion(JsonInclude.Include.NON_NULL)
-
         .build();
   }
 
