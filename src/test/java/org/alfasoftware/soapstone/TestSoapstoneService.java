@@ -811,22 +811,6 @@ public class TestSoapstoneService extends JerseyTest {
 
 
   /**
-   * Test that we can list all tags used for Open API documents.
-   */
-  @Test
-  public void testGetOpenApiTags() {
-
-    List<String> response = target()
-      .path("openapi/tags")
-      .request()
-      .accept(MediaType.APPLICATION_JSON)
-      .get(new GenericType<List<String>>() {});
-
-    assertTrue(response.contains("path"));
-  }
-
-
-  /**
    * Test that we can request the Open API document in JSON format.
    *
    * <p>
@@ -845,6 +829,22 @@ public class TestSoapstoneService extends JerseyTest {
       .get();
 
     assertEquals(OK.getStatusCode(), response.getStatus());
+  }
+
+
+  /**
+   * Test that we can list all tags used for Open API documents.
+   */
+  @Test
+  public void testGetOpenApiTags() {
+
+    List<String> response = target()
+      .path("openapi/tags")
+      .request()
+      .accept(MediaType.APPLICATION_JSON)
+      .get(new GenericType<List<String>>() {});
+
+    assertTrue(response.contains("path"));
   }
 
 
