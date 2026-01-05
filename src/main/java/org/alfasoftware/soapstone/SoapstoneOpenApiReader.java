@@ -339,7 +339,6 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     LOG.debug("      Mapping header: " + parameterName);
 
     headerParameter.setName(headerName);
-    headerParameter.setAllowEmptyValue(false);
     headerParameter.setStyle(StyleEnum.SIMPLE);
     headerParameter.setExplode(true);
 
