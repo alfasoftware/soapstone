@@ -525,8 +525,9 @@ class TypeConverter {
     String tidied = value.replaceAll(Pattern.quote(symbols.getCurrencySymbol()), "").trim();
 
     // Workaround for non-breaking space separators (http://bugs.sun.com/view_bug.do?bug_id=4510618)
-    if (symbols.getGroupingSeparator() == '\u00a0') {
-      tidied = tidied.replace(' ', '\u00a0');
+    char groupingSeparator = symbols.getGroupingSeparator();
+    if (groupingSeparator == '\u202F' || groupingSeparator == '\u00a0') {
+      tidied = tidied.replace(' ', groupingSeparator);
     }
 
     // Swedish currency amounts often use '.' as a grouping separator, so purge them too
@@ -574,12 +575,12 @@ class TypeConverter {
         throw new ParseException("Unparseable number: \"" + value + "\"", 0); // NOPMD ParseException doesn't allow a nested exception to be provided
       }
     } else {
-      // Use a ParsePosition to check that all of the string has been consumed
+      // Use a ParsePosition to check that all the string has been consumed
       ParsePosition position = new ParsePosition(0);
       number = format.parse(tidied, position);
 
       if (number != null && number.getClass().isAssignableFrom(Double.class) &&
-          isTargetInteger && !isMathematicalInteger((Double)number)) { // It's been parsed as a double. are we targetting an integer?
+          isTargetInteger && !isMathematicalInteger((Double)number)) { // It's been parsed as a double. are we targeting an integer?
         throw new ParseException("Unparseable number: \"" + value + "\"", 0);
       }
 
