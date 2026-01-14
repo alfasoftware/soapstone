@@ -58,7 +58,7 @@ public class TestTypeConverter {
   /**
    * Poison value for {@link #testJavaDosDoubleBug()}.
    */
-  private static final String DOUBLE_PARSING_POISION_VALUE = "2.2250738585072012e-308";
+  private static final String DOUBLE_PARSING_POISON_VALUE = "2.2250738585072012e-308";
 
   private final TypeConverter ukConverter = new TypeConverter(Locale.UK);
 
@@ -781,17 +781,17 @@ public class TestTypeConverter {
    */
   @Test
   public void testJavaDosDoubleBug() {
-    assertTypeConversionForDos(DOUBLE_PARSING_POISION_VALUE.toLowerCase());
+    assertTypeConversionForDos(DOUBLE_PARSING_POISON_VALUE.toLowerCase());
   }
 
 
   /**
    * Repeat of {@link #testJavaDosDoubleBug()}, but using an uppercase
-   * value of {@value #DOUBLE_PARSING_POISION_VALUE}.
+   * value of {@value #DOUBLE_PARSING_POISON_VALUE}.
    */
   @Test
   public void testJavaDosDoubleBugUpperCase() {
-    assertTypeConversionForDos(DOUBLE_PARSING_POISION_VALUE.toUpperCase());
+    assertTypeConversionForDos(DOUBLE_PARSING_POISON_VALUE.toUpperCase());
   }
 
 
