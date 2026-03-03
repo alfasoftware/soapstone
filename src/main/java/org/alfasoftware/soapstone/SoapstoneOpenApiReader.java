@@ -25,7 +25,6 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -148,10 +147,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     Components components = openAPI.getComponents() == null ? new Components() : openAPI.getComponents();
 
     configuration.getSecurityConfiguration()
-        .ifPresentOrElse(
-            securityConfiguration -> setSecurityFields(securityConfiguration, components, openAPI),
-            () -> setBlankSecurityFields(components, openAPI)
-        );
+        .ifPresent(securityConfiguration -> setSecurityFields(securityConfiguration, components, openAPI));
 
     Server server = new Server();
     server.setUrl(hostUrl);
@@ -247,14 +243,6 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     } else {
       throw new IllegalArgumentException("Soapstone OpenAPI generation currently only supports OAuth security schemes");
     }
-  }
-
-
-  private void setBlankSecurityFields(Components components, OpenAPI openAPI) {
-    components.setSecuritySchemes(new HashMap<>());
-
-    SecurityRequirement securityRequirement = new SecurityRequirement();
-    openAPI.addSecurityItem(securityRequirement);
   }
 
 
