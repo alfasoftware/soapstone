@@ -14,6 +14,7 @@
  */
 package org.alfasoftware.soapstone;
 
+import static io.swagger.v3.oas.models.security.SecurityScheme.Type.OAUTH2;
 import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.capitalize;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -73,6 +74,11 @@ import io.swagger.v3.oas.models.parameters.QueryParameter;
 import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import io.swagger.v3.oas.models.security.OAuthFlow;
+import io.swagger.v3.oas.models.security.OAuthFlows;
+import io.swagger.v3.oas.models.security.Scopes;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 
 /**
@@ -140,6 +146,9 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     OpenAPI openAPI = openApiConfiguration.getOpenAPI() == null ? new OpenAPI() : openApiConfiguration.getOpenAPI();
     Components components = openAPI.getComponents() == null ? new Components() : openAPI.getComponents();
 
+    configuration.getSecurityConfiguration()
+        .ifPresent(securityConfiguration -> setSecurityFields(securityConfiguration, components, openAPI));
+
     Server server = new Server();
     server.setUrl(hostUrl);
     openAPI.addServersItem(server);
@@ -190,6 +199,50 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     openAPI.setComponents(components);
 
     return openAPI;
+  }
+
+
+  private void setSecurityFields(SecurityConfiguration securityConfiguration, Components components, OpenAPI openAPI) {
+    SecurityScheme.Type type = SecurityScheme.Type.valueOf(securityConfiguration.getType().name());
+    // Add security fields if OAuth scheme is specified
+    if (OAUTH2.equals(type)) {
+      SecurityScheme oauthScheme = new SecurityScheme();
+      oauthScheme.setType(OAUTH2);
+
+      OAuthFlow oAuthFlow = new OAuthFlow();
+      oAuthFlow.setTokenUrl(securityConfiguration.getOauthTokenUrl());
+      Scopes scopes = new Scopes();
+      scopes.putAll(securityConfiguration.getScopes());
+      oAuthFlow.setScopes(scopes);
+
+      OAuthFlows oAuthFlows = new OAuthFlows();
+      switch (securityConfiguration.getOauthFlowType()) {
+        case CLIENT_CREDENTIALS:
+          oAuthFlows.setClientCredentials(oAuthFlow);
+        break;
+        case IMPLICIT:
+          oAuthFlows.setImplicit(oAuthFlow);
+          break;
+        case PASSWORD:
+          oAuthFlows.setPassword(oAuthFlow);
+          break;
+        case AUTH_CODE:
+          oAuthFlows.setAuthorizationCode(oAuthFlow);
+          break;
+        default:
+          throw new IllegalArgumentException("OAuth flow type: " + securityConfiguration.getOauthFlowType() + " is not currently supported");
+      }
+      oauthScheme.setFlows(oAuthFlows);
+
+      components.addSecuritySchemes(securityConfiguration.getSecuritySchemeName(), oauthScheme);
+
+      // Add the global security requirement
+      SecurityRequirement securityRequirement = new SecurityRequirement();
+      securityRequirement.addList(securityConfiguration.getSecuritySchemeName(), securityConfiguration.getGlobalSecurityRequirementScopes());
+      openAPI.addSecurityItem(securityRequirement);
+    } else {
+      throw new IllegalArgumentException("Soapstone OpenAPI generation currently only supports OAuth security schemes");
+    }
   }
 
 

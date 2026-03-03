@@ -41,6 +41,7 @@ class SoapstoneConfiguration {
   private Function<Class<?>, String> typeNameProvider;
   private ErrorResponseDocumentationProvider errorResponseDocumentationProvider;
   private String versionNumber;
+  private SecurityConfiguration securityConfiguration;
 
 
   ObjectMapper getObjectMapper() {
@@ -137,5 +138,13 @@ class SoapstoneConfiguration {
 
   public void setErrorResponseDocumentationProvider(ErrorResponseDocumentationProvider errorResponseDocumentationProvider) {
     this.errorResponseDocumentationProvider = errorResponseDocumentationProvider;
+  }
+
+  public Optional<SecurityConfiguration> getSecurityConfiguration() {
+    return Optional.ofNullable(securityConfiguration);
+  }
+
+  public void setSecurityConfiguration(SecurityConfiguration securityConfiguration) {
+    this.securityConfiguration = securityConfiguration;
   }
 }

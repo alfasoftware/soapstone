@@ -19,6 +19,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -48,6 +49,7 @@ import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 
 /**
  * Test the {@link SoapstoneOpenApiReader}
@@ -64,6 +66,12 @@ public class TestSoapstoneOpenApiReader {
 
   private static final String HOST_URL = "http://localhost/ctx/";
   private static OpenAPI openAPI;
+
+  // Security setting constants
+  private static final String GLOBAL_SCOPE = "scope1";
+  private static final Map<String, String> ALL_SCOPES = Map.of(GLOBAL_SCOPE, "scope 1", "scope2", "scope 2", "scope3", "scope 3");
+  private static final String SCHEME_NAME = "sec_scheme";
+  private static final String TOKEN_URL = "a/token/url";
 
 
   /**
@@ -103,6 +111,16 @@ public class TestSoapstoneOpenApiReader {
     soapstoneConfiguration.setSupportedPutOperations(Pattern.compile("put.*"));
     soapstoneConfiguration.setVendor("Geoffrey");
     soapstoneConfiguration.setVersionNumber("v5");
+
+    SecurityConfiguration securityConfiguration = new SecurityConfiguration();
+    securityConfiguration.setSecuritySchemeName(SCHEME_NAME);
+    securityConfiguration.setType(SecurityConfiguration.Type.OAUTH2);
+    securityConfiguration.setOauthTokenUrl(TOKEN_URL);
+    securityConfiguration.setOauthFlowType(SecurityConfiguration.OAuthFlowType.CLIENT_CREDENTIALS);
+    securityConfiguration.addScopes(ALL_SCOPES);
+    securityConfiguration.addGlobalSecurityRequirementScope(GLOBAL_SCOPE);
+
+    soapstoneConfiguration.setSecurityConfiguration(securityConfiguration);
 
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(soapstoneConfiguration));
 
@@ -393,6 +411,30 @@ public class TestSoapstoneOpenApiReader {
     assertEquals("v5",openAPI.getInfo().getVersion());
     assertEquals("Geoffrey soapstone",openAPI.getInfo().getTitle());
     assertEquals("Soapstone Generated API for Geoffrey",openAPI.getInfo().getDescription());
+  }
+
+
+  @Test
+  public void testSecurityFields() {
+    SecurityScheme securityScheme = openAPI.getComponents().getSecuritySchemes().get(SCHEME_NAME);
+
+    assertThat(securityScheme, allOf(
+        hasProperty("type", is(SecurityScheme.Type.OAUTH2)),
+        hasProperty("flows", allOf(
+            hasProperty("clientCredentials", allOf(
+                hasProperty("tokenUrl", is(TOKEN_URL)),
+                hasProperty("scopes", allOf(
+                    ALL_SCOPES.entrySet().stream()
+                        .map(e -> hasEntry(e.getKey(), e.getValue()))
+                        .toArray(org.hamcrest.Matcher[]::new)
+                ))
+            ))
+        ))
+    ));
+
+    assertThat(openAPI.getSecurity(), hasItem(
+        hasEntry(is(SCHEME_NAME), hasItem(GLOBAL_SCOPE))
+    ));
   }
 
 
