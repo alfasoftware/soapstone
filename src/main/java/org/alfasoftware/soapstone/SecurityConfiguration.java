@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Configuration bean for providing details of the security scheme in use so that the details can be included
@@ -37,7 +38,7 @@ public class SecurityConfiguration {
 
   private String securitySchemeName;
   private Type type;
-  private String oauthTokenUrl;
+  private Supplier<String> oauthTokenUrlSupplier;
   private OAuthFlowType oauthFlowType;
   private final Map<String, String> scopes = new HashMap<>();
   private final List<String> globalSecurityRequirementScopes = new ArrayList<>();
@@ -59,11 +60,11 @@ public class SecurityConfiguration {
   }
 
   public String getOauthTokenUrl() {
-    return oauthTokenUrl;
+    return oauthTokenUrlSupplier.get();
   }
 
-  public void setOauthTokenUrl(String oauthTokenUrl) {
-    this.oauthTokenUrl = oauthTokenUrl;
+  public void setOauthTokenUrlSupplier(Supplier<String> oauthTokenUrlSupplier) {
+    this.oauthTokenUrlSupplier = oauthTokenUrlSupplier;
   }
 
   public OAuthFlowType getOauthFlowType() {

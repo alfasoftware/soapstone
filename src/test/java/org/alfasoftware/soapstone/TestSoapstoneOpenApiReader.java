@@ -115,7 +115,7 @@ public class TestSoapstoneOpenApiReader {
     SecurityConfiguration securityConfiguration = new SecurityConfiguration();
     securityConfiguration.setSecuritySchemeName(SCHEME_NAME);
     securityConfiguration.setType(SecurityConfiguration.Type.OAUTH2);
-    securityConfiguration.setOauthTokenUrl(TOKEN_URL);
+    securityConfiguration.setOauthTokenUrlSupplier(() -> TOKEN_URL);
     securityConfiguration.setOauthFlowType(SecurityConfiguration.OAuthFlowType.CLIENT_CREDENTIALS);
     securityConfiguration.addScopes(ALL_SCOPES);
     securityConfiguration.addGlobalSecurityRequirementScope(GLOBAL_SCOPE);
