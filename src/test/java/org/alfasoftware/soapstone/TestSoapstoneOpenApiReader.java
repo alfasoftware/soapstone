@@ -453,11 +453,10 @@ public class TestSoapstoneOpenApiReader {
     ));
 
     // Check the security setting for each individual operation
-    openAPI.getPaths().forEach((path, pathItem) -> {
-      assertThat(getOperationForPath(pathItem).getSecurity(), hasItem(
-          hasEntry(is(SCHEME_NAME), hasItem(PATH_TO_SCOPE_FUNCTION.apply(path)))
-      ));
-    });
+    openAPI.getPaths().forEach((path, pathItem) ->
+        assertThat(getOperationForPath(pathItem).getSecurity(), hasItem(
+        hasEntry(is(SCHEME_NAME), hasItem(PATH_TO_SCOPE_FUNCTION.apply(path)))
+    )));
   }
 
 
