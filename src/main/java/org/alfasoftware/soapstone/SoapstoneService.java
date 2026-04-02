@@ -31,14 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.swagger.v3.core.util.Json;
-import io.swagger.v3.core.util.Yaml;
-import io.swagger.v3.oas.integration.SwaggerConfiguration;
-import io.swagger.v3.oas.models.OpenAPI;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -53,6 +45,15 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.UriInfo;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.swagger.v3.core.util.Json;
+import io.swagger.v3.core.util.Yaml;
+import io.swagger.v3.oas.integration.SwaggerConfiguration;
+import io.swagger.v3.oas.models.OpenAPI;
 
 
 /**
@@ -92,7 +93,7 @@ public class SoapstoneService {
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
   public String post(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
-    LOG.info("POST " + uriInfo.getAbsolutePath());
+    LOG.debug("POST " + uriInfo.getAbsolutePath());
     return process(headers, uriInfo, entity, POST);
   }
 
@@ -108,7 +109,7 @@ public class SoapstoneService {
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   public String get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
-    LOG.info("GET " + uriInfo.getAbsolutePath());
+    LOG.debug("GET " + uriInfo.getAbsolutePath());
     return process(headers, uriInfo, null, GET);
   }
 
@@ -126,7 +127,7 @@ public class SoapstoneService {
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
   public String put(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
-    LOG.info("PUT " + uriInfo.getAbsolutePath());
+    LOG.debug("PUT " + uriInfo.getAbsolutePath());
     return process(headers, uriInfo, entity, PUT);
   }
 
@@ -144,7 +145,7 @@ public class SoapstoneService {
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
   public String delete(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
-    LOG.info("DELETE " + uriInfo.getAbsolutePath());
+    LOG.debug("DELETE " + uriInfo.getAbsolutePath());
     return process(headers, uriInfo, entity, DELETE);
   }
 
@@ -158,7 +159,7 @@ public class SoapstoneService {
   @Path("openapi/tags")
   @Produces(APPLICATION_JSON)
   public Set<String> getOpenApiTags() {
-    LOG.info("Retrieving list of tags for Open API");
+    LOG.debug("Retrieving list of tags for Open API");
     return configuration.getWebServiceClasses().keySet().stream()
       .map(path -> configuration.getTagProvider().map(provider -> provider.apply(path)).orElse(null))
       .filter(Objects::nonNull)
@@ -184,7 +185,7 @@ public class SoapstoneService {
   public String getOpenApiJson(
     @Context UriInfo uriInfo, @Context HttpServletRequest request, @QueryParam("tag") Set<String> tags) {
 
-    LOG.info("Retrieving Open API JSON");
+    LOG.debug("Retrieving Open API JSON");
     URI baseUri = uriInfo.getBaseUriBuilder().host(request.getServerName()).build();
     return Json.pretty(getOpenAPI(baseUri.toASCIIString(), tags));
   }
@@ -208,7 +209,7 @@ public class SoapstoneService {
   public String getOpenApiYaml(
     @Context UriInfo uriInfo, @Context HttpServletRequest request, @QueryParam("tag") Set<String> tags) {
 
-    LOG.info("Retrieving Open API YAML");
+    LOG.debug("Retrieving Open API YAML");
 
     URI baseUri = uriInfo.getBaseUriBuilder().host(request.getServerName()).build();
     return Yaml.pretty(getOpenAPI(baseUri.toASCIIString(), tags));

@@ -15,6 +15,7 @@
 package org.alfasoftware.soapstone;
 
 import static io.swagger.v3.oas.models.parameters.Parameter.StyleEnum.SIMPLE;
+import static java.util.stream.Collectors.toMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -27,6 +28,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -44,6 +47,7 @@ import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.Discriminator;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
@@ -69,9 +73,23 @@ public class TestSoapstoneOpenApiReader {
 
   // Security setting constants
   private static final String GLOBAL_SCOPE = "scope1";
-  private static final Map<String, String> ALL_SCOPES = Map.of(GLOBAL_SCOPE, "scope 1", "scope2", "scope 2", "scope3", "scope 3");
+  private static final Map<String, String> ALL_CONFIGURED_SCOPES = Map.of(GLOBAL_SCOPE, "scope 1", "scope2", "scope 2", "scope3", "scope 3");
   private static final String SCHEME_NAME = "sec_scheme";
   private static final String TOKEN_URL = "a/token/url";
+  private static final Function<String, String> PATH_TO_SCOPE_FUNCTION = s -> s.replace('/', '.').substring(1).toLowerCase(Locale.ROOT);
+  private static final List<String> PATHS = List.of(
+      "/path/doAThing",
+      "/path/doASimpleThing",
+      "/path/doAListOfThings",
+      "/path/doAThingWithThisName",
+      "/path/doAThingBadly",
+      "/path/getAThing",
+      "/path/putAThing",
+      "/path/deleteAThing",
+      "/path/getAListOfThings",
+      "/path/doAPackageAnnotatedAdaptableThing",
+      "/path/doAClassAnnotatedAdaptableThing"
+  );
 
 
   /**
@@ -117,7 +135,9 @@ public class TestSoapstoneOpenApiReader {
     securityConfiguration.setType(SecurityConfiguration.Type.OAUTH2);
     securityConfiguration.setOauthTokenUrlSupplier(() -> TOKEN_URL);
     securityConfiguration.setOauthFlowType(SecurityConfiguration.OAuthFlowType.CLIENT_CREDENTIALS);
-    securityConfiguration.addScopes(ALL_SCOPES);
+    securityConfiguration.setGranularScopes(true);
+    securityConfiguration.setTransformPathToScope(PATH_TO_SCOPE_FUNCTION);
+    securityConfiguration.addScopes(ALL_CONFIGURED_SCOPES);
     securityConfiguration.addGlobalSecurityRequirementScope(GLOBAL_SCOPE);
 
     soapstoneConfiguration.setSecurityConfiguration(securityConfiguration);
@@ -135,17 +155,7 @@ public class TestSoapstoneOpenApiReader {
 
     assertEquals(11, openAPI.getPaths().size());
 
-    assertTrue(openAPI.getPaths().containsKey("/path/doAThing"));
-    assertTrue(openAPI.getPaths().containsKey("/path/doASimpleThing"));
-    assertTrue(openAPI.getPaths().containsKey("/path/doAListOfThings"));
-    assertTrue(openAPI.getPaths().containsKey("/path/doAThingWithThisName"));
-    assertTrue(openAPI.getPaths().containsKey("/path/doAThingBadly"));
-    assertTrue(openAPI.getPaths().containsKey("/path/getAThing"));
-    assertTrue(openAPI.getPaths().containsKey("/path/putAThing"));
-    assertTrue(openAPI.getPaths().containsKey("/path/deleteAThing"));
-    assertTrue(openAPI.getPaths().containsKey("/path/getAListOfThings"));
-    assertTrue(openAPI.getPaths().containsKey("/path/doAPackageAnnotatedAdaptableThing"));
-    assertTrue(openAPI.getPaths().containsKey("/path/doAClassAnnotatedAdaptableThing"));
+    PATHS.forEach(path -> assertTrue(openAPI.getPaths().containsKey(path)));
   }
 
 
@@ -418,13 +428,18 @@ public class TestSoapstoneOpenApiReader {
   public void testSecurityFields() {
     SecurityScheme securityScheme = openAPI.getComponents().getSecuritySchemes().get(SCHEME_NAME);
 
+    Map<String, String> expectedScopes = PATHS.stream()
+        .collect(toMap(PATH_TO_SCOPE_FUNCTION, path -> "Grants access to the operation with the path: " + path));
+    expectedScopes.putAll(ALL_CONFIGURED_SCOPES);
+
+    // Check the security schemes
     assertThat(securityScheme, allOf(
         hasProperty("type", is(SecurityScheme.Type.OAUTH2)),
         hasProperty("flows", allOf(
             hasProperty("clientCredentials", allOf(
                 hasProperty("tokenUrl", is(TOKEN_URL)),
                 hasProperty("scopes", allOf(
-                    ALL_SCOPES.entrySet().stream()
+                    expectedScopes.entrySet().stream()
                         .map(e -> hasEntry(e.getKey(), e.getValue()))
                         .toArray(org.hamcrest.Matcher[]::new)
                 ))
@@ -432,9 +447,35 @@ public class TestSoapstoneOpenApiReader {
         ))
     ));
 
+    // Check the global security setting
     assertThat(openAPI.getSecurity(), hasItem(
         hasEntry(is(SCHEME_NAME), hasItem(GLOBAL_SCOPE))
     ));
+
+    // Check the security setting for each individual operation
+    openAPI.getPaths().forEach((path, pathItem) -> {
+      assertThat(getOperationForPath(pathItem).getSecurity(), hasItem(
+          hasEntry(is(SCHEME_NAME), hasItem(PATH_TO_SCOPE_FUNCTION.apply(path)))
+      ));
+    });
+  }
+
+
+  private Operation getOperationForPath(PathItem pathItem) {
+    if (pathItem.getGet() != null) {
+      return pathItem.getGet();
+    }
+    if (pathItem.getPost() != null) {
+      return pathItem.getPost();
+    }
+    if (pathItem.getPut() != null) {
+      return pathItem.getPut();
+    }
+    if (pathItem.getDelete() != null) {
+      return pathItem.getDelete();
+    }
+
+    throw new RuntimeException("Unsupported operation");
   }
 
 

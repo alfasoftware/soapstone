@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -40,6 +41,8 @@ public class SecurityConfiguration {
   private Type type;
   private Supplier<String> oauthTokenUrlSupplier;
   private OAuthFlowType oauthFlowType;
+  private boolean granularScopes;
+  private Function<String, String> transformPathToScope;
   private final Map<String, String> scopes = new HashMap<>();
   private final List<String> globalSecurityRequirementScopes = new ArrayList<>();
 
@@ -75,8 +78,24 @@ public class SecurityConfiguration {
     this.oauthFlowType = oauthFlowType;
   }
 
+  public boolean isGranularScopes() {
+    return granularScopes;
+  }
+
+  public void setGranularScopes(boolean granularScopes) {
+    this.granularScopes = granularScopes;
+  }
+
+  public Function<String, String> getTransformPathToScope() {
+    return transformPathToScope;
+  }
+
+  public void setTransformPathToScope(Function<String, String> transformPathToScope) {
+    this.transformPathToScope = transformPathToScope;
+  }
+
   public Map<String, String> getScopes() {
-    return scopes;
+    return Map.copyOf(scopes);
   }
 
   public void addScope(String scope, String scopeDescription) {
