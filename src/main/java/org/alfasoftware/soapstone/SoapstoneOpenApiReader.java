@@ -25,6 +25,7 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -146,9 +147,6 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     OpenAPI openAPI = openApiConfiguration.getOpenAPI() == null ? new OpenAPI() : openApiConfiguration.getOpenAPI();
     Components components = openAPI.getComponents() == null ? new Components() : openAPI.getComponents();
 
-    configuration.getSecurityConfiguration()
-        .ifPresent(securityConfiguration -> setSecurityFields(securityConfiguration, components, openAPI));
-
     Server server = new Server();
     server.setUrl(hostUrl);
     openAPI.addServersItem(server);
@@ -160,6 +158,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     openAPI.setInfo(info);
 
+    Map<String, String> scopes = new HashMap<>();
     for (String resourcePath : pathByClass.keySet()) {
 
       currentResourceClass = pathByClass.get(resourcePath);
@@ -186,12 +185,15 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .map(provider -> provider.apply(resourcePath))
           .orElse(null);
 
-        PathItem pathItem = methodToPathItem(tag, method, resourcePath, operationName, components);
+        String path = resourcePath + "/" + operationName;
+        PathItem pathItem = methodToPathItem(tag, method, resourcePath, operationName, components, path, scopes);
 
-        String name = resourcePath + "/" + operationName;
-        openAPI.path(name, pathItem);
+        openAPI.path(path, pathItem);
       });
     }
+
+    configuration.getSecurityConfiguration()
+        .ifPresent(securityConfiguration -> setSecurityFields(securityConfiguration, scopes, components, openAPI));
 
     if (components.getSchemas() != null) {
       components.setSchemas(new TreeMap<>(components.getSchemas()));
@@ -202,7 +204,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private void setSecurityFields(SecurityConfiguration securityConfiguration, Components components, OpenAPI openAPI) {
+  private void setSecurityFields(SecurityConfiguration securityConfiguration, Map<String, String> granularScopes, Components components, OpenAPI openAPI) {
     SecurityScheme.Type type = SecurityScheme.Type.valueOf(securityConfiguration.getType().name());
     // Add security fields if OAuth scheme is specified
     if (OAUTH2.equals(type)) {
@@ -212,6 +214,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       OAuthFlow oAuthFlow = new OAuthFlow();
       oAuthFlow.setTokenUrl(securityConfiguration.getOauthTokenUrl());
       Scopes scopes = new Scopes();
+      scopes.putAll(granularScopes);
       scopes.putAll(securityConfiguration.getScopes());
       oAuthFlow.setScopes(scopes);
 
@@ -246,7 +249,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  private PathItem methodToPathItem(String tag, Method method, String resourcePath, String operationName, Components components) {
+  private PathItem methodToPathItem(String tag, Method method, String resourcePath, String operationName, Components components, String path, Map<String, String> scopes) {
 
     String operationId = Arrays.stream(resourcePath.split("\\W"))
       .map(StringUtils::capitalize)
@@ -297,6 +300,17 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     configuration.getDocumentationProvider()
       .flatMap(provider -> provider.forMethod(method))
       .ifPresent(newOperation::setDescription);
+
+    // If security configuration has been supplied and granular scopes are in use, set the security requirement for each individual operation
+    configuration.getSecurityConfiguration().ifPresent(securityConfiguration -> {
+      if (securityConfiguration.hasGranularScopes()) {
+        SecurityRequirement securityRequirement = new SecurityRequirement();
+        String scope = securityConfiguration.getTransformPathToScope() != null ? securityConfiguration.getTransformPathToScope().apply(path) : path;
+        securityRequirement.addList(securityConfiguration.getSecuritySchemeName(), scope);
+        newOperation.addSecurityItem(securityRequirement);
+        scopes.put(scope, "Grants access to the operation with the path: " + path);
+      }
+    });
 
     // Convert parameters to query parameters
     List<io.swagger.v3.oas.models.parameters.Parameter> queryParameters = bodyParameters.stream()
