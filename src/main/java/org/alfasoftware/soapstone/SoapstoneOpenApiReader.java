@@ -303,9 +303,9 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     // If security configuration has been supplied and granular scopes are in use, set the security requirement for each individual operation
     configuration.getSecurityConfiguration().ifPresent(securityConfiguration -> {
-      if (securityConfiguration.isGranularScopes()) {
+      if (securityConfiguration.hasGranularScopes()) {
         SecurityRequirement securityRequirement = new SecurityRequirement();
-        String scope = securityConfiguration.getTransformPathToScope().apply(path);
+        String scope = securityConfiguration.getTransformPathToScope() != null ? securityConfiguration.getTransformPathToScope().apply(path) : path;
         securityRequirement.addList(securityConfiguration.getSecuritySchemeName(), scope);
         newOperation.addSecurityItem(securityRequirement);
         scopes.put(scope, "Grants access to the operation with the path: " + path);

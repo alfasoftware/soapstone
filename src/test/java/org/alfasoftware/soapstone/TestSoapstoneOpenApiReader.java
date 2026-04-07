@@ -38,6 +38,7 @@ import java.util.regex.Pattern;
 
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.Documentation;
+import org.hamcrest.Matchers;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -155,7 +156,7 @@ public class TestSoapstoneOpenApiReader {
 
     assertEquals(11, openAPI.getPaths().size());
 
-    PATHS.forEach(path -> assertTrue(openAPI.getPaths().containsKey(path)));
+    assertThat(openAPI.getPaths(), allOf(PATHS.stream().map(Matchers::hasKey).toArray(org.hamcrest.Matcher[]::new)));
   }
 
 

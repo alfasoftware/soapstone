@@ -1,8 +1,23 @@
+/* Copyright 2026 Alfa Financial Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.alfasoftware.soapstone;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -42,7 +57,7 @@ public class SecurityConfiguration {
   private Supplier<String> oauthTokenUrlSupplier;
   private OAuthFlowType oauthFlowType;
   private boolean granularScopes;
-  private Function<String, String> transformPathToScope;
+  private Function<String, String> transformPathToScope = s -> s.replace('/', '.').substring(1).toLowerCase(Locale.ROOT);
   private final Map<String, String> scopes = new HashMap<>();
   private final List<String> globalSecurityRequirementScopes = new ArrayList<>();
 
@@ -78,10 +93,18 @@ public class SecurityConfiguration {
     this.oauthFlowType = oauthFlowType;
   }
 
-  public boolean isGranularScopes() {
+  /**
+   * Returns true if the API has been configured to use OAuth scopes at an operation level for granting access. i.e.
+   * each individual method exposed on the API has its own scope
+   */
+  public boolean hasGranularScopes() {
     return granularScopes;
   }
 
+  /**
+   * Set whether the API has been configured to use OAuth scopes at an operation level for granting access. i.e.
+   * each individual method exposed on the API has its own scope
+   */
   public void setGranularScopes(boolean granularScopes) {
     this.granularScopes = granularScopes;
   }
@@ -90,6 +113,12 @@ public class SecurityConfiguration {
     return transformPathToScope;
   }
 
+  /**
+   * The default setting will convert to all lowercase, remove the leading '/' and replace the remaining '/' with '.'
+   * <p>
+   *   If set to null, the original path will be used as the scope
+   * </p>
+   */
   public void setTransformPathToScope(Function<String, String> transformPathToScope) {
     this.transformPathToScope = transformPathToScope;
   }
