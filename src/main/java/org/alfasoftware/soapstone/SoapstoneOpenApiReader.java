@@ -281,15 +281,6 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     responses.addApiResponse("200", response);
 
-    // add other API responses
-    configuration.getExceptionResponseDocumentationProvider()
-            .ifPresent(provider -> provider.getErrorResponseTypesForMethod(method).forEach((code, type) -> {
-                      ApiResponse errorResponse = new ApiResponse();
-                      errorResponse.setContent(typeToResponseContent(type, components));
-                      errorResponse.setDescription("");
-                      responses.addApiResponse(code, errorResponse);
-                    }));
-
     PathItem pathItem = new PathItem();
 
     Operation newOperation = new Operation();
@@ -349,7 +340,29 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       }
     }
 
+    // Adds error responses
+    configuration.getExceptionResponseDocumentationProvider()
+      .ifPresent(provider -> provider.getErrorResponseTypesForMethod(method)
+        .forEach((code, type) -> {
+
+          //Skips adding a 415 response if not POST or PUT
+          if ("415".equals(code) && !isPostOrPut(pathItem)) {
+            return;
+          }
+
+          ApiResponse errorResponse = new ApiResponse();
+          errorResponse.setContent(typeToResponseContent(type, components));
+          errorResponse.setDescription("");
+
+          responses.addApiResponse(code, errorResponse);
+        }));
+
     return pathItem;
+  }
+
+
+ private boolean isPostOrPut(PathItem pathItem) {
+    return pathItem.getPost() != null || pathItem.getPut() != null;
   }
 
 
