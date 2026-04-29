@@ -350,6 +350,11 @@ class SoapstoneOpenApiReader implements OpenApiReader {
             return;
           }
 
+          //Only adds 401 or 403 responses if a security configuration is set
+          if ((code.equals("401") || code.equals("403")) && !isSecurityConfigurationPresent()) {
+            return;
+          }
+
           ApiResponse errorResponse = new ApiResponse();
           errorResponse.setContent(typeToResponseContent(type, components));
           errorResponse.setDescription("");
@@ -363,6 +368,11 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
  private boolean isPostOrPut(PathItem pathItem) {
     return pathItem.getPost() != null || pathItem.getPut() != null;
+  }
+
+
+  private boolean isSecurityConfigurationPresent() {
+    return configuration.getSecurityConfiguration().isPresent();
   }
 
 
