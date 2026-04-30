@@ -44,6 +44,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 
 import org.apache.commons.lang3.StringUtils;
@@ -92,9 +93,10 @@ public class SoapstoneService {
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
-  public String post(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
+  public Response post(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.debug("POST " + uriInfo.getAbsolutePath());
-    return process(headers, uriInfo, entity, POST);
+    String body = process(headers, uriInfo, entity, POST);
+    return Response.ok(body).build();
   }
 
 
@@ -108,9 +110,10 @@ public class SoapstoneService {
   @GET
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
-  public String get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
+  public Response get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
     LOG.debug("GET " + uriInfo.getAbsolutePath());
-    return process(headers, uriInfo, null, GET);
+    String body = process(headers, uriInfo, null, GET);
+    return Response.ok(body).build();
   }
 
 
@@ -126,9 +129,10 @@ public class SoapstoneService {
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
-  public String put(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
+  public Response put(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.debug("PUT " + uriInfo.getAbsolutePath());
-    return process(headers, uriInfo, entity, PUT);
+    String body = process(headers, uriInfo, entity, PUT);
+    return Response.ok(body).build();
   }
 
 
@@ -144,9 +148,10 @@ public class SoapstoneService {
   @Path("/{s:.*}")
   @Produces(APPLICATION_JSON)
   @Consumes(APPLICATION_JSON)
-  public String delete(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
+  public Response delete(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.debug("DELETE " + uriInfo.getAbsolutePath());
-    return process(headers, uriInfo, entity, DELETE);
+    String body = process(headers, uriInfo, entity, DELETE);
+    return Response.ok(body).build();
   }
 
 
