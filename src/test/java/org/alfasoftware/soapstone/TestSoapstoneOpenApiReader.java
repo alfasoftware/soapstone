@@ -26,12 +26,16 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -54,6 +58,7 @@ import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 
 /**
@@ -91,6 +96,10 @@ public class TestSoapstoneOpenApiReader {
       "/path/doAPackageAnnotatedAdaptableThing",
       "/path/doAClassAnnotatedAdaptableThing"
   );
+  private static final List<String> BASE_REQUIRED_RESPONSES =  List.of("default", "200", "400", "404", "406", "429", "500");
+  private static final Set<PathItem.HttpMethod> METHODS_REQUIRING_415 = Set.of(
+    PathItem.HttpMethod.PUT,
+    PathItem.HttpMethod.POST);
 
 
   /**
@@ -108,6 +117,24 @@ public class TestSoapstoneOpenApiReader {
           .map(Documentation.class::cast).map(Documentation::value)
       )
       .build();
+
+    ErrorResponseDocumentationProvider errorResponseDocumentationProvider = method -> {
+      Map<String, Type> map = new HashMap<>();
+      try {
+        map.put("default",  loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("400", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("401", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("403", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("404", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("406", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("415", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("429", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("500", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException(e);
+      }
+      return map;
+    };
 
     final Pattern tagPattern = Pattern.compile("/(?<tag>.*?)(?:/.*)?");
     Function<String, String> tagProvider = path -> {
@@ -130,6 +157,7 @@ public class TestSoapstoneOpenApiReader {
     soapstoneConfiguration.setSupportedPutOperations(Pattern.compile("put.*"));
     soapstoneConfiguration.setVendor("Geoffrey");
     soapstoneConfiguration.setVersionNumber("v5");
+    soapstoneConfiguration.setErrorResponseDocumentationProvider(errorResponseDocumentationProvider);
 
     SecurityConfiguration securityConfiguration = new SecurityConfiguration();
     securityConfiguration.setSecuritySchemeName(SCHEME_NAME);
@@ -461,6 +489,46 @@ public class TestSoapstoneOpenApiReader {
   }
 
 
+  @Test
+  public void testErrorResponsesPresent() {
+    List<String> failures = new ArrayList<>();
+
+    List<SecurityRequirement> securityRequirements = openAPI.getSecurity();
+
+    openAPI.getPaths().forEach((pathTemplate, pathItem) -> {
+      pathItem.readOperationsMap().forEach((method, operation) -> {
+
+        List<String> requiredResponses = new ArrayList<>(BASE_REQUIRED_RESPONSES);
+
+        // PUT & POST must include 415
+        if (METHODS_REQUIRING_415.contains(method)) {
+          requiredResponses.add("415");
+        }
+
+        if (!securityRequirements.isEmpty()) {
+          requiredResponses.add("401");
+          requiredResponses.add("403");
+        }
+
+        // Validate presence
+        for (String code : requiredResponses) {
+          if (operation.getResponses() == null ||
+            !operation.getResponses().containsKey(code)) {
+
+            String msg = String.format("%s %s is missing required response '%s'",method, pathTemplate, code);
+            failures.add(msg);
+          }
+        }
+      });
+    });
+
+    if (!failures.isEmpty()) {
+      fail("\nOpenAPI specification validation failures:\n" +
+        String.join("\n", failures));
+    }
+  }
+
+
   private Operation getOperationForPath(PathItem pathItem) {
     if (pathItem.getGet() != null) {
       return pathItem.getGet();
@@ -490,4 +558,11 @@ public class TestSoapstoneOpenApiReader {
     return schema;
   }
 
+  private static Class<?> loadClass(String name, ClassLoader classLoader) throws ClassNotFoundException {
+    if (classLoader != null) {
+      return Class.forName(name, false, classLoader);
+    } else {
+      return Class.forName(name);
+    }
+  }
 }
