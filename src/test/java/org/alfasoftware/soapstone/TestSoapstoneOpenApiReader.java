@@ -300,7 +300,8 @@ public class TestSoapstoneOpenApiReader {
       "PathDoAPackageAnnotatedAdaptableThingRequest",
       "SuperClass",
       "SubClass1",
-      "SubClass2"
+      "SubClass2",
+      "DummyErrorClass"
     ));
   }
 
