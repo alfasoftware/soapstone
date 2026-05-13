@@ -63,12 +63,14 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MapSchema;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.ObjectSchema;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.parameters.HeaderParameter;
 import io.swagger.v3.oas.models.parameters.Parameter.StyleEnum;
 import io.swagger.v3.oas.models.parameters.QueryParameter;
@@ -146,6 +148,14 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     OpenAPI openAPI = openApiConfiguration.getOpenAPI() == null ? new OpenAPI() : openApiConfiguration.getOpenAPI();
     Components components = openAPI.getComponents() == null ? new Components() : openAPI.getComponents();
+
+    if (isSecurityConfigurationPresent()) {
+      components.addHeaders("WWW-Authenticate",
+        new Header()
+          .description("Details of the authentication issue")
+          .schema(new StringSchema())
+          .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\""));
+    }
 
     Server server = new Server();
     server.setUrl(hostUrl);
@@ -350,8 +360,8 @@ class SoapstoneOpenApiReader implements OpenApiReader {
             return;
           }
 
-          //Only adds 401 or 403 responses if a security configuration is set
-          if ((code.equals("401") || code.equals("403")) && !isSecurityConfigurationPresent()) {
+          //Only adds 403 responses if a security configuration is set
+          if (code.equals("403") && !isSecurityConfigurationPresent()) {
             return;
           }
 
@@ -361,6 +371,16 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
           responses.addApiResponse(code, errorResponse);
         }));
+
+    // If a security configuration is set, a 401 response is created
+    if (isSecurityConfigurationPresent()) {
+      ApiResponse unauthorisedErrorResponse = new ApiResponse()
+        .description("Unauthorised - Authentication required or failed")
+        .addHeaderObject("WWW-Authenticate", new Header()
+          .$ref("#/components/headers/WWW-Authenticate"));
+
+      responses.addApiResponse("401", unauthorisedErrorResponse);
+    }
 
     return pathItem;
   }
