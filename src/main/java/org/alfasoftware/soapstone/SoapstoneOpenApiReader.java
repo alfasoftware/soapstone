@@ -70,6 +70,7 @@ import io.swagger.v3.oas.models.media.MapSchema;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.ObjectSchema;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.parameters.HeaderParameter;
 import io.swagger.v3.oas.models.parameters.Parameter.StyleEnum;
 import io.swagger.v3.oas.models.parameters.QueryParameter;
@@ -368,7 +369,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
                 Map.of("WWW-Authenticate",
                   new Header()
                     .description("Details of the authentication issue")
-                    .schema(new Schema<String>().type("string"))
+                    .schema(new StringSchema())
                     .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\"")
                 )
               );
