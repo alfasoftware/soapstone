@@ -361,23 +361,23 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           errorResponse.setContent(typeToResponseContent(type, components));
           errorResponse.setDescription("");
 
-          // If a security configuration is set, a 401 response is created
-          if (isSecurityConfigurationPresent()) {
-            ApiResponse unauthorisedErrorResponse = new ApiResponse()
-              .description("Unauthorised - Authentication required or failed")
-              .headers(
-                Map.of("WWW-Authenticate",
-                  new Header()
-                    .description("Details of the authentication issue")
-                    .schema(new StringSchema())
-                    .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\"")
-                )
-              );
-            responses.addApiResponse("401", unauthorisedErrorResponse);
-          }
-
           responses.addApiResponse(code, errorResponse);
         }));
+
+    // If a security configuration is set, a 401 response is created
+    if (isSecurityConfigurationPresent()) {
+      ApiResponse unauthorisedErrorResponse = new ApiResponse()
+        .description("Unauthorised - Authentication required or failed")
+        .headers(
+          Map.of("WWW-Authenticate",
+            new Header()
+              .description("Details of the authentication issue")
+              .schema(new StringSchema())
+              .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\"")
+          )
+        );
+      responses.addApiResponse("401", unauthorisedErrorResponse);
+    }
 
     return pathItem;
   }
