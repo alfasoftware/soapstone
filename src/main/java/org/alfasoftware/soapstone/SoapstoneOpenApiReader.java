@@ -149,6 +149,14 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     OpenAPI openAPI = openApiConfiguration.getOpenAPI() == null ? new OpenAPI() : openApiConfiguration.getOpenAPI();
     Components components = openAPI.getComponents() == null ? new Components() : openAPI.getComponents();
 
+    if (isSecurityConfigurationPresent()) {
+      components.addHeaders("WWW-Authenticate",
+        new Header()
+          .description("Details of the authentication issue")
+          .schema(new StringSchema())
+          .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\""));
+    }
+
     Server server = new Server();
     server.setUrl(hostUrl);
     openAPI.addServersItem(server);
@@ -368,14 +376,9 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     if (isSecurityConfigurationPresent()) {
       ApiResponse unauthorisedErrorResponse = new ApiResponse()
         .description("Unauthorised - Authentication required or failed")
-        .headers(
-          Map.of("WWW-Authenticate",
-            new Header()
-              .description("Details of the authentication issue")
-              .schema(new StringSchema())
-              .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\"")
-          )
-        );
+        .addHeaderObject("WWW-Authenticate", new Header()
+          .$ref("#/components/headers/WWW-Authenticate"));
+
       responses.addApiResponse("401", unauthorisedErrorResponse);
     }
 
