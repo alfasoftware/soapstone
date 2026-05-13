@@ -63,6 +63,7 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MapSchema;
@@ -350,14 +351,29 @@ class SoapstoneOpenApiReader implements OpenApiReader {
             return;
           }
 
-          //Only adds 401 or 403 responses if a security configuration is set
-          if ((code.equals("401") || code.equals("403")) && !isSecurityConfigurationPresent()) {
+          //Only adds 403 responses if a security configuration is set
+          if (code.equals("403") && !isSecurityConfigurationPresent()) {
             return;
           }
 
           ApiResponse errorResponse = new ApiResponse();
           errorResponse.setContent(typeToResponseContent(type, components));
           errorResponse.setDescription("");
+
+          // If a security configuration is set, a 401 response is created
+          if (isSecurityConfigurationPresent()) {
+            ApiResponse unauthorisedErrorResponse = new ApiResponse()
+              .description("Unauthorised - Authentication required or failed")
+              .headers(
+                Map.of("WWW-Authenticate",
+                  new Header()
+                    .description("Details of the authentication issue")
+                    .schema(new Schema<String>().type("string"))
+                    .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\"")
+                )
+              );
+            responses.addApiResponse("401", unauthorisedErrorResponse);
+          }
 
           responses.addApiResponse(code, errorResponse);
         }));
