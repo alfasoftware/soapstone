@@ -281,15 +281,20 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     ApiResponses responses = new ApiResponses();
     ApiResponse response = new ApiResponse();
 
+    Type returnType = method.getGenericReturnType();
     LOG.debug("      Mapping response");
-    response.setContent(typeToResponseContent(method.getGenericReturnType(), components));
+    response.setContent(typeToResponseContent(returnType, components));
     LOG.debug("        Done");
 
     configuration.getDocumentationProvider()
       .flatMap(provider -> provider.forMethodReturn(method))
       .ifPresent(response::setDescription);
 
-    responses.addApiResponse("200", response);
+    if (configuration.isEnableNoContentResponses() && returnType == void.class) {
+      responses.addApiResponse("204", response);
+    } else {
+      responses.addApiResponse("200", response);
+    }
 
     PathItem pathItem = new PathItem();
 
