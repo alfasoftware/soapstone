@@ -681,9 +681,8 @@ public class TestSoapstoneOpenApiReader {
    * Treats both primitive void and generic Void types as void.
    */
   private boolean returnsVoid(Method method) {
-    return method.getReturnType().equals(Void.TYPE) || method.getGenericReturnType().getTypeName().contains("Void");
+    return method.getReturnType() == void.class;
   }
-
 
 
   /**
@@ -695,7 +694,6 @@ public class TestSoapstoneOpenApiReader {
 
     return (i >= 0 && i < path.length() - 1) ? path.substring(i + 1) : path;
   }
-
 
 
   /**
