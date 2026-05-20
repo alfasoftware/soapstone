@@ -585,12 +585,12 @@ public class TestSoapstoneOpenApiReader {
     Map<String, Method> map = new HashMap<>();
 
     for (Method method : serviceClass.getDeclaredMethods()) {
-      WebMethod wm = method.getAnnotation(WebMethod.class);
+      WebMethod webMethod = method.getAnnotation(WebMethod.class);
 
-      if (wm != null && !wm.exclude()) {
-        String name = wm.operationName().isEmpty()
+      if (webMethod != null && !webMethod.exclude()) {
+        String name = webMethod.operationName().isEmpty()
           ? method.getName()
-          : wm.operationName();
+          : webMethod.operationName();
 
         map.put(name, method);
 
@@ -610,9 +610,9 @@ public class TestSoapstoneOpenApiReader {
     Map<String, Method> map = new HashMap<>();
 
     for (Method method : serviceClass.getDeclaredMethods()) {
-      WebMethod wm = method.getAnnotation(WebMethod.class);
+      WebMethod webMethod = method.getAnnotation(WebMethod.class);
 
-      if (wm != null && !wm.exclude()) {
+      if (webMethod != null && !webMethod.exclude()) {
         map.put(method.getName().toLowerCase(), method);
       }
     }
