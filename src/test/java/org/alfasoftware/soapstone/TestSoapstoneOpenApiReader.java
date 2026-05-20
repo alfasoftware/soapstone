@@ -678,7 +678,6 @@ public class TestSoapstoneOpenApiReader {
 
   /**
    * Determines whether a method should produce a 204 (no content) response.
-   * Treats both primitive void and generic Void types as void.
    */
   private boolean returnsVoid(Method method) {
     return method.getReturnType() == void.class;
