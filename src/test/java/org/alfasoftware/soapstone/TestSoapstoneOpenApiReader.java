@@ -502,7 +502,7 @@ public class TestSoapstoneOpenApiReader {
 
     List<SecurityRequirement> securityRequirements = openAPI.getSecurity();
 
-    Class<?> webServiceClass =  WebService.class;
+    Class<?> webServiceClass = WebService.class;
 
     Map<String, Method> methodByName = buildMethodByName(webServiceClass);
     Map<String, Method> methodByPath = buildMethodByPath(webServiceClass);
