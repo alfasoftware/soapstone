@@ -96,11 +96,9 @@ class WebServiceInvoker {
     }
     if (LOG.isTraceEnabled()) {
       try {
-        List<Pair<String, JavaType>> prettyNodes = parameters.stream().map(parameter -> {
+        List<String> prettyNodes = parameters.stream().map(parameter -> {
           try {
-            String value = configuration.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(parameter.getNode());
-            JavaType returnType = configuration.getObjectMapper().constructType(operation.getGenericReturnType());
-            return Pair.of(value, returnType);
+            return configuration.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(parameter.getNode());
           } catch (JsonProcessingException e) {
             throw new RuntimeException("JsonProcessingException while trying to pretty-print the request", e);
           }

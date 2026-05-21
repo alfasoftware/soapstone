@@ -136,7 +136,7 @@ public class SoapstoneService {
   @Consumes(APPLICATION_JSON)
   public Response put(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.debug("PUT " + uriInfo.getAbsolutePath());
-    Pair<String, JavaType> methodPair =process(headers, uriInfo, entity, PUT);
+    Pair<String, JavaType> methodPair = process(headers, uriInfo, entity, PUT);
 
     return determineResponse(methodPair);
   }
