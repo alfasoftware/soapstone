@@ -15,6 +15,7 @@
 package org.alfasoftware.soapstone;
 
 import static io.swagger.v3.oas.models.parameters.Parameter.StyleEnum.SIMPLE;
+import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -28,10 +29,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -41,12 +40,12 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import jakarta.jws.WebMethod;
 
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.Documentation;
-import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.Matchers;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -101,7 +100,7 @@ public class TestSoapstoneOpenApiReader {
       "/path/doAPackageAnnotatedAdaptableThing",
       "/path/doAClassAnnotatedAdaptableThing"
   );
-  private static final List<String> BASE_REQUIRED_RESPONSES =  List.of("default", "400", "404", "406", "429", "500");
+  private static final List<String> BASE_REQUIRED_RESPONSES = List.of("default", "400", "404", "406", "429", "500");
   private static final Set<PathItem.HttpMethod> METHODS_REQUIRING_415 = Set.of(
     PathItem.HttpMethod.PUT,
     PathItem.HttpMethod.POST);
@@ -126,7 +125,7 @@ public class TestSoapstoneOpenApiReader {
     ErrorResponseDocumentationProvider errorResponseDocumentationProvider = method -> {
       Map<String, Type> map = new HashMap<>();
       try {
-        map.put("default",  loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("default", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
         map.put("400", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
         map.put("401", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
         map.put("403", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
@@ -499,38 +498,59 @@ public class TestSoapstoneOpenApiReader {
   @Test
   public void testResponsesPresent() {
     List<String> failures = new ArrayList<>();
-
     List<SecurityRequirement> securityRequirements = openAPI.getSecurity();
-
     Class<?> webServiceClass = WebService.class;
 
-    Map<String, Method> methodByName = buildMethodByName(webServiceClass);
-    Map<String, Method> methodByPath = buildMethodByPath(webServiceClass);
-
-    openAPI.getPaths().forEach((pathTemplate, pathItem) ->
+    openAPI.getPaths().forEach((pathTemplate, pathItem) -> {
       pathItem.readOperationsMap().forEach((httpMethod, operation) -> {
 
-      List<String> requiredResponses = buildRequiredResponses(httpMethod, securityRequirements);
+        List<String> requiredResponses = new ArrayList<>(BASE_REQUIRED_RESPONSES);
 
-      Method webMethod = resolveMethod(operation.getOperationId(), pathTemplate, methodByName, methodByPath);
-
-      if (webMethod != null) {
-        // Add success response based on return type
-        requiredResponses.add(returnsVoid(webMethod) ? "204" : "200");
-      } else if (StringUtils.isNotEmpty(operation.getOperationId())) {
-        failures.add(buildMissingMethodMessage(operation.getOperationId(), httpMethod, pathTemplate));
-      }
-
-      Map<String, ApiResponse> responses = operation.getResponses() != null ? operation.getResponses() : Collections.emptyMap();
-
-      // Validate that all required responses are present
-      for (String code : requiredResponses) {
-        if (!responses.containsKey(code)) {
-          failures.add(buildMissingResponseMessage(httpMethod, pathTemplate, code));
+        // PUT & POST must include 415
+        if (METHODS_REQUIRING_415.contains(httpMethod)) {
+          requiredResponses.add("415");
         }
-      }
-    }));
 
+        if (!securityRequirements.isEmpty()) {
+          requiredResponses.add("401");
+          requiredResponses.add("403");
+        }
+
+        // Methods returning void should return a 204 response instead of a 200
+        Set<String> voidMethods = stream(webServiceClass.getDeclaredMethods())
+          .filter(m -> m.getReturnType().equals(Void.TYPE))
+          // This logic is to take into consideration methods that explicitly set an operationName in the WebMethod annotation
+          // that don't match the Java method name
+          .map(method -> {
+            WebMethod webMethod = method.getAnnotation(WebMethod.class);
+            if (webMethod != null && !webMethod.exclude()) {
+              return webMethod.operationName().isEmpty()
+                ? method.getName()
+                : webMethod.operationName();
+            }
+            return method.getName();
+          })
+          .collect(Collectors.toSet());
+
+        String voidMethodName = pathTemplate.substring(pathTemplate.lastIndexOf("/") + 1);
+
+        if (voidMethods.contains(voidMethodName)) {
+          requiredResponses.add("204");
+        } else {
+          requiredResponses.add("200");
+        }
+
+        // Validate presence
+        for (String code : requiredResponses) {
+          if (operation.getResponses() == null ||
+            !operation.getResponses().containsKey(code)) {
+
+            String msg = String.format("%s %s is missing required response '%s'", httpMethod, pathTemplate, code);
+            failures.add(msg);
+          }
+        }
+      });
+    });
     if (!failures.isEmpty()) {
       fail("\nOpenAPI specification validation failures:\n" +
         String.join("\n", failures));
@@ -574,147 +594,5 @@ public class TestSoapstoneOpenApiReader {
     } else {
       return Class.forName(name);
     }
-  }
-
-
-  /**
-   * Builds a map of operation name -> method for all exposed @WebMethod methods.
-   * Respects custom operationName values and excludes methods marked with exclude=true.
-   */
-  private Map<String, Method> buildMethodByName(Class<?> serviceClass) {
-    Map<String, Method> map = new HashMap<>();
-
-    for (Method method : serviceClass.getDeclaredMethods()) {
-      WebMethod webMethod = method.getAnnotation(WebMethod.class);
-
-      if (webMethod != null && !webMethod.exclude()) {
-        String name = webMethod.operationName().isEmpty()
-          ? method.getName()
-          : webMethod.operationName();
-
-        map.put(name, method);
-
-        // Helps with prefixed operationIds (e.g. PathDoSomething)
-        map.put(capitalise(name), method);
-      }
-    }
-
-    return map;
-  }
-
-
-  /**
-   * Builds a fallback lookup map using method names (lowercase), allowing resolution via the last path segment.
-   */
-  private Map<String, Method> buildMethodByPath(Class<?> serviceClass) {
-    Map<String, Method> map = new HashMap<>();
-
-    for (Method method : serviceClass.getDeclaredMethods()) {
-      WebMethod webMethod = method.getAnnotation(WebMethod.class);
-
-      if (webMethod != null && !webMethod.exclude()) {
-        map.put(method.getName().toLowerCase(), method);
-      }
-    }
-
-    return map;
-  }
-
-
-  /**
-   * Resolves the Java service method corresponding to an OpenAPI operation.
-   *
-   * Resolution order:
-   * 1. Match by operationId
-   * 2. Fallback to last path segment
-   */
-  private Method resolveMethod(String operationId, String pathTemplate, Map<String, Method> methodByName, Map<String, Method> methodByPath) {
-    Method method = null;
-
-    // Try operationId
-    if (StringUtils.isNotEmpty(operationId)) {
-      method = methodByName.get(operationId);
-
-      // Try suffix match
-      if (method == null) {
-        for (Map.Entry<String, Method> entry : methodByName.entrySet()) {
-          if (operationId.endsWith(capitalise(entry.getKey()))) {
-            return entry.getValue();
-          }
-        }
-      }
-    }
-
-    // Fallback to path
-    if (method == null) {
-      String pathKey = extractLastPathSegment(pathTemplate).toLowerCase();
-      method = methodByPath.get(pathKey);
-    }
-
-    return method;
-  }
-
-
-  /**
-   * Builds the base list of required responses for an operation based on:
-   * - HTTP method (e.g. POST/PUT require 415)
-   * - presence of security requirements (adds 401 and 403)
-   */
-  private List<String> buildRequiredResponses(PathItem.HttpMethod httpMethod, List<SecurityRequirement> securityRequirements) {
-    List<String> responses = new ArrayList<>(BASE_REQUIRED_RESPONSES);
-
-    if (METHODS_REQUIRING_415.contains(httpMethod)) {
-      responses.add("415");
-    }
-
-    if (!securityRequirements.isEmpty()) {
-      responses.add("401");
-      responses.add("403");
-    }
-
-    return responses;
-  }
-
-
-  /**
-   * Determines whether a method should produce a 204 (no content) response.
-   */
-  private boolean returnsVoid(Method method) {
-    return method.getReturnType() == void.class;
-  }
-
-
-  /**
-   * Extracts the last segment of a path, used as a fallback method name.
-   * Example: "/path/doThing" -> "doThing"
-   */
-  private String extractLastPathSegment(String path) {
-    int i = path.lastIndexOf('/');
-
-    return (i >= 0 && i < path.length() - 1) ? path.substring(i + 1) : path;
-  }
-
-
-  /**
-   * Capitalises the first character of a string.
-   */
-  private String capitalise(String value) {
-    return StringUtils.capitalize(value);
-  }
-
-
-  /**
-   * Builds an error message for missing method mappings.
-   */
-  private String buildMissingMethodMessage(String operationId, PathItem.HttpMethod httpMethod, String pathTemplate) {
-    return String.format("No @WebMethod found for operationId '%s' (%s %s)", operationId, httpMethod, pathTemplate);
-  }
-
-
-  /**
-   * Builds an error message for missing required responses.
-   */
-  private String buildMissingResponseMessage(PathItem.HttpMethod httpMethod, String pathTemplate, String code) {
-    return String.format("%s %s is missing required response '%s'", httpMethod, pathTemplate, code);
   }
 }
