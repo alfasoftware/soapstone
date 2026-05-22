@@ -502,6 +502,11 @@ public class TestSoapstoneOpenApiReader {
     List<SecurityRequirement> securityRequirements = openAPI.getSecurity();
     Class<?> webServiceClass = WebService.class;
 
+    Set<String> voidMethods = stream(webServiceClass.getDeclaredMethods())
+      .filter(m -> m.getReturnType().equals(Void.TYPE))
+      .map(this::getMethodName)
+      .collect(Collectors.toSet());
+
     openAPI.getPaths().forEach((pathTemplate, pathItem) -> {
       pathItem.readOperationsMap().forEach((httpMethod, operation) -> {
 
@@ -518,11 +523,6 @@ public class TestSoapstoneOpenApiReader {
         }
 
         // Methods returning void should return a 204 response instead of a 200
-        Set<String> voidMethods = stream(webServiceClass.getDeclaredMethods())
-          .filter(m -> m.getReturnType().equals(Void.TYPE))
-          .map(this::getMethodName)
-          .collect(Collectors.toSet());
-
         String voidMethodName = pathTemplate.substring(pathTemplate.lastIndexOf("/") + 1);
 
         if (voidMethods.contains(voidMethodName)) {
