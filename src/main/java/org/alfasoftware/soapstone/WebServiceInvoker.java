@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +76,7 @@ class WebServiceInvoker {
    * @param parameters      Parameters
    * @return the return value of the operation mapped to a JSON string
    */
-  String invokeOperation(WebServiceClass<?> webServiceClass, String operationName, Collection<WebParameter> parameters) {
+  Pair<String, JavaType> invokeOperation(WebServiceClass<?> webServiceClass, String operationName, Collection<WebParameter> parameters) {
 
     Method operation = getOperation(webServiceClass, operationName);
     validateParameters(operation, parameters);
@@ -128,7 +129,7 @@ class WebServiceInvoker {
           LOG.warn(String.format("Got a %s when try to print the return value", e.getClass().getSimpleName()));
         }
       }
-      return ret;
+      return Pair.of(ret, returnType);
     } catch (InvocationTargetException e) {
       Optional<WebApplicationException> webApplicationException = configuration.getExceptionMapper()
           .flatMap(mapper -> mapper.mapThrowable(e.getTargetException(), configuration.getObjectMapper()));

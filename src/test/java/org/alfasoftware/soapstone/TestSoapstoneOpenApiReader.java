@@ -15,6 +15,7 @@
 package org.alfasoftware.soapstone;
 
 import static io.swagger.v3.oas.models.parameters.Parameter.StyleEnum.SIMPLE;
+import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -28,6 +29,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,6 +41,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import jakarta.jws.WebMethod;
 
 import org.alfasoftware.soapstone.testsupport.WebService;
 import org.alfasoftware.soapstone.testsupport.WebService.Documentation;
@@ -96,7 +101,7 @@ public class TestSoapstoneOpenApiReader {
       "/path/doAPackageAnnotatedAdaptableThing",
       "/path/doAClassAnnotatedAdaptableThing"
   );
-  private static final List<String> BASE_REQUIRED_RESPONSES =  List.of("default", "200", "400", "404", "406", "429", "500");
+  private static final List<String> BASE_REQUIRED_RESPONSES = List.of("default", "400", "404", "406", "429", "500");
   private static final Set<PathItem.HttpMethod> METHODS_REQUIRING_415 = Set.of(
     PathItem.HttpMethod.PUT,
     PathItem.HttpMethod.POST);
@@ -121,7 +126,7 @@ public class TestSoapstoneOpenApiReader {
     ErrorResponseDocumentationProvider errorResponseDocumentationProvider = method -> {
       Map<String, Type> map = new HashMap<>();
       try {
-        map.put("default",  loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
+        map.put("default", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
         map.put("400", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
         map.put("401", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
         map.put("403", loadClass("org.alfasoftware.soapstone.testsupport.DummyErrorClass", null));
@@ -158,6 +163,7 @@ public class TestSoapstoneOpenApiReader {
     soapstoneConfiguration.setVendor("Geoffrey");
     soapstoneConfiguration.setVersionNumber("v5");
     soapstoneConfiguration.setErrorResponseDocumentationProvider(errorResponseDocumentationProvider);
+    soapstoneConfiguration.setEnableNoContentResponses(true);
 
     SecurityConfiguration securityConfiguration = new SecurityConfiguration();
     securityConfiguration.setSecuritySchemeName(SCHEME_NAME);
@@ -448,9 +454,9 @@ public class TestSoapstoneOpenApiReader {
   @Test
   public void testGetInfoFromOpenApi() {
 
-    assertEquals("v5",openAPI.getInfo().getVersion());
-    assertEquals("Geoffrey soapstone",openAPI.getInfo().getTitle());
-    assertEquals("Soapstone Generated API for Geoffrey",openAPI.getInfo().getDescription());
+    assertEquals("v5", openAPI.getInfo().getVersion());
+    assertEquals("Geoffrey soapstone", openAPI.getInfo().getTitle());
+    assertEquals("Soapstone Generated API for Geoffrey", openAPI.getInfo().getDescription());
   }
 
 
@@ -459,50 +465,55 @@ public class TestSoapstoneOpenApiReader {
     SecurityScheme securityScheme = openAPI.getComponents().getSecuritySchemes().get(SCHEME_NAME);
 
     Map<String, String> expectedScopes = PATHS.stream()
-        .collect(toMap(PATH_TO_SCOPE_FUNCTION, path -> "Grants access to the operation with the path: " + path));
+      .collect(toMap(PATH_TO_SCOPE_FUNCTION, path -> "Grants access to the operation with the path: " + path));
     expectedScopes.putAll(ALL_CONFIGURED_SCOPES);
 
     // Check the security schemes
     assertThat(securityScheme, allOf(
-        hasProperty("type", is(SecurityScheme.Type.OAUTH2)),
-        hasProperty("flows", allOf(
-            hasProperty("clientCredentials", allOf(
-                hasProperty("tokenUrl", is(TOKEN_URL)),
-                hasProperty("scopes", allOf(
-                    expectedScopes.entrySet().stream()
-                        .map(e -> hasEntry(e.getKey(), e.getValue()))
-                        .toArray(org.hamcrest.Matcher[]::new)
-                ))
-            ))
+      hasProperty("type", is(SecurityScheme.Type.OAUTH2)),
+      hasProperty("flows", allOf(
+        hasProperty("clientCredentials", allOf(
+          hasProperty("tokenUrl", is(TOKEN_URL)),
+          hasProperty("scopes", allOf(
+            expectedScopes.entrySet().stream()
+              .map(e -> hasEntry(e.getKey(), e.getValue()))
+              .toArray(org.hamcrest.Matcher[]::new)
+          ))
         ))
+      ))
     ));
 
     // Check the global security setting
     assertThat(openAPI.getSecurity(), hasItem(
-        hasEntry(is(SCHEME_NAME), hasItem(GLOBAL_SCOPE))
+      hasEntry(is(SCHEME_NAME), hasItem(GLOBAL_SCOPE))
     ));
 
     // Check the security setting for each individual operation
     openAPI.getPaths().forEach((path, pathItem) ->
-        assertThat(getOperationForPath(pathItem).getSecurity(), hasItem(
+      assertThat(getOperationForPath(pathItem).getSecurity(), hasItem(
         hasEntry(is(SCHEME_NAME), hasItem(PATH_TO_SCOPE_FUNCTION.apply(path)))
-    )));
+      )));
   }
 
 
   @Test
-  public void testErrorResponsesPresent() {
+  public void testResponsesPresent() {
     List<String> failures = new ArrayList<>();
-
     List<SecurityRequirement> securityRequirements = openAPI.getSecurity();
+    Class<?> webServiceClass = WebService.class;
+
+    Set<String> voidMethods = stream(webServiceClass.getDeclaredMethods())
+      .filter(m -> m.getReturnType().equals(Void.TYPE))
+      .map(this::getMethodName)
+      .collect(Collectors.toSet());
 
     openAPI.getPaths().forEach((pathTemplate, pathItem) -> {
-      pathItem.readOperationsMap().forEach((method, operation) -> {
+      pathItem.readOperationsMap().forEach((httpMethod, operation) -> {
 
         List<String> requiredResponses = new ArrayList<>(BASE_REQUIRED_RESPONSES);
 
         // PUT & POST must include 415
-        if (METHODS_REQUIRING_415.contains(method)) {
+        if (METHODS_REQUIRING_415.contains(httpMethod)) {
           requiredResponses.add("415");
         }
 
@@ -511,18 +522,26 @@ public class TestSoapstoneOpenApiReader {
           requiredResponses.add("403");
         }
 
+        // Methods returning void should return a 204 response instead of a 200
+        String voidMethodName = pathTemplate.substring(pathTemplate.lastIndexOf("/") + 1);
+
+        if (voidMethods.contains(voidMethodName)) {
+          requiredResponses.add("204");
+        } else {
+          requiredResponses.add("200");
+        }
+
         // Validate presence
         for (String code : requiredResponses) {
           if (operation.getResponses() == null ||
             !operation.getResponses().containsKey(code)) {
 
-            String msg = String.format("%s %s is missing required response '%s'",method, pathTemplate, code);
+            String msg = String.format("%s %s is missing required response '%s'", httpMethod, pathTemplate, code);
             failures.add(msg);
           }
         }
       });
     });
-
     if (!failures.isEmpty()) {
       fail("\nOpenAPI specification validation failures:\n" +
         String.join("\n", failures));
@@ -559,11 +578,25 @@ public class TestSoapstoneOpenApiReader {
     return schema;
   }
 
+
   private static Class<?> loadClass(String name, ClassLoader classLoader) throws ClassNotFoundException {
     if (classLoader != null) {
       return Class.forName(name, false, classLoader);
     } else {
       return Class.forName(name);
     }
+  }
+
+
+  private String getMethodName(Method method) {
+    // This logic is to take into consideration methods that explicitly set an operationName in the WebMethod annotation
+    // that don't match the Java method name
+    WebMethod webMethod = method.getAnnotation(WebMethod.class);
+    if (webMethod != null && !webMethod.exclude()) {
+      return webMethod.operationName().isEmpty()
+        ? method.getName()
+        : webMethod.operationName();
+    }
+    return method.getName();
   }
 }

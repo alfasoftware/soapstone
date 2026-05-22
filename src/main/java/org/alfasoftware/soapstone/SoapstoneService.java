@@ -48,8 +48,11 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.JavaType;
 
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.Yaml;
@@ -95,8 +98,9 @@ public class SoapstoneService {
   @Consumes(APPLICATION_JSON)
   public Response post(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.debug("POST " + uriInfo.getAbsolutePath());
-    String body = process(headers, uriInfo, entity, POST);
-    return Response.ok(body).build();
+    Pair<String, JavaType> methodPair = process(headers, uriInfo, entity, POST);
+
+    return determineResponse(methodPair);
   }
 
 
@@ -112,8 +116,9 @@ public class SoapstoneService {
   @Produces(APPLICATION_JSON)
   public Response get(@Context HttpHeaders headers, @Context UriInfo uriInfo) {
     LOG.debug("GET " + uriInfo.getAbsolutePath());
-    String body = process(headers, uriInfo, null, GET);
-    return Response.ok(body).build();
+    Pair<String, JavaType> methodPair = process(headers, uriInfo, null, GET);
+
+    return determineResponse(methodPair);
   }
 
 
@@ -131,8 +136,9 @@ public class SoapstoneService {
   @Consumes(APPLICATION_JSON)
   public Response put(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.debug("PUT " + uriInfo.getAbsolutePath());
-    String body = process(headers, uriInfo, entity, PUT);
-    return Response.ok(body).build();
+    Pair<String, JavaType> methodPair = process(headers, uriInfo, entity, PUT);
+
+    return determineResponse(methodPair);
   }
 
 
@@ -150,8 +156,9 @@ public class SoapstoneService {
   @Consumes(APPLICATION_JSON)
   public Response delete(@Context HttpHeaders headers, @Context UriInfo uriInfo, String entity) {
     LOG.debug("DELETE " + uriInfo.getAbsolutePath());
-    String body = process(headers, uriInfo, entity, DELETE);
-    return Response.ok(body).build();
+    Pair<String, JavaType> methodPair = process(headers, uriInfo, entity, DELETE);
+
+    return determineResponse(methodPair);
   }
 
 
@@ -252,7 +259,7 @@ public class SoapstoneService {
   /*
    * Processes the request.
    */
-  private String process(HttpHeaders headers, UriInfo uriInfo, String entity, String method) {
+  private Pair<String, JavaType> process(HttpHeaders headers, UriInfo uriInfo, String entity, String method) {
 
     String fullPath = StringUtils.strip(uriInfo.getPath(), "/");
     // Check we have a legal path: path/operation
@@ -327,5 +334,22 @@ public class SoapstoneService {
     return supportedMethods;
   }
 
+
+  /**
+   * Determines whether a 200 or 204 response should be returned based on configuration and return type of the method
+   * @param methodBodyAndReturnType the pair of the body and the method return type
+   * @return the response
+   */
+  private Response determineResponse(Pair<String, JavaType> methodBodyAndReturnType) {
+
+    String body = methodBodyAndReturnType.getLeft();
+    JavaType javaType = methodBodyAndReturnType.getRight();
+    Class<?> returnType = javaType.getRawClass();
+
+    if (configuration.isEnableNoContentResponses() && returnType == void.class) {
+      return Response.noContent().build();
+    }
+    return Response.ok(body).build();
+  }
 }
 

@@ -42,6 +42,7 @@ class SoapstoneConfiguration {
   private ErrorResponseDocumentationProvider errorResponseDocumentationProvider;
   private String versionNumber;
   private SecurityConfiguration securityConfiguration;
+  private boolean enableNoContentResponses;
 
 
   ObjectMapper getObjectMapper() {
@@ -146,5 +147,13 @@ class SoapstoneConfiguration {
 
   public void setSecurityConfiguration(SecurityConfiguration securityConfiguration) {
     this.securityConfiguration = securityConfiguration;
+  }
+
+  public boolean isEnableNoContentResponses() {
+    return enableNoContentResponses;
+  }
+
+  public void setEnableNoContentResponses(boolean enableNoContentResponses) {
+    this.enableNoContentResponses = enableNoContentResponses;
   }
 }
