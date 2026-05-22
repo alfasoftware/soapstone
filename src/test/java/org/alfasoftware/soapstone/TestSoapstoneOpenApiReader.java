@@ -29,6 +29,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -519,17 +520,7 @@ public class TestSoapstoneOpenApiReader {
         // Methods returning void should return a 204 response instead of a 200
         Set<String> voidMethods = stream(webServiceClass.getDeclaredMethods())
           .filter(m -> m.getReturnType().equals(Void.TYPE))
-          // This logic is to take into consideration methods that explicitly set an operationName in the WebMethod annotation
-          // that don't match the Java method name
-          .map(method -> {
-            WebMethod webMethod = method.getAnnotation(WebMethod.class);
-            if (webMethod != null && !webMethod.exclude()) {
-              return webMethod.operationName().isEmpty()
-                ? method.getName()
-                : webMethod.operationName();
-            }
-            return method.getName();
-          })
+          .map(this::getMethodName)
           .collect(Collectors.toSet());
 
         String voidMethodName = pathTemplate.substring(pathTemplate.lastIndexOf("/") + 1);
@@ -594,5 +585,18 @@ public class TestSoapstoneOpenApiReader {
     } else {
       return Class.forName(name);
     }
+  }
+
+
+  private String getMethodName(Method method) {
+    // This logic is to take into consideration methods that explicitly set an operationName in the WebMethod annotation
+    // that don't match the Java method name
+    WebMethod webMethod = method.getAnnotation(WebMethod.class);
+    if (webMethod != null && !webMethod.exclude()) {
+      return webMethod.operationName().isEmpty()
+        ? method.getName()
+        : webMethod.operationName();
+    }
+    return method.getName();
   }
 }
