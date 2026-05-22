@@ -453,9 +453,9 @@ public class TestSoapstoneOpenApiReader {
   @Test
   public void testGetInfoFromOpenApi() {
 
-    assertEquals("v5",openAPI.getInfo().getVersion());
-    assertEquals("Geoffrey soapstone",openAPI.getInfo().getTitle());
-    assertEquals("Soapstone Generated API for Geoffrey",openAPI.getInfo().getDescription());
+    assertEquals("v5", openAPI.getInfo().getVersion());
+    assertEquals("Geoffrey soapstone", openAPI.getInfo().getTitle());
+    assertEquals("Soapstone Generated API for Geoffrey", openAPI.getInfo().getDescription());
   }
 
 
@@ -464,34 +464,34 @@ public class TestSoapstoneOpenApiReader {
     SecurityScheme securityScheme = openAPI.getComponents().getSecuritySchemes().get(SCHEME_NAME);
 
     Map<String, String> expectedScopes = PATHS.stream()
-        .collect(toMap(PATH_TO_SCOPE_FUNCTION, path -> "Grants access to the operation with the path: " + path));
+      .collect(toMap(PATH_TO_SCOPE_FUNCTION, path -> "Grants access to the operation with the path: " + path));
     expectedScopes.putAll(ALL_CONFIGURED_SCOPES);
 
     // Check the security schemes
     assertThat(securityScheme, allOf(
-        hasProperty("type", is(SecurityScheme.Type.OAUTH2)),
-        hasProperty("flows", allOf(
-            hasProperty("clientCredentials", allOf(
-                hasProperty("tokenUrl", is(TOKEN_URL)),
-                hasProperty("scopes", allOf(
-                    expectedScopes.entrySet().stream()
-                        .map(e -> hasEntry(e.getKey(), e.getValue()))
-                        .toArray(org.hamcrest.Matcher[]::new)
-                ))
-            ))
+      hasProperty("type", is(SecurityScheme.Type.OAUTH2)),
+      hasProperty("flows", allOf(
+        hasProperty("clientCredentials", allOf(
+          hasProperty("tokenUrl", is(TOKEN_URL)),
+          hasProperty("scopes", allOf(
+            expectedScopes.entrySet().stream()
+              .map(e -> hasEntry(e.getKey(), e.getValue()))
+              .toArray(org.hamcrest.Matcher[]::new)
+          ))
         ))
+      ))
     ));
 
     // Check the global security setting
     assertThat(openAPI.getSecurity(), hasItem(
-        hasEntry(is(SCHEME_NAME), hasItem(GLOBAL_SCOPE))
+      hasEntry(is(SCHEME_NAME), hasItem(GLOBAL_SCOPE))
     ));
 
     // Check the security setting for each individual operation
     openAPI.getPaths().forEach((path, pathItem) ->
-        assertThat(getOperationForPath(pathItem).getSecurity(), hasItem(
+      assertThat(getOperationForPath(pathItem).getSecurity(), hasItem(
         hasEntry(is(SCHEME_NAME), hasItem(PATH_TO_SCOPE_FUNCTION.apply(path)))
-    )));
+      )));
   }
 
 
