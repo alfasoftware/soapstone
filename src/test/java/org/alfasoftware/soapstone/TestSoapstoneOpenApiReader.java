@@ -58,9 +58,11 @@ import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.media.Discriminator;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -176,6 +178,10 @@ public class TestSoapstoneOpenApiReader {
     securityConfiguration.addGlobalSecurityRequirementScope(GLOBAL_SCOPE);
 
     soapstoneConfiguration.setSecurityConfiguration(securityConfiguration);
+
+    soapstoneConfiguration.setAdditionalResponseHeaders(Map.of(
+      "X-Test-Header", new Header().description("A test response header").schema(new StringSchema())
+    ));
 
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(soapstoneConfiguration));
 
@@ -546,6 +552,27 @@ public class TestSoapstoneOpenApiReader {
       fail("\nOpenAPI specification validation failures:\n" +
         String.join("\n", failures));
     }
+  }
+
+
+  @Test
+  public void testAdditionalResponseHeadersRegisteredInComponents() {
+    assertThat(openAPI.getComponents().getHeaders(), hasKey("X-Test-Header"));
+    assertThat(openAPI.getComponents().getHeaders().get("X-Test-Header"),
+      hasProperty("description", is("A test response header")));
+  }
+
+
+  @Test
+  public void testAdditionalResponseHeadersPresentOnAllResponses() {
+    openAPI.getPaths().forEach((path, pathItem) ->
+      pathItem.readOperationsMap().forEach((httpMethod, operation) ->
+        operation.getResponses().forEach((code, apiResponse) ->
+          assertThat(
+            httpMethod + " " + path + " [" + code + "] missing X-Test-Header",
+            apiResponse.getHeaders(),
+            hasKey("X-Test-Header")
+          ))));
   }
 
 

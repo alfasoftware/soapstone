@@ -14,12 +14,15 @@
  */
 package org.alfasoftware.soapstone;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.swagger.v3.oas.models.headers.Header;
 
 /**
  * Configuration model for Soapstone and Open API generation
@@ -43,6 +46,7 @@ class SoapstoneConfiguration {
   private String versionNumber;
   private SecurityConfiguration securityConfiguration;
   private boolean enableNoContentResponses;
+  private Map<String, Header> additionalResponseHeaders = new HashMap<>();
 
 
   ObjectMapper getObjectMapper() {
@@ -155,5 +159,13 @@ class SoapstoneConfiguration {
 
   public void setEnableNoContentResponses(boolean enableNoContentResponses) {
     this.enableNoContentResponses = enableNoContentResponses;
+  }
+
+  Map<String, Header> getAdditionalResponseHeaders() {
+    return additionalResponseHeaders;
+  }
+
+  void setAdditionalResponseHeaders(Map<String, Header> additionalResponseHeaders) {
+    this.additionalResponseHeaders = additionalResponseHeaders;
   }
 }

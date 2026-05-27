@@ -28,6 +28,7 @@ import org.apache.commons.lang3.StringUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.core.converter.ModelConverters;
+import io.swagger.v3.oas.models.headers.Header;
 
 /**
  * Builder for the {@link SoapstoneOpenApiWriter}
@@ -238,6 +239,27 @@ public class SoapstoneOpenApiWriterBuilder {
     configuration.setErrorResponseDocumentationProvider(errorResponseDocumentationProvider);
     return this;
   }
+
+  /**
+   * Provide a map of headers to be added to all responses in the generated Open API document.
+   *
+   * <p>
+   * The headers will be registered in the {@code components/headers} section and referenced from
+   * every response on every operation.
+   * </p>
+   *
+   * <p>
+   * This is optional. If not provided, no additional headers will be documented.
+   * </p>
+   *
+   * @param additionalResponseHeaders map of header names to header definitions
+   * @return this
+   */
+  public SoapstoneOpenApiWriterBuilder withAdditionalResponseHeaders(Map<String, Header> additionalResponseHeaders) {
+    configuration.setAdditionalResponseHeaders(additionalResponseHeaders);
+    return this;
+  }
+
 
   /**
    * Provide a version number
