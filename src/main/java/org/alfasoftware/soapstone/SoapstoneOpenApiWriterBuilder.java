@@ -28,7 +28,6 @@ import org.apache.commons.lang3.StringUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.core.converter.ModelConverters;
-import io.swagger.v3.oas.models.headers.Header;
 
 /**
  * Builder for the {@link SoapstoneOpenApiWriter}
@@ -252,10 +251,10 @@ public class SoapstoneOpenApiWriterBuilder {
    * This is optional. If not provided, no additional headers will be documented.
    * </p>
    *
-   * @param additionalResponseHeaders map of header names to header definitions
+   * @param additionalResponseHeaders map of header names to {@link HeaderDefinition}
    * @return this
    */
-  public SoapstoneOpenApiWriterBuilder withAdditionalResponseHeaders(Map<String, Header> additionalResponseHeaders) {
+  public SoapstoneOpenApiWriterBuilder withAdditionalDocumentedResponseHeaders(Map<String, HeaderDefinition> additionalResponseHeaders) {
     configuration.setAdditionalResponseHeaders(additionalResponseHeaders);
     return this;
   }

@@ -22,8 +22,6 @@ import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.swagger.v3.oas.models.headers.Header;
-
 /**
  * Configuration model for Soapstone and Open API generation
  *
@@ -46,7 +44,7 @@ class SoapstoneConfiguration {
   private String versionNumber;
   private SecurityConfiguration securityConfiguration;
   private boolean enableNoContentResponses;
-  private Map<String, Header> additionalResponseHeaders = new HashMap<>();
+  private Map<String, HeaderDefinition> additionalResponseHeaders = new HashMap<>();
 
 
   ObjectMapper getObjectMapper() {
@@ -161,11 +159,11 @@ class SoapstoneConfiguration {
     this.enableNoContentResponses = enableNoContentResponses;
   }
 
-  Map<String, Header> getAdditionalResponseHeaders() {
+  Map<String, HeaderDefinition> getAdditionalResponseHeaders() {
     return additionalResponseHeaders;
   }
 
-  void setAdditionalResponseHeaders(Map<String, Header> additionalResponseHeaders) {
+  void setAdditionalResponseHeaders(Map<String, HeaderDefinition> additionalResponseHeaders) {
     this.additionalResponseHeaders = additionalResponseHeaders;
   }
 }
