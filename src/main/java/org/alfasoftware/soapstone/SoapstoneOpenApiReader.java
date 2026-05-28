@@ -157,7 +157,9 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\""));
     }
 
-    configuration.getAdditionalResponseHeaders().forEach(components::addHeaders);
+    configuration.getAdditionalResponseHeaders()
+      .forEach((name, definition) -> components.addHeaders(name,
+        new Header().description(definition.getDescription()).required(definition.isRequired()).schema(new StringSchema())));
 
     Server server = new Server();
     server.setUrl(hostUrl);
