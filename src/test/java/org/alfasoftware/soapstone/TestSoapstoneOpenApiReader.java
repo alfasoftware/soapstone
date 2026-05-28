@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -565,7 +566,7 @@ public class TestSoapstoneOpenApiReader {
     assertThat(openAPI.getComponents().getHeaders(), hasKey("X-Test-Optional-Header"));
     assertThat(openAPI.getComponents().getHeaders().get("X-Test-Optional-Header"), allOf(
       hasProperty("description", is("An optional test response header")),
-      hasProperty("required", is(false))
+      hasProperty("required", is(nullValue()))
     ));
   }
 
