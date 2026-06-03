@@ -43,6 +43,7 @@ class SoapstoneConfiguration {
   private String versionNumber;
   private SecurityConfiguration securityConfiguration;
   private boolean enableNoContentResponses;
+  private boolean allowAdditionalProperties;
 
 
   ObjectMapper getObjectMapper() {
@@ -155,5 +156,13 @@ class SoapstoneConfiguration {
 
   public void setEnableNoContentResponses(boolean enableNoContentResponses) {
     this.enableNoContentResponses = enableNoContentResponses;
+  }
+
+  public boolean isAllowedAdditionalProperties() {
+    return allowAdditionalProperties;
+  }
+
+  public void setAllowedAdditionalProperties(boolean allowAdditionalProperties) {
+    this.allowAdditionalProperties = allowAdditionalProperties;
   }
 }
