@@ -35,7 +35,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import jakarta.jws.WebMethod;
 import jakarta.jws.WebParam;
@@ -237,17 +236,31 @@ class SoapstoneOpenApiReader implements OpenApiReader {
   }
 
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  public Set<Schema<?>> getAllOfAndReferencedSchemas(Collection<Schema> schemas, Map<String, Schema> schemaMap) {
+  @SuppressWarnings({"rawtypes"})
+  private Set<Schema<?>> getAllOfAndReferencedSchemas(Collection<Schema> schemas, Map<String, Schema> schemaMap) {
     Set<Schema<?>> result = new HashSet<>();
 
-    schemas.stream()
-        .filter(schema -> schema.getAllOf() != null && !schema.getAllOf().isEmpty())
-        .flatMap(schema -> Stream.concat(
-            Stream.of(schema),
-            (Stream<Schema<?>>) schema.getAllOf().stream().filter(allOfSchema -> ((Schema) allOfSchema).get$ref() != null)
-        ))
-        .forEach(schema -> resolveSchema(schema, schemaMap, result));
+    for (Schema<?> schema : schemas) {
+      List<?> allOf = schema.getAllOf();
+
+      if (allOf == null || allOf.isEmpty()) {
+        continue;
+      }
+
+      // Always process the schema itself
+      resolveSchema(schema, schemaMap, result);
+
+      // Process referenced schemas in allOf
+      for (Object obj : allOf) {
+        if (obj instanceof Schema<?>) {
+          Schema<?> allOfSchema = (Schema<?>) obj;
+
+          if (allOfSchema.get$ref() != null) {
+            resolveSchema(allOfSchema, schemaMap, result);
+          }
+        }
+      }
+    }
 
     return result;
   }
