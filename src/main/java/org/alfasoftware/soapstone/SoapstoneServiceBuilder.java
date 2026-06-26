@@ -196,6 +196,22 @@ public class SoapstoneServiceBuilder {
 
 
   /**
+   * Provide a {@link LimitsAndPatternProvider} for extracting model property constraints for use in Open API documents
+   *
+   * <p>
+   * Use the {@link LimitsAndPatternProviderBuilder} to construct the provider.
+   * </p>
+   *
+   * @param limitsAndPatternProvider limits and patterns provider
+   * @return this
+   */
+  public SoapstoneServiceBuilder withLimitsAndPatternProvider(LimitsAndPatternProvider limitsAndPatternProvider) {
+    configuration.setLimitsAndPatternProvider(limitsAndPatternProvider);
+    return this;
+  }
+
+
+  /**
    * Provide a function for assigning tags to web service operations based on path.
    * Tags are used to group operations when represented in Open API documents
    *

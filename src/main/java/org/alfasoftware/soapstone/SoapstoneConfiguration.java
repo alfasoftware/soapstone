@@ -43,6 +43,7 @@ class SoapstoneConfiguration {
   private String versionNumber;
   private SecurityConfiguration securityConfiguration;
   private boolean enableNoContentResponses;
+  private LimitsAndPatternProvider limitsAndPatternProvider;
 
 
   ObjectMapper getObjectMapper() {
@@ -155,5 +156,13 @@ class SoapstoneConfiguration {
 
   public void setEnableNoContentResponses(boolean enableNoContentResponses) {
     this.enableNoContentResponses = enableNoContentResponses;
+  }
+
+  public Optional<LimitsAndPatternProvider> getLimitsAndPatternProvider() {
+    return Optional.ofNullable(limitsAndPatternProvider);
+  }
+
+  public void setLimitsAndPatternProvider(LimitsAndPatternProvider limitsAndPatternProvider) {
+    this.limitsAndPatternProvider = limitsAndPatternProvider;
   }
 }
