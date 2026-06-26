@@ -158,6 +158,15 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\""));
     }
 
+    configuration.getAdditionalResponseHeaders()
+      .forEach((name, definition) -> {
+        Header header = new Header().description(definition.getDescription()).schema(new StringSchema());
+        if (definition.isRequired()) {
+          header.required(true);
+        }
+        components.addHeaders(name, header);
+      });
+
     Server server = new Server();
     server.setUrl(hostUrl);
     openAPI.addServersItem(server);
@@ -386,6 +395,13 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .$ref("#/components/headers/WWW-Authenticate"));
 
       responses.addApiResponse("401", unauthorisedErrorResponse);
+    }
+
+    // Apply additional response headers to all responses via $ref to components/headers
+    if (!configuration.getAdditionalResponseHeaders().isEmpty()) {
+      responses.forEach((code, apiResponse) ->
+        configuration.getAdditionalResponseHeaders().keySet().forEach(name ->
+          apiResponse.addHeaderObject(name, new Header().$ref("#/components/headers/" + name))));
     }
 
     return pathItem;

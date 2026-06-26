@@ -14,6 +14,7 @@
  */
 package org.alfasoftware.soapstone;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -43,6 +44,7 @@ class SoapstoneConfiguration {
   private String versionNumber;
   private SecurityConfiguration securityConfiguration;
   private boolean enableNoContentResponses;
+  private Map<String, HeaderDefinition> additionalResponseHeaders = new HashMap<>();
   private LimitsAndPatternProvider limitsAndPatternProvider;
 
 
@@ -156,6 +158,14 @@ class SoapstoneConfiguration {
 
   public void setEnableNoContentResponses(boolean enableNoContentResponses) {
     this.enableNoContentResponses = enableNoContentResponses;
+  }
+
+  Map<String, HeaderDefinition> getAdditionalResponseHeaders() {
+    return additionalResponseHeaders;
+  }
+
+  void setAdditionalResponseHeaders(Map<String, HeaderDefinition> additionalResponseHeaders) {
+    this.additionalResponseHeaders = additionalResponseHeaders;
   }
 
   public Optional<LimitsAndPatternProvider> getLimitsAndPatternProvider() {

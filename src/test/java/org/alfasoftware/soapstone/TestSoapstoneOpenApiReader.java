@@ -22,8 +22,10 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -52,7 +54,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -176,6 +177,11 @@ public class TestSoapstoneOpenApiReader {
     securityConfiguration.addGlobalSecurityRequirementScope(GLOBAL_SCOPE);
 
     soapstoneConfiguration.setSecurityConfiguration(securityConfiguration);
+
+    soapstoneConfiguration.setAdditionalResponseHeaders(Map.of(
+      "X-Test-Required-Header", HeaderDefinition.required("A required test response header"),
+      "X-Test-Optional-Header", HeaderDefinition.optional("An optional test response header")
+    ));
 
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(soapstoneConfiguration));
 
@@ -546,6 +552,41 @@ public class TestSoapstoneOpenApiReader {
       fail("\nOpenAPI specification validation failures:\n" +
         String.join("\n", failures));
     }
+  }
+
+
+  @Test
+  public void testAdditionalResponseHeadersRegisteredInComponents() {
+    assertThat(openAPI.getComponents().getHeaders(), hasKey("X-Test-Required-Header"));
+    assertThat(openAPI.getComponents().getHeaders().get("X-Test-Required-Header"), allOf(
+      hasProperty("description", is("A required test response header")),
+      hasProperty("required", is(true))
+    ));
+
+    assertThat(openAPI.getComponents().getHeaders(), hasKey("X-Test-Optional-Header"));
+    assertThat(openAPI.getComponents().getHeaders().get("X-Test-Optional-Header"), allOf(
+      hasProperty("description", is("An optional test response header")),
+      hasProperty("required", is(nullValue()))
+    ));
+  }
+
+
+  @Test
+  public void testAdditionalResponseHeadersPresentOnAllResponses() {
+    openAPI.getPaths().forEach((path, pathItem) ->
+      pathItem.readOperationsMap().forEach((httpMethod, operation) ->
+        operation.getResponses().forEach((code, apiResponse) -> {
+          assertThat(
+            httpMethod + " " + path + " [" + code + "] missing X-Test-Required-Header",
+            apiResponse.getHeaders(),
+            hasKey("X-Test-Required-Header")
+          );
+          assertThat(
+            httpMethod + " " + path + " [" + code + "] missing X-Test-Optional-Header",
+            apiResponse.getHeaders(),
+            hasKey("X-Test-Optional-Header")
+          );
+        })));
   }
 
 

@@ -277,6 +277,26 @@ public class SoapstoneServiceBuilder {
     return this;
   }
 
+  /**
+   * Provide a map of headers to be added to all responses in the generated Open API document.
+   *
+   * <p>
+   * The headers will be registered in the {@code components/headers} section and referenced from
+   * every response on every operation.
+   * </p>
+   *
+   * <p>
+   * This is optional. If not provided, no additional headers will be documented.
+   * </p>
+   *
+   * @param additionalResponseHeaders map of header names to {@link HeaderDefinition}
+   * @return this
+   */
+  public SoapstoneServiceBuilder withAdditionalDocumentedResponseHeaders(Map<String, HeaderDefinition> additionalResponseHeaders) {
+    configuration.setAdditionalResponseHeaders(additionalResponseHeaders);
+    return this;
+  }
+
   public SoapstoneServiceBuilder withNoContentResponses(boolean noContentResponses) {
     this.noContentResponses = noContentResponses;
     return this;
