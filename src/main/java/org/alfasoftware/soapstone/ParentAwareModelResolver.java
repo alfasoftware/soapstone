@@ -89,6 +89,8 @@ class ParentAwareModelResolver extends ModelResolver {
       annotatedType.setType(_mapper.constructType(String.class));
       Schema<?> dataHandlerSchema = super.resolve(annotatedType, context, chain);
       dataHandlerSchema.setFormat("byte");
+      configuration.getLimitsAndPatternProvider().map(LimitsAndPatternProvider::getLimitsAndPatternsHandler)
+          .ifPresent(limitsAndPatternsHandler -> limitsAndPatternsHandler.applyDefaults(dataHandlerSchema));
       return dataHandlerSchema;
     }
 

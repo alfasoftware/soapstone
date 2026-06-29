@@ -140,6 +140,14 @@ public class TestSoapstoneOpenApiReaderWithLimitsAndPatterns {
         hasProperty("maxLength", is(255))
     ));
 
+    // Data handler gets represented as a String schema and should also have defaults applied
+    assertThat(requestSchema.getProperties().get("dataHandlerField"), allOf(
+        hasProperty("type", is("string")),
+        hasProperty("format", is("byte")),
+        hasProperty("pattern", is(".*")),
+        hasProperty("maxLength", is(255))
+    ));
+
     MediaType responseJsonMedia = post.getResponses().get("200").getContent().get("application/json");
 
     assertThat(responseJsonMedia.getSchema(), allOf(

@@ -17,6 +17,7 @@ package org.alfasoftware.soapstone.testsupport;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.activation.DataHandler;
 import jakarta.jws.WebMethod;
 import jakarta.jws.WebParam;
 
@@ -37,6 +38,7 @@ public class LimitsAndPatternsTestService {
     private LocalDate dateField;
     private List<String> listField;
     private LocalDateTime dateTimeField;
+    private DataHandler dataHandlerField;
 
     @JsonProperty
     public String getStringField() {
@@ -90,6 +92,15 @@ public class LimitsAndPatternsTestService {
 
     public void setDateTimeField(LocalDateTime dateTimeField) {
       this.dateTimeField = dateTimeField;
+    }
+
+    @JsonProperty
+    public DataHandler getDataHandlerField() {
+      return dataHandlerField;
+    }
+
+    public void setDataHandlerField(DataHandler dataHandlerField) {
+      this.dataHandlerField = dataHandlerField;
     }
   }
 
