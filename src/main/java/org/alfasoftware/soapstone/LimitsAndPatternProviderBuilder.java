@@ -22,7 +22,6 @@ import org.alfasoftware.soapstone.LimitsAndPatternProvider.StringLimitAndPattern
 
 /**
  * Builder for {@link LimitsAndPatternProvider}
- *
  */
 public class LimitsAndPatternProviderBuilder {
 

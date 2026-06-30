@@ -180,8 +180,7 @@ class ParentAwareModelResolver extends ModelResolver {
 
   /**
    * If a {@link LimitsAndPatternProvider} has been supplied via the {@link SoapstoneConfiguration} then it is used to
-   * set values of limits and patterns on string, numeric and array schemas.  It attempts to set them first by using
-   * supplied functions for obtaining the values from the fields directly before falling back to defaults.
+   * set values of limits and patterns on string, numeric and array schemas.
    */
   private void setLimitsAndPatternsOnProperties(Schema<?> schema, JavaType type, String propertyName, Supplier<Optional<Class<?>>> parentClassSupplier) {
     configuration.getLimitsAndPatternProvider().ifPresent(limitsAndPatternProvider -> {
@@ -203,6 +202,9 @@ class ParentAwareModelResolver extends ModelResolver {
   }
 
 
+  /**
+   * Attempts to set limits and patterns first by using functions for obtaining the values from the fields supplied in the provider before falling back to defaults.
+   */
   private void setLimitsAndPatternOnProperty(Schema<?> propertySchema, Supplier<Optional<Class<?>>> parentClassSupplier, String propertyName, LimitsAndPatternProvider limitsAndPatternProvider) {
     if ("string".equals(propertySchema.getType())) {
       parentClassSupplier.get().ifPresent(parentClass -> {
