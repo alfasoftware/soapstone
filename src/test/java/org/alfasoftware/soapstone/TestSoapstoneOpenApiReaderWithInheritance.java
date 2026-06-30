@@ -106,7 +106,8 @@ public class TestSoapstoneOpenApiReaderWithInheritance {
         allOf(
             hasProperty("name", is("SubTypeOfSubType")),
             hasProperty("discriminator", isEmptyOrNullString()),
-            hasProperty("allOf", contains(hasProperty("$ref", is("#/components/schemas/SubTypeOfModel"))))
+            hasProperty("allOf", contains(hasProperty("$ref", is("#/components/schemas/SubTypeOfModel")))),
+            hasProperty("additionalProperties", is(true))
         )
     );
 
@@ -119,7 +120,8 @@ public class TestSoapstoneOpenApiReaderWithInheritance {
                     hasProperty("mapping", hasEntry("SubTypeOfSubType", "#/components/schemas/SubTypeOfSubType")),
                     hasProperty("propertyName", is("modelClass"))
                 )),
-            hasProperty("allOf", hasItem(hasProperty("$ref", is("#/components/schemas/Model"))))
+            hasProperty("allOf", hasItem(hasProperty("$ref", is("#/components/schemas/Model")))),
+            hasProperty("additionalProperties", is(true))
         )
     );
 
@@ -132,10 +134,12 @@ public class TestSoapstoneOpenApiReaderWithInheritance {
                     hasProperty("mapping", hasEntry("SubTypeOfModel", "#/components/schemas/SubTypeOfModel")),
                     hasProperty("propertyName", is("modelClass"))
                 )),
-            hasProperty("allOf", nullValue())
+            hasProperty("allOf", nullValue()),
+            hasProperty("additionalProperties", is(true))
         )
     );
   }
+
 
   private static Schema<?> schemaForRefSchema(Schema<?> refSchema) {
 

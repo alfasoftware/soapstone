@@ -234,7 +234,7 @@ public class SoapstoneService {
    *
    * This should be superseded by some merge function.
    */
-  private OpenAPI getOpenAPI(final String baseUri, final Set<String> tags) {
+  public OpenAPI getOpenAPI(final String baseUri, final Set<String> tags) {
 
     synchronized (openAPIDefinitions) {
 

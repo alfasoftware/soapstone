@@ -49,6 +49,7 @@ public class SoapstoneServiceBuilder {
   private ObjectMapper objectMapper;
   private SecurityConfiguration securityConfiguration;
   private boolean noContentResponses;
+  private boolean allowAdditionalProperties;
 
 
   /**
@@ -302,6 +303,11 @@ public class SoapstoneServiceBuilder {
     return this;
   }
 
+  public SoapstoneServiceBuilder withAdditionalProperties(boolean allowAdditionalProperties) {
+    this.allowAdditionalProperties = allowAdditionalProperties;
+    return this;
+  }
+
   /**
    * Builds the {@link SoapstoneService}.
    *
@@ -315,6 +321,7 @@ public class SoapstoneServiceBuilder {
     configuration.setVersionNumber(versionNumber == null ? "(generated)" : versionNumber);
     configuration.setSecurityConfiguration(securityConfiguration);
     configuration.setEnableNoContentResponses(noContentResponses);
+    configuration.setAllowedAdditionalProperties(allowAdditionalProperties);
 
     // This is the easiest place to put this to ensure that it is added once and once only
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(configuration));

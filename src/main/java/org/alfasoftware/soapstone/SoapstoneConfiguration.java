@@ -46,6 +46,7 @@ class SoapstoneConfiguration {
   private boolean enableNoContentResponses;
   private Map<String, HeaderDefinition> additionalResponseHeaders = new HashMap<>();
   private LimitsAndPatternProvider limitsAndPatternProvider;
+  private boolean allowAdditionalProperties;
 
 
   ObjectMapper getObjectMapper() {
@@ -174,5 +175,13 @@ class SoapstoneConfiguration {
 
   public void setLimitsAndPatternProvider(LimitsAndPatternProvider limitsAndPatternProvider) {
     this.limitsAndPatternProvider = limitsAndPatternProvider;
+  }
+
+  public boolean isAllowedAdditionalProperties() {
+    return allowAdditionalProperties;
+  }
+
+  public void setAllowedAdditionalProperties(boolean allowAdditionalProperties) {
+    this.allowAdditionalProperties = allowAdditionalProperties;
   }
 }

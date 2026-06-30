@@ -27,6 +27,7 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -215,12 +216,87 @@ class SoapstoneOpenApiReader implements OpenApiReader {
     configuration.getSecurityConfiguration()
         .ifPresent(securityConfiguration -> setSecurityFields(securityConfiguration, scopes, components, openAPI));
 
-    if (components.getSchemas() != null) {
-      components.setSchemas(new TreeMap<>(components.getSchemas()));
-    }
+    applyAdditionalProperties(components);
+
     openAPI.setComponents(components);
 
     return openAPI;
+  }
+
+
+  @SuppressWarnings({"rawtypes"})
+  private void applyAdditionalProperties(Components components) {
+    Map<String, Schema> schemas = components.getSchemas();
+
+    boolean hasSchemas = schemas != null && !schemas.isEmpty();
+    boolean restrictAdditionalProperties = !configuration.isAllowedAdditionalProperties() && hasSchemas;
+
+    if (restrictAdditionalProperties) {
+      // Identify schemas which declare an 'allof' relationship with other schemas, and the schemas that they reference
+      Set<Schema<?>> allOfAndReferencedSchemas = getAllOfAndReferencedSchemas(schemas.values(), schemas);
+
+      // For security reasons, schemas should not allow additional properties unless they make use of, or are referenced
+      // by a schema using 'allof', which requires that additional properties be allowed (default value is true)
+      schemas.values().forEach(schema -> schema.setAdditionalProperties(allOfAndReferencedSchemas.contains(schema)));
+    } else {
+      if (schemas != null) {
+        schemas.values().forEach(schema -> schema.setAdditionalProperties(true));
+      }
+    }
+  }
+
+
+  @SuppressWarnings({"rawtypes"})
+  private Set<Schema<?>> getAllOfAndReferencedSchemas(Collection<Schema> schemas, Map<String, Schema> schemaMap) {
+    Set<Schema<?>> result = new HashSet<>();
+
+    for (Schema<?> schema : schemas) {
+      List<?> allOf = schema.getAllOf();
+
+      if (allOf == null || allOf.isEmpty()) {
+        continue;
+      }
+
+      // Always process the schema itself
+      resolveSchema(schema, schemaMap, result);
+
+      // Process referenced schemas in allOf
+      for (Object obj : allOf) {
+        if (obj instanceof Schema<?>) {
+          Schema<?> allOfSchema = (Schema<?>) obj;
+
+          if (allOfSchema.get$ref() != null) {
+            resolveSchema(allOfSchema, schemaMap, result);
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+
+  @SuppressWarnings({"rawtypes"})
+  private void resolveSchema(Schema<?> schema, Map<String, Schema> schemaMap, Set<Schema<?>> visited) {
+    if (schema == null || visited.contains(schema)) {
+      return; // avoid infinite loops in circular references
+    }
+
+    if (schema.get$ref() == null) {
+      // Only add actual schemas to the result, not reference pointers
+      visited.add(schema);
+    } else {
+      // Resolve the actual schema of the reference pointer
+      String refName = getRefName(schema.get$ref());
+      Schema<?> referencedSchema = schemaMap.get(refName);
+      resolveSchema(referencedSchema, schemaMap, visited);
+    }
+  }
+
+
+  private String getRefName(String ref) {
+    // refs are in the format "#/components/schemas/SchemaName"
+    return ref.substring(ref.lastIndexOf('/') + 1);
   }
 
 
