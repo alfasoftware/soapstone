@@ -240,6 +240,42 @@ public class SoapstoneOpenApiWriterBuilder {
   }
 
   /**
+   * Provide a map of headers to be added to all responses in the generated Open API document.
+   *
+   * <p>
+   * The headers will be registered in the {@code components/headers} section and referenced from
+   * every response on every operation.
+   * </p>
+   *
+   * <p>
+   * This is optional. If not provided, no additional headers will be documented.
+   * </p>
+   *
+   * @param additionalResponseHeaders map of header names to {@link HeaderDefinition}
+   * @return this
+   */
+  public SoapstoneOpenApiWriterBuilder withAdditionalDocumentedResponseHeaders(Map<String, HeaderDefinition> additionalResponseHeaders) {
+    configuration.setAdditionalResponseHeaders(additionalResponseHeaders);
+    return this;
+  }
+
+
+  /**
+   * Provide a {@link LimitsAndPatternProvider} for extracting model property constraints for use in Open API documents
+   *
+   * <p>
+   * Use the {@link LimitsAndPatternProviderBuilder} to construct the provider.
+   * </p>
+   *
+   * @param limitsAndPatternProvider limits and patterns provider
+   * @return this
+   */
+  public SoapstoneOpenApiWriterBuilder withLimitsAndPatternProvider(LimitsAndPatternProvider limitsAndPatternProvider) {
+    configuration.setLimitsAndPatternProvider(limitsAndPatternProvider);
+    return this;
+  }
+
+  /**
    * Provide a version number
    *
    * @param versionNumber version number

@@ -197,6 +197,22 @@ public class SoapstoneServiceBuilder {
 
 
   /**
+   * Provide a {@link LimitsAndPatternProvider} for extracting model property constraints for use in Open API documents
+   *
+   * <p>
+   * Use the {@link LimitsAndPatternProviderBuilder} to construct the provider.
+   * </p>
+   *
+   * @param limitsAndPatternProvider limits and patterns provider
+   * @return this
+   */
+  public SoapstoneServiceBuilder withLimitsAndPatternProvider(LimitsAndPatternProvider limitsAndPatternProvider) {
+    configuration.setLimitsAndPatternProvider(limitsAndPatternProvider);
+    return this;
+  }
+
+
+  /**
    * Provide a function for assigning tags to web service operations based on path.
    * Tags are used to group operations when represented in Open API documents
    *
@@ -259,6 +275,26 @@ public class SoapstoneServiceBuilder {
 
   public SoapstoneServiceBuilder withSecurityConfiguration(SecurityConfiguration securityConfiguration) {
     this.securityConfiguration = securityConfiguration;
+    return this;
+  }
+
+  /**
+   * Provide a map of headers to be added to all responses in the generated Open API document.
+   *
+   * <p>
+   * The headers will be registered in the {@code components/headers} section and referenced from
+   * every response on every operation.
+   * </p>
+   *
+   * <p>
+   * This is optional. If not provided, no additional headers will be documented.
+   * </p>
+   *
+   * @param additionalResponseHeaders map of header names to {@link HeaderDefinition}
+   * @return this
+   */
+  public SoapstoneServiceBuilder withAdditionalDocumentedResponseHeaders(Map<String, HeaderDefinition> additionalResponseHeaders) {
+    configuration.setAdditionalResponseHeaders(additionalResponseHeaders);
     return this;
   }
 

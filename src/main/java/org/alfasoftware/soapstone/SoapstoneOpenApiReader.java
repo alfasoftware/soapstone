@@ -15,6 +15,7 @@
 package org.alfasoftware.soapstone;
 
 import static io.swagger.v3.oas.models.security.SecurityScheme.Type.OAUTH2;
+import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.capitalize;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -157,6 +158,15 @@ class SoapstoneOpenApiReader implements OpenApiReader {
           .schema(new StringSchema())
           .example("Bearer realm=\"Alfa\", error=\"invalid_token\", error_description=\"The token has expired\""));
     }
+
+    configuration.getAdditionalResponseHeaders()
+      .forEach((name, definition) -> {
+        Header header = new Header().description(definition.getDescription()).schema(new StringSchema());
+        if (definition.isRequired()) {
+          header.required(true);
+        }
+        components.addHeaders(name, header);
+      });
 
     Server server = new Server();
     server.setUrl(hostUrl);
@@ -463,6 +473,13 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       responses.addApiResponse("401", unauthorisedErrorResponse);
     }
 
+    // Apply additional response headers to all responses via $ref to components/headers
+    if (!configuration.getAdditionalResponseHeaders().isEmpty()) {
+      responses.forEach((code, apiResponse) ->
+        configuration.getAdditionalResponseHeaders().keySet().forEach(name ->
+          apiResponse.addHeaderObject(name, new Header().$ref("#/components/headers/" + name))));
+    }
+
     return pathItem;
   }
 
@@ -633,6 +650,14 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     Schema<?> propertySchema = PrimitiveType.createProperty(type);
     if (propertySchema != null) {
+      // Apply default constraints to primitive schemas as they will not be derived from model resolver
+      Type propertyType = type;
+      configuration.getLimitsAndPatternProvider().ifPresent(limitsAndPatternsProvider -> {
+        if (propertyType instanceof Class<?>) {
+          limitsAndPatternsProvider.getLimitsAndPatternsHandler().handleSpecialTypes((Class<?>) propertyType, () -> propertySchema, emptyList());
+        }
+        limitsAndPatternsProvider.getLimitsAndPatternsHandler().applyDefaults(propertySchema);
+      });
       return propertySchema;
     } else {
       ResolvedSchema resolvedSchema = ModelConverters.getInstance().resolveAsResolvedSchema(
