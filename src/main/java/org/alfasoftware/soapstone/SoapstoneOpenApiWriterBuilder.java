@@ -261,6 +261,21 @@ public class SoapstoneOpenApiWriterBuilder {
 
 
   /**
+   * Provide a {@link LimitsAndPatternProvider} for extracting model property constraints for use in Open API documents
+   *
+   * <p>
+   * Use the {@link LimitsAndPatternProviderBuilder} to construct the provider.
+   * </p>
+   *
+   * @param limitsAndPatternProvider limits and patterns provider
+   * @return this
+   */
+  public SoapstoneOpenApiWriterBuilder withLimitsAndPatternProvider(LimitsAndPatternProvider limitsAndPatternProvider) {
+    configuration.setLimitsAndPatternProvider(limitsAndPatternProvider);
+    return this;
+  }
+
+  /**
    * Provide a version number
    *
    * @param versionNumber version number
