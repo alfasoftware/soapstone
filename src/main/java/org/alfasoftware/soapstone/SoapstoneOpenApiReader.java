@@ -27,7 +27,6 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -233,11 +232,11 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
     if (restrictAdditionalProperties) {
       // Identify schemas which declare an 'allof' relationship with other schemas, and the schemas that they reference
-      Set<Schema<?>> allOfAndReferencedSchemas = getAllOfAndReferencedSchemas(schemas.values(), schemas);
+      Map<String, Schema<?>> allOfAndReferencedSchemas = getAllOfAndReferencedSchemas(schemas.values(), schemas);
 
       // For security reasons, schemas should not allow additional properties unless they make use of, or are referenced
       // by a schema using 'allof', which requires that additional properties be allowed (default value is true)
-      schemas.values().forEach(schema -> schema.setAdditionalProperties(allOfAndReferencedSchemas.contains(schema)));
+      schemas.values().forEach(schema -> schema.setAdditionalProperties(allOfAndReferencedSchemas.containsKey(schema.getName())));
     } else {
       if (schemas != null) {
         schemas.values().forEach(schema -> schema.setAdditionalProperties(true));
@@ -247,8 +246,8 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
 
   @SuppressWarnings({"rawtypes"})
-  private Set<Schema<?>> getAllOfAndReferencedSchemas(Collection<Schema> schemas, Map<String, Schema> schemaMap) {
-    Set<Schema<?>> result = new HashSet<>();
+  private Map<String, Schema<?>> getAllOfAndReferencedSchemas(Collection<Schema> schemas, Map<String, Schema> schemaMap) {
+    Map<String, Schema<?>> result = new HashMap<>();
 
     for (Schema<?> schema : schemas) {
       List<?> allOf = schema.getAllOf();
@@ -277,14 +276,14 @@ class SoapstoneOpenApiReader implements OpenApiReader {
 
 
   @SuppressWarnings({"rawtypes"})
-  private void resolveSchema(Schema<?> schema, Map<String, Schema> schemaMap, Set<Schema<?>> visited) {
-    if (schema == null || visited.contains(schema)) {
+  private void resolveSchema(Schema<?> schema, Map<String, Schema> schemaMap, Map<String, Schema<?>> visited) {
+    if (schema == null || visited.containsKey(schema.getName())) {
       return; // avoid infinite loops in circular references
     }
 
     if (schema.get$ref() == null) {
       // Only add actual schemas to the result, not reference pointers
-      visited.add(schema);
+      visited.put(schema.getName(), schema);
     } else {
       // Resolve the actual schema of the reference pointer
       String refName = getRefName(schema.get$ref());
