@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -165,6 +166,7 @@ public class TestSoapstoneOpenApiReader {
     soapstoneConfiguration.setVersionNumber("v5");
     soapstoneConfiguration.setErrorResponseDocumentationProvider(errorResponseDocumentationProvider);
     soapstoneConfiguration.setEnableNoContentResponses(true);
+    soapstoneConfiguration.setAllowedAdditionalProperties(false);
 
     SecurityConfiguration securityConfiguration = new SecurityConfiguration();
     securityConfiguration.setSecuritySchemeName(SCHEME_NAME);
@@ -232,6 +234,8 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("writeOnly", is(true))
     ));
 
+    assertFalse("If not a super or subtype, should not allow additional properties", (Boolean) headerSchema.getAdditionalProperties());
+
     MediaType jsonMedia = post.getRequestBody().getContent().get("application/json");
     Schema<?> requestBodySchema = schemaForRefSchema(jsonMedia.getSchema());
 
@@ -261,6 +265,8 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("type", is("boolean")),
       hasProperty("description", is("Param: doAThing#bool"))
     ));
+
+    assertFalse("If not a super or subtype, should not allow additional properties", (Boolean) requestBodySchema.getAdditionalProperties());
 
     ApiResponse response = post.getResponses().get("200");
     assertEquals("OperationResponse: doAThing#ResponseObject", response.getDescription());
@@ -351,6 +357,8 @@ public class TestSoapstoneOpenApiReader {
       hasProperty("type", is("string")),
       hasProperty("description", is("Field: RequestObject#date"))
     ));
+
+    assertFalse("If not a super or subtype, should not allow additional properties", (Boolean) schema.getAdditionalProperties());
   }
 
 
@@ -416,6 +424,8 @@ public class TestSoapstoneOpenApiReader {
         hasProperty("type", is("array")),
             hasProperty("items", hasProperty("type", is("string")))
     ));
+
+    assertFalse("If not a super or subtype, should not allow additional properties", (Boolean) schema.getAdditionalProperties());
   }
 
 
@@ -432,6 +442,8 @@ public class TestSoapstoneOpenApiReader {
         hasEntry("SubClass2", "#/components/schemas/SubClass2")
       ))
     ));
+
+    assertTrue("A super type is in the 'allof' of its subtypes, so must have additional properties set to true", (Boolean) schema.getAdditionalProperties());
   }
 
 
@@ -443,6 +455,8 @@ public class TestSoapstoneOpenApiReader {
     Schema<?> annotatedAdaptable = schema.getProperties().get("classAnnotatedAdaptable");
 
     assertEquals("string", annotatedAdaptable.getType());
+
+    assertFalse("If not a super or subtype, should not allow additional properties", (Boolean) schema.getAdditionalProperties());
   }
 
 
@@ -454,6 +468,8 @@ public class TestSoapstoneOpenApiReader {
     Schema<?> adaptable = schema.getProperties().get("packageAnnotatedAdaptable");
 
     assertEquals("string", adaptable.getType());
+
+    assertFalse("If not a super or subtype, should not allow additional properties", (Boolean) schema.getAdditionalProperties());
   }
 
 
