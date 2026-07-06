@@ -235,7 +235,7 @@ class SoapstoneOpenApiReader implements OpenApiReader {
       Map<String, Schema<?>> allOfAndReferencedSchemas = getAllOfAndReferencedSchemas(schemas.values(), schemas);
 
       // For security reasons, schemas should not allow additional properties unless they make use of, or are referenced
-      // by a schema using 'allof', which requires that additional properties be allowed (default value is true)
+      // by a schema using 'allof', which requires that additional properties be allowed (default value is false)
       schemas.values().forEach(schema -> schema.setAdditionalProperties(allOfAndReferencedSchemas.containsKey(schema.getName())));
     } else {
       if (schemas != null) {
