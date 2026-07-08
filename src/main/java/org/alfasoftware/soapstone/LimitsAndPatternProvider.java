@@ -14,25 +14,29 @@
  */
 package org.alfasoftware.soapstone;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Limits and patterns provider for properties on web service models used in the API
  */
 public class LimitsAndPatternProvider {
 
-  // Functions which are supplied with the Field for the property and can use it as required
-  // to identify any constraints which should be applied to the property.  Null handling is required.
-  private final Function<Field, StringLimitAndPatternTuple> stringLimitAndPatternFromProperty;
-  private final Function<Field, NumberLimitsTuple> numberLimitsFromProperty;
+  // Functions which are supplied with both the Field for the property and the context annotations associated with it
+  // which callers can use as required to identify any constraints which should be applied to the property.  Null handling is required.
+  private final Function<Pair<Field, List<Annotation>>, StringLimitAndPatternTuple> stringLimitAndPatternFromProperty;
+  private final Function<Pair<Field, List<Annotation>>, NumberLimitsTuple> numberLimitsFromProperty;
   // Allows callers to provide custom logic for handling limits and patterns
   private final LimitsAndPatternsHandler limitsAndPatternsHandler;
 
-  LimitsAndPatternProvider(Function<Field, StringLimitAndPatternTuple> stringLimitAndPatternFromProperty,
-                           Function<Field, NumberLimitsTuple> numberLimitsFromProperty,
+  LimitsAndPatternProvider(Function<Pair<Field, List<Annotation>>, StringLimitAndPatternTuple> stringLimitAndPatternFromProperty,
+                           Function<Pair<Field, List<Annotation>>, NumberLimitsTuple> numberLimitsFromProperty,
                            LimitsAndPatternsHandler limitsAndPatternsHandler
   ) {
     this.stringLimitAndPatternFromProperty = stringLimitAndPatternFromProperty;
@@ -41,16 +45,16 @@ public class LimitsAndPatternProvider {
   }
 
 
-  public StringLimitAndPatternTuple getStringLimitAndPattern(Field field) {
+  public StringLimitAndPatternTuple getStringLimitAndPattern(Field field, List<Annotation> annotations) {
     return Optional.ofNullable(stringLimitAndPatternFromProperty)
-        .map(stringFromField -> stringFromField.apply(field))
+        .map(stringFromField -> stringFromField.apply(Pair.of(field, annotations)))
         .orElseGet(StringLimitAndPatternTuple::new);
   }
 
 
-  public NumberLimitsTuple getNumberLimits(Field field) {
+  public NumberLimitsTuple getNumberLimits(Field field, List<Annotation> annotations) {
     return Optional.ofNullable(numberLimitsFromProperty)
-        .map(numberFromField -> numberFromField.apply(field))
+        .map(numberFromField -> numberFromField.apply(Pair.of(field, annotations)))
         .orElseGet(NumberLimitsTuple::new);
   }
 

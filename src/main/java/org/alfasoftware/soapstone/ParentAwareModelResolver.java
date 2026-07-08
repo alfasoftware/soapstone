@@ -119,13 +119,15 @@ class ParentAwareModelResolver extends ModelResolver {
       }
     }
 
+    List<Annotation> contextAnnotations = annotatedType.getCtxAnnotations() != null ? asList(annotatedType.getCtxAnnotations()) : emptyList();
+
     if (convertedType != null) {
       Schema<?> convertedSchema = resolve(new AnnotatedType()
           .type(convertedType)
           .ctxAnnotations(annotatedType.getCtxAnnotations()), context, chain);
 
       // We need to apply these using the original annotated type, rather than the converted one
-      applyLimitsAndPatternToKnownTypeSchemas(annotatedType, type, () -> convertedSchema);
+      applyLimitsAndPatternToKnownTypeSchemas(type, () -> convertedSchema, contextAnnotations);
 
       return convertedSchema;
     }
@@ -134,7 +136,7 @@ class ParentAwareModelResolver extends ModelResolver {
     checkNamingCollisions(typeName, type, definedTypes.get(typeName));
     definedTypes.putIfAbsent(typeName, type);
 
-    Schema<?> knownTypeSchema = applyLimitsAndPatternToKnownTypeSchemas(annotatedType, type, () -> super.resolve(annotatedType, context, chain));
+    Schema<?> knownTypeSchema = applyLimitsAndPatternToKnownTypeSchemas(type, () -> super.resolve(annotatedType, context, chain), contextAnnotations);
     if (knownTypeSchema != null) {
       return knownTypeSchema;
     }
@@ -143,7 +145,7 @@ class ParentAwareModelResolver extends ModelResolver {
         context.getDefinedModels().get(typeName) :
         super.resolve(annotatedType, context, chain);
 
-    setLimitsAndPatternsOnProperties(schema, type, annotatedType.getPropertyName(), () -> getParentClass(annotatedType));
+    setLimitsAndPatternsOnProperties(schema, type, annotatedType.getPropertyName(), () -> getParentClass(annotatedType), contextAnnotations);
 
     return schema;
   }
@@ -153,8 +155,7 @@ class ParentAwareModelResolver extends ModelResolver {
    * Certain classes have a pre-defined, known format that they must take, so we can apply specific limits and patterns
    * to the schemas representing these types.  Returns null if the model being resolved is not one of the known types.
    */
-  private Schema<?> applyLimitsAndPatternToKnownTypeSchemas(AnnotatedType annotatedType, JavaType type, Supplier<Schema<?>> schemaSupplier) {
-    List<Annotation> contextAnnotations = annotatedType.getCtxAnnotations() != null ? asList(annotatedType.getCtxAnnotations()) : emptyList();
+  private Schema<?> applyLimitsAndPatternToKnownTypeSchemas(JavaType type, Supplier<Schema<?>> schemaSupplier, List<Annotation> contextAnnotations) {
     Schema<?> specialTypeSchema = configuration.getLimitsAndPatternProvider()
         .map(LimitsAndPatternProvider::getLimitsAndPatternsHandler)
         .map(limitsAndPatternsHandler -> limitsAndPatternsHandler.handleSpecialTypes(type.getRawClass(), schemaSupplier, contextAnnotations))
@@ -182,7 +183,7 @@ class ParentAwareModelResolver extends ModelResolver {
    * If a {@link LimitsAndPatternProvider} has been supplied via the {@link SoapstoneConfiguration} then it is used to
    * set values of limits and patterns on string, numeric and array schemas.
    */
-  private void setLimitsAndPatternsOnProperties(Schema<?> schema, JavaType type, String propertyName, Supplier<Optional<Class<?>>> parentClassSupplier) {
+  private void setLimitsAndPatternsOnProperties(Schema<?> schema, JavaType type, String propertyName, Supplier<Optional<Class<?>>> parentClassSupplier, List<Annotation> contextAnnotations) {
     configuration.getLimitsAndPatternProvider().ifPresent(limitsAndPatternProvider -> {
       if (schema == null) {
         return;
@@ -197,7 +198,7 @@ class ParentAwareModelResolver extends ModelResolver {
         return;
       }
 
-      setLimitsAndPatternOnProperty(schema, parentClassSupplier, propertyName, limitsAndPatternProvider);
+      setLimitsAndPatternOnProperty(schema, parentClassSupplier, propertyName, limitsAndPatternProvider, contextAnnotations);
     });
   }
 
@@ -205,10 +206,10 @@ class ParentAwareModelResolver extends ModelResolver {
   /**
    * Attempts to set limits and patterns first by using functions for obtaining the values from the fields supplied in the provider before falling back to defaults.
    */
-  private void setLimitsAndPatternOnProperty(Schema<?> propertySchema, Supplier<Optional<Class<?>>> parentClassSupplier, String propertyName, LimitsAndPatternProvider limitsAndPatternProvider) {
+  private void setLimitsAndPatternOnProperty(Schema<?> propertySchema, Supplier<Optional<Class<?>>> parentClassSupplier, String propertyName, LimitsAndPatternProvider limitsAndPatternProvider, List<Annotation> contextAnnotations) {
     if ("string".equals(propertySchema.getType())) {
       parentClassSupplier.get().ifPresent(parentClass -> {
-        StringLimitAndPatternTuple limitAndPattern = limitsAndPatternProvider.getStringLimitAndPattern(getFieldFromType(parentClass, propertyName));
+        StringLimitAndPatternTuple limitAndPattern = limitsAndPatternProvider.getStringLimitAndPattern(getFieldFromType(parentClass, propertyName), contextAnnotations);
         propertySchema.setMaxLength(limitAndPattern.getMaxLength() != null ? limitAndPattern.getMaxLength() : propertySchema.getMaxLength());
         propertySchema.setPattern(limitAndPattern.getPattern() != null ? limitAndPattern.getPattern() : propertySchema.getPattern());
       });
@@ -216,7 +217,7 @@ class ParentAwareModelResolver extends ModelResolver {
 
     if ("integer".equals(propertySchema.getType()) || "number".equals(propertySchema.getType())) {
       parentClassSupplier.get().ifPresent(parentClass -> {
-        NumberLimitsTuple limits = limitsAndPatternProvider.getNumberLimits(getFieldFromType(parentClass, propertyName));
+        NumberLimitsTuple limits = limitsAndPatternProvider.getNumberLimits(getFieldFromType(parentClass, propertyName), contextAnnotations);
         propertySchema.setMinimum(limits.getMin() != null ? limits.getMin() : propertySchema.getMinimum());
         propertySchema.setMaximum(limits.getMax() != null ? limits.getMax() : propertySchema.getMaximum());
       });

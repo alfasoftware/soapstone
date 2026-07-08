@@ -14,29 +14,32 @@
  */
 package org.alfasoftware.soapstone;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.function.Function;
 
 import org.alfasoftware.soapstone.LimitsAndPatternProvider.NumberLimitsTuple;
 import org.alfasoftware.soapstone.LimitsAndPatternProvider.StringLimitAndPatternTuple;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Builder for {@link LimitsAndPatternProvider}
  */
 public class LimitsAndPatternProviderBuilder {
 
-  private Function<Field, StringLimitAndPatternTuple> stringLimitAndPatternFromProperty;
-  private Function<Field, NumberLimitsTuple> numberLimitsFromProperty;
+  private Function<Pair<Field, List<Annotation>>, StringLimitAndPatternTuple> stringLimitAndPatternFromProperty;
+  private Function<Pair<Field, List<Annotation>>, NumberLimitsTuple> numberLimitsFromProperty;
   private LimitsAndPatternsHandler limitsAndPatternsHandler;
 
 
-  public LimitsAndPatternProviderBuilder withStringLimitAndPatternFromProperty(Function<Field, StringLimitAndPatternTuple> stringLimitAndPatternFromProperty) {
+  public LimitsAndPatternProviderBuilder withStringLimitAndPatternFromProperty(Function<Pair<Field, List<Annotation>>, StringLimitAndPatternTuple> stringLimitAndPatternFromProperty) {
     this.stringLimitAndPatternFromProperty = stringLimitAndPatternFromProperty;
     return this;
   }
 
 
-  public LimitsAndPatternProviderBuilder withNumberLimitsFromProperty(Function<Field, NumberLimitsTuple> numberLimitsFromProperty) {
+  public LimitsAndPatternProviderBuilder withNumberLimitsFromProperty(Function<Pair<Field, List<Annotation>>, NumberLimitsTuple> numberLimitsFromProperty) {
     this.numberLimitsFromProperty = numberLimitsFromProperty;
     return this;
   }

@@ -67,8 +67,8 @@ public class TestSoapstoneOpenApiReaderWithLimitsAndPatterns {
     webServices.put("/path", WebServiceClass.forClass(LimitsAndPatternsTestService.class, LimitsAndPatternsTestService::new));
 
     LimitsAndPatternProvider limitsAndPatternProvider = new LimitsAndPatternProviderBuilder()
-        .withStringLimitAndPatternFromProperty(field -> {
-          boolean stringField = String.class.equals(field.getType());
+        .withStringLimitAndPatternFromProperty(fieldAnnotations -> {
+          boolean stringField = String.class.equals(fieldAnnotations.getLeft().getType());
           return stringField ? new StringLimitAndPatternTuple().pattern("[A-Z]+").maxLength(20) : new StringLimitAndPatternTuple();
         })
         .withNumberLimitsFromProperty(field -> new NumberLimitsTuple().min(BigDecimal.valueOf(5)).max(BigDecimal.valueOf(10)))
