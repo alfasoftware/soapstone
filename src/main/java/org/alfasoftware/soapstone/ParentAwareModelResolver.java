@@ -71,7 +71,7 @@ class ParentAwareModelResolver extends ModelResolver {
 
 
   ParentAwareModelResolver(SoapstoneConfiguration configuration) {
-    super(configuration.getObjectMapper(), new CustomTypeNameResolver(configuration.getTypeNameProvider().orElse(cls -> null)));
+    super(configuration.getObjectMapper(), new CustomTypeNameResolver(configuration.getTypeNameProvider().orElse(cls -> null), configuration.isStripTrailingJavalang()));
     this.configuration = configuration;
   }
 
@@ -368,13 +368,16 @@ class ParentAwareModelResolver extends ModelResolver {
    */
   private static class CustomTypeNameResolver extends TypeNameResolver {
 
+    private static final String JAVA_LANG_SUFFIX = "_javalang";
 
     private final Function<Class<?>, String> suffixProvider;
+    private final boolean stripTrailingJavalang;
 
 
-    private CustomTypeNameResolver(Function<Class<?>, String> suffixProvider) {
+    private CustomTypeNameResolver(Function<Class<?>, String> suffixProvider, boolean stripTrailingJavalang) {
       super();
       this.suffixProvider = suffixProvider;
+      this.stripTrailingJavalang = stripTrailingJavalang;
     }
 
     @Override
@@ -387,6 +390,21 @@ class ParentAwareModelResolver extends ModelResolver {
 
       String suffix = suffixProvider.apply(cls);
       return super.nameForClass(cls, options) + (StringUtils.isNotBlank(suffix) ? "_" + suffix : "");
+    }
+
+
+    /**
+     * Strips trailing '_javalang' from schema names if configured to do so, the presence of which is dependent on the
+     * Java version in use. A result of internal changes to the way Java handles type erasure/generic resolution in reflection,
+     * which is utilised by Swagger when generating the Open API specification from web service models.
+     */
+    @Override
+    public String nameForType(JavaType type, Set<Options> options) {
+      String name = super.nameForType(type, options);
+      if (stripTrailingJavalang && name.endsWith(JAVA_LANG_SUFFIX)) {
+        return name.substring(0, name.length() - JAVA_LANG_SUFFIX.length());
+      }
+      return name;
     }
   }
 }
