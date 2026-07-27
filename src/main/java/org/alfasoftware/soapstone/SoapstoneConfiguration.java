@@ -47,6 +47,7 @@ class SoapstoneConfiguration {
   private Map<String, HeaderDefinition> additionalResponseHeaders = new HashMap<>();
   private LimitsAndPatternProvider limitsAndPatternProvider;
   private boolean allowAdditionalProperties;
+  private boolean stripTrailingJavalang;
 
 
   ObjectMapper getObjectMapper() {
@@ -183,5 +184,13 @@ class SoapstoneConfiguration {
 
   public void setAllowedAdditionalProperties(boolean allowAdditionalProperties) {
     this.allowAdditionalProperties = allowAdditionalProperties;
+  }
+
+  public boolean isStripTrailingJavalang() {
+    return stripTrailingJavalang;
+  }
+
+  public void setStripTrailingJavalang(boolean stripTrailingJavalang) {
+    this.stripTrailingJavalang = stripTrailingJavalang;
   }
 }

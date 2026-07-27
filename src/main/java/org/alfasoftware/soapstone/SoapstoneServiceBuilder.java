@@ -50,6 +50,7 @@ public class SoapstoneServiceBuilder {
   private SecurityConfiguration securityConfiguration;
   private boolean noContentResponses;
   private boolean allowAdditionalProperties;
+  private boolean stripTrailingJavalang;
 
 
   /**
@@ -308,6 +309,11 @@ public class SoapstoneServiceBuilder {
     return this;
   }
 
+  public SoapstoneServiceBuilder withStripTrailingJavalang(boolean stripTrailingJavalang) {
+    this.stripTrailingJavalang = stripTrailingJavalang;
+    return this;
+  }
+
   /**
    * Builds the {@link SoapstoneService}.
    *
@@ -322,6 +328,7 @@ public class SoapstoneServiceBuilder {
     configuration.setSecurityConfiguration(securityConfiguration);
     configuration.setEnableNoContentResponses(noContentResponses);
     configuration.setAllowedAdditionalProperties(allowAdditionalProperties);
+    configuration.setStripTrailingJavalang(stripTrailingJavalang);
 
     // This is the easiest place to put this to ensure that it is added once and once only
     ModelConverters.getInstance().addConverter(new ParentAwareModelResolver(configuration));
