@@ -19,6 +19,7 @@ import static java.util.Collections.emptyList;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -215,7 +216,31 @@ class ParentAwareModelResolver extends ModelResolver {
       });
     }
 
-    if ("integer".equals(propertySchema.getType()) || "number".equals(propertySchema.getType())) {
+    if ("integer".equals(propertySchema.getType())) {
+      parentClassSupplier.get().ifPresent(parentClass -> {
+        NumberLimitsTuple limits = limitsAndPatternProvider.getNumberLimits(getFieldFromType(parentClass, propertyName), contextAnnotations);
+
+        BigDecimal min;
+        try {
+          min = limits.getMin() != null ? BigDecimal.valueOf(limits.getMin().intValueExact()) : propertySchema.getMinimum();
+        } catch (ArithmeticException e) {
+          LOG.warn("Integer type {} on {} has non-integer minimum value {} defined, rounding up to nearest whole value.", propertyName, parentClass.getSimpleName(), limits.getMin());
+          min = BigDecimal.valueOf(limits.getMin().intValue() + 1);
+        }
+        propertySchema.setMinimum(min);
+
+        BigDecimal max;
+        try {
+          max = limits.getMax() != null ? BigDecimal.valueOf(limits.getMax().intValueExact()) : propertySchema.getMaximum();
+        } catch (ArithmeticException e) {
+          LOG.warn("Integer type {} on {} has non-integer maximum value {} defined, rounding down to nearest whole value.", propertyName, parentClass.getSimpleName(), limits.getMax());
+          max = BigDecimal.valueOf(limits.getMax().intValue());
+        }
+        propertySchema.setMaximum(max);
+      });
+    }
+
+    if ("number".equals(propertySchema.getType())) {
       parentClassSupplier.get().ifPresent(parentClass -> {
         NumberLimitsTuple limits = limitsAndPatternProvider.getNumberLimits(getFieldFromType(parentClass, propertyName), contextAnnotations);
         propertySchema.setMinimum(limits.getMin() != null ? limits.getMin() : propertySchema.getMinimum());
@@ -229,12 +254,16 @@ class ParentAwareModelResolver extends ModelResolver {
 
 
   private Field getFieldFromType(Class<?> parentClass, String propertyName) {
-    try {
-      return parentClass.getDeclaredField(propertyName);
-    } catch (NoSuchFieldException e) {
-      LOG.debug("Couldn't find field {} on class {} when looking for limits and patterns", propertyName, parentClass.getName());
-      return null;
+    Class<?> currentClass = parentClass;
+    while (currentClass != null) {
+      try {
+        return currentClass.getDeclaredField(propertyName);
+      } catch (NoSuchFieldException e) {
+        currentClass = currentClass.getSuperclass();
+      }
     }
+    LOG.debug("Couldn't find field {} on class {} when looking for limits and patterns", propertyName, parentClass != null ? parentClass.getName() : "UNKNOWN");
+    return null;
   }
 
 
