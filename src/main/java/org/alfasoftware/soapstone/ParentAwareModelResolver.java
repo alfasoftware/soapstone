@@ -20,6 +20,7 @@ import static java.util.Collections.emptyList;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -220,22 +221,10 @@ class ParentAwareModelResolver extends ModelResolver {
       parentClassSupplier.get().ifPresent(parentClass -> {
         NumberLimitsTuple limits = limitsAndPatternProvider.getNumberLimits(getFieldFromType(parentClass, propertyName), contextAnnotations);
 
-        BigDecimal min;
-        try {
-          min = limits.getMin() != null ? BigDecimal.valueOf(limits.getMin().intValueExact()) : propertySchema.getMinimum();
-        } catch (ArithmeticException e) {
-          LOG.warn("Integer type {} on {} has non-integer minimum value {} defined, rounding up to nearest whole value.", propertyName, parentClass.getSimpleName(), limits.getMin());
-          min = BigDecimal.valueOf(limits.getMin().intValue() + 1);
-        }
+        BigDecimal min = limits.getMin() != null ? limits.getMin().setScale(0, RoundingMode.CEILING) : propertySchema.getMinimum();
         propertySchema.setMinimum(min);
 
-        BigDecimal max;
-        try {
-          max = limits.getMax() != null ? BigDecimal.valueOf(limits.getMax().intValueExact()) : propertySchema.getMaximum();
-        } catch (ArithmeticException e) {
-          LOG.warn("Integer type {} on {} has non-integer maximum value {} defined, rounding down to nearest whole value.", propertyName, parentClass.getSimpleName(), limits.getMax());
-          max = BigDecimal.valueOf(limits.getMax().intValue());
-        }
+        BigDecimal max = limits.getMax() != null ? limits.getMax().setScale(0, RoundingMode.FLOOR) : propertySchema.getMaximum();
         propertySchema.setMaximum(max);
       });
     }
