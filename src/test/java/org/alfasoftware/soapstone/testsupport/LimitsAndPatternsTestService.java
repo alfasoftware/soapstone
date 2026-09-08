@@ -34,6 +34,7 @@ public class LimitsAndPatternsTestService {
   public static class Request {
     private String stringField;
     private int intField;
+    private long longField;
     private double doubleField;
     private LocalDate dateField;
     private List<String> listField;
@@ -56,6 +57,15 @@ public class LimitsAndPatternsTestService {
 
     public void setIntField(int intField) {
       this.intField = intField;
+    }
+
+    @JsonProperty
+    public long getLongField() {
+      return longField;
+    }
+
+    public void setLongField(long longField) {
+      this.longField = longField;
     }
 
     @JsonProperty

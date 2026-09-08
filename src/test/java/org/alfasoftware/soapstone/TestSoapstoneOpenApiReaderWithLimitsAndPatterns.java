@@ -72,10 +72,12 @@ public class TestSoapstoneOpenApiReaderWithLimitsAndPatterns {
           return stringField ? new StringLimitAndPatternTuple().pattern("[A-Z]+").maxLength(20) : new StringLimitAndPatternTuple();
         })
         .withNumberLimitsFromProperty(fieldAnnotations -> {
-          boolean intField = int.class.equals(fieldAnnotations.getLeft().getType());
-          return intField ?
-              new NumberLimitsTuple().min(BigDecimal.valueOf(5.1)).max(BigDecimal.valueOf(10.1)) : // Supply with decimal limits to test rounding is applied
-              new NumberLimitsTuple().min(BigDecimal.valueOf(5.0)).max(BigDecimal.valueOf(10.0));
+          if (int.class.equals(fieldAnnotations.getLeft().getType())) {
+            return new NumberLimitsTuple().min(BigDecimal.valueOf(5.1)).max(BigDecimal.valueOf(10.1)); // Supply with decimal limits to test rounding is applied
+          } else if (long.class.equals(fieldAnnotations.getLeft().getType())) {
+            return new NumberLimitsTuple().min(BigDecimal.valueOf(0)).max(BigDecimal.valueOf(999999999999999L)); // Supply with a limit larger than integer limit to check long limits not wrapped
+          }
+          return new NumberLimitsTuple().min(BigDecimal.valueOf(5.0)).max(BigDecimal.valueOf(10.0));
         })
         .withLimitsAndPatternsHandler(new TestLimitsAndPatternsHandler())
         .build();
@@ -118,6 +120,13 @@ public class TestSoapstoneOpenApiReaderWithLimitsAndPatterns {
         hasProperty("format", is("int32")),
         hasProperty("maximum", is(BigDecimal.valueOf(10))),
         hasProperty("minimum", is(BigDecimal.valueOf(6)))
+    ));
+
+    assertThat(requestSchema.getProperties().get("longField"), allOf(
+        hasProperty("type", is("integer")),
+        hasProperty("format", is("int64")),
+        hasProperty("maximum", is(BigDecimal.valueOf(999999999999999L))),
+        hasProperty("minimum", is(BigDecimal.valueOf(0)))
     ));
 
     assertThat(requestSchema.getProperties().get("doubleField"), allOf(
